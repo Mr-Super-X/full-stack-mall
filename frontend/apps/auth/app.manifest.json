@@ -1,0 +1,1 @@
+{ "name": "auth", "port": 5179, "requiredRoutes": ["Login", "NotFound"] }

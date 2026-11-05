@@ -1,0 +1,235 @@
+/**
+ * Element Plus 组件样式覆盖（对齐 form-schema/styles/element-form-overwrite.scss 模式）。
+ *
+ * **模式**：
+ * - 不在 ProTable.vue 内联样式
+ * - 不使用 :deep（CLAUDE.md §3 BEM 规范禁止 scoped + :deep）
+ * - 用 `.vv-pro-table { ... }` 嵌套选择器，scoped 隔离
+ * - ProTable.vue 顶部 `import './styles/element-protable-overwrite.scss'`
+ *
+ * @group ProTable 全局样式覆盖
+ */
+@use 'sass:map';
+
+.#{$BEM_PREFIX}-pro-table {
+  /* ─────────── ElTable 宽度修复 ─────────── */
+
+  /* 默认 width: auto + 表格按内容收缩。强制 100% 让表格填满父容器 */
+  & > .el-table {
+    width: 100%;
+  }
+
+  /* ─────────── ElTableV2（v3.0.1 虚拟化分支）规则 ─────────── */
+
+  /* el-table-v2 容器：fixed-size 模式，必须占满父容器（ElementTableV2Body 通过
+     ResizeObserver 测量后回填 px 数字到 width/height prop）。此处仅防御 fallback：
+     当父容器未明确高度时仍需有兜底尺寸，避免 0 高度白屏（详见
+     ElementTableV2Body.vue style 段 min-height: 400px）。
+     密度/列宽不在此处控制：el-table-v2 不响应 CSS 变量，由 JS 显式传 rowHeight。 */
+  & > .el-table-v2 {
+    width: 100%;
+  }
+
+  /* ─────────── ElForm (SearchForm) 宽度修复 ─────────── */
+
+  /* el-form-item 默认 inline-flex + auto 宽度，导致 select 等控件塌缩。
+     强制 el-form-item / el-form-item__content / 控件 width: 100% 占满 el-col */
+  .el-form-item,
+  .el-form-item__content,
+  .el-select,
+  .el-date-editor,
+  .el-cascader,
+  .el-tree-select,
+  .el-input-number {
+    width: 100%;
+  }
+
+  /* ─────────── SearchForm 窄容器列数降级（容器查询） ─────────── */
+
+  /* SearchForm 固定 4 列布局（el-col span=6）。ProTable 处于窄容器时（如引擎对比
+     demo 双栏并排的 pane，仅 ~630px），每列被压到 ~150px，输入框仅剩 ~80px 不可用。
+     element-plus 栅格断点基于视口宽度，对"视口宽但容器窄"的场景无效，
+     故用 CSS 容器查询按 .vv-pro-table-search 自身宽度降级：≤900px 降 2 列、≤560px 降 1 列。
+     覆盖 el-col 的 max-width/flex-basis 即可（选择器特异性 0-3-0 > el-col-6 的 0-1-0）
+
+     v3.1.4 review：选择器从硬编码 .vv-pro-table-search 改为 .#{$BEM_PREFIX}-pro-table-search，
+     与 BEM 工具产出对齐。SearchForm 块名 / BEM 前缀改了 → 全链路同步，不会静默失效。
+     嵌套规则：容器类型 / 按钮组右对齐 / 容器查询 @container 均针对 SearchForm 根元素；
+     @container 内部 .el-row > .el-col 是后代选择器，编译产物
+     `.vv-pro-table .vv-pro-table-search { container-type: ... }` 与原版完全一致
+     （SearchForm 永远是 ProTable 后代，descendant 语义正确）。 */
+  .#{$BEM_PREFIX}-pro-table-search {
+    container-type: inline-size;
+
+    /* 搜索/重置/展开按钮组右对齐（el-col 内默认左对齐，对齐多数中后台工具栏惯例） */
+    &__actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    @container (max-width: 900px) {
+      .el-row > .el-col {
+        flex: 0 0 50%;
+        max-width: 50%;
+      }
+    }
+    @container (max-width: 560px) {
+      .el-row > .el-col {
+        flex: 0 0 100%;
+        max-width: 100%;
+      }
+    }
+  }
+
+  /* ─────────── ElPagination 横排修复 ─────────── */
+
+  /* element-plus 2.x 的 el-pagination 在 vite-plugin-mock + 按需注入环境下 flex 样式丢失，
+     导致分页器数字按钮垂直排列。手动恢复 flex 横向布局 */
+  .el-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    white-space: normal;
+
+    .el-pagination__sizes {
+      width: 120px;
+    }
+  }
+  .el-pagination ul.el-pager {
+    display: inline-flex;
+    flex-wrap: wrap;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    gap: 4px;
+  }
+  .el-pagination ul.el-pager li {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 28px;
+    padding: 0 4px;
+    background: var(--el-fill-color);
+    color: var(--el-text-color-regular);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .el-pagination ul.el-pager li.is-active {
+    background: var(--el-color-primary);
+    color: var(--el-color-white);
+  }
+
+  /* ─────────── SearchForm 高级筛选按钮内 ElBadge 样式 ─────────── */
+  /* v3.3 重大重构：
+     - 旧规则（已移除）：强制 ElBadge 为 inline 相对定位 + margin-left: 4px，
+       解决「ElButton 文字按钮 + ElBadge 数字」场景下的视觉重叠问题。
+     - 新方案：高级筛选改为圆形图标按钮（详见 SearchForm.vue __advanced-btn），
+       按钮内不再有文字，ElBadge 改为「绝对定位到按钮右上角」更合理。
+     - 新样式实现位置：SearchForm.vue 的 `&__advanced-btn { position: relative }` +
+       `&__badge { position: absolute; top: -2px; right: -2px }`（v3.3 已实现）。
+     - 此处不再覆写 ElBadge 定位，以免新规则被高特异性 (0,3,0) 顶掉。 */
+
+  /* ─────────── 表格密度（紧凑/默认/宽松）切换 ─────────── */
+
+  /* 密度档位设计令牌：el 引擎表体 td 行高/padding、表头 padding、vxe 引擎行高变量
+     全部同源这一张表 —— 调档/新增档位只改这里，不再有多处分散的 32/48/64 硬编码。
+     （element-plus 2.x 无内置 density prop，靠 ProTable 根 div 的 data-density
+       属性 + 下列生成的规则控制行高）
+
+     ⚠️ v3.0.1 H1 已知约束：本 SCSS 字典仅服务 v1 el-table 引擎 + vxe 引擎。
+     el-table-v2 引擎（虚拟滚动分支）有自己的 DENSITY_ROW_HEIGHT 字典
+     在 `components/ElementTableV2Body.vue` script 段，数值必须与本表同步。
+     调档时务必两处一起改（v3.0.1 引入 CSS 变量桥接会让 v2 引擎多一层
+     getComputedStyle 运行时开销，权衡后维持双源）。 */
+  $pro-table-density-tokens: (
+    'compact': (
+      row-height: 32px,
+      cell-padding-y: 4px,
+    ),
+    'default': (
+      row-height: 48px,
+      cell-padding-y: 8px,
+    ),
+    'loose': (
+      row-height: 64px,
+      cell-padding-y: 12px,
+    ),
+  );
+
+  @each $density, $tokens in $pro-table-density-tokens {
+    $row-height: map.get($tokens, row-height);
+    $cell-padding-y: map.get($tokens, cell-padding-y);
+
+    &[data-density='#{$density}'] {
+      /* el 引擎表体：td 设 height + padding 控制行高 */
+      .el-table__row td {
+        height: $row-height;
+        padding: $cell-padding-y 0;
+      }
+
+      /* el 引擎表头：不设 height 时表头高度 = 内容行高(约 23.6px) + padding，
+         比表体矮一档（默认档 39.6 vs 48），两引擎并排 demo 出现高度差；
+         th 的 height 在 table 布局中按最小高度生效，与表体对齐（vxe 表头与表体
+         共用行高变量，无此问题） */
+      .el-table__header .el-table__cell {
+        height: $row-height;
+        padding: $cell-padding-y 0;
+      }
+
+      /* vxe 引擎：不能沿用「td 设高」——vxe 由 JS 测量下列变量（隐藏尺寸元素
+         .vxe-table-var-*），以「内联 min-height」写进 .vxe-cell
+         （vxe-table es/table/src/body.js），对 td 设高会被顶开（实测 default 档
+         行高 48+16=64px，双引擎并排差 ~180px）。四尺寸键同值，规避 vxe size
+         解析路径差异。注意测量结果有缓存，动态切密度后需调
+         VxeTableBody.recalculate()（ProTable.handleDensityChange 触发） */
+      --vxe-ui-table-row-height-default: #{$row-height};
+      --vxe-ui-table-row-height-medium: #{$row-height};
+      --vxe-ui-table-row-height-small: #{$row-height};
+      --vxe-ui-table-row-height-mini: #{$row-height};
+
+      /* compact 专属：vxe 单元格垂直 padding 不缩会顶住 32px 行高
+         （22px 行高内容 + 16px 默认 padding = 38px > 32px） */
+      @if $density == 'compact' {
+        .vxe-body--row .vxe-cell {
+          padding-top: #{$cell-padding-y};
+          padding-bottom: #{$cell-padding-y};
+        }
+      }
+
+      /* 汇总行（el-table footer / show-summary）：与表体行高对齐，
+         之前 footer td 不在 density 选择器内导致 compact 档汇总行仍按默认行高渲染 */
+      .el-table__footer-wrapper td {
+        height: $row-height;
+        padding: $cell-padding-y 0;
+      }
+    }
+  }
+
+  /* ─────────── vxe 引擎与 el 引擎视觉对齐（v3.5 hotfix-10） ─────────── */
+
+  /*
+   * 行高对齐：vxe td 默认 vertical-align: baseline —— 块级 flex 单元格（.vxe-cell）
+   * 参与基线对齐时被 baseline descent 修正撑高（实测 default 档表体 49.54px / 树形
+   * 53.57px / 表头 49.84px，el 引擎恒 48px）。对 td 设 height 无效（table 布局中
+   * height 只是最小值，仍被基线修正顶开）；改 vertical-align: middle 后 td 精确
+   * 48px（实测 48.0000038 浮点），双引擎行高对齐。表头表体都要覆盖（vxe 表头 cell
+   * 结构与表体一致，同样受基线修正影响）
+   */
+  .vxe-table--body td,
+  .vxe-table--header th {
+    vertical-align: middle;
+  }
+
+  /*
+   * 表头字重/颜色对齐 el：el th 为 font-weight 600 + --el-text-color-secondary，
+   * vxe 默认 700 + rgba(0,0,0,0.7) —— 700 的粗体在视觉上像"字号更大"，
+   * 统一后双引擎表头观感一致（字号两边同为 14px，无需调整）
+   */
+  .vxe-table--header .vxe-header--column {
+    font-weight: 600;
+    color: var(--el-text-color-secondary);
+  }
+}

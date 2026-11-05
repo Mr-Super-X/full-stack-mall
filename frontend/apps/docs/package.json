@@ -1,0 +1,41 @@
+{
+  "name": "@vv-app/docs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:local": "cross-env VITE_MENU_SOURCE=local vite",
+    "build": "run-s \"build-only {@}\" \"type-check:full\" --",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build",
+    "type-check:full": "vue-tsc --build --force",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "catalog:",
+    "@vv/mock": "workspace:*",
+    "@vv/shared": "workspace:*",
+    "@vv/ui": "workspace:*",
+    "dayjs": "catalog:",
+    "dompurify": "catalog:",
+    "echarts": "catalog:",
+    "element-plus": "catalog:",
+    "highlight.js": "catalog:",
+    "lodash-es": "catalog:",
+    "pinia": "catalog:",
+    "typescript": "catalog:",
+    "vue": "catalog:",
+    "vue-router": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vue/test-utils": "catalog:",
+    "@vv/config": "workspace:*",
+    "jsdom": "catalog:",
+    "unocss": "catalog:",
+    "vitest": "catalog:"
+  }
+}

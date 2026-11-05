@@ -1,0 +1,36 @@
+{
+  "extends": "../../packages/shared/tsconfig.base.json",
+  "include": ["env.d.ts", "src/**/*", "src/**/*.vue", "../../packages/shared/src/**/*.d.ts"],
+  "exclude": ["src/**/__tests__/*", "src/**/*.spec.ts", "src/**/*.test-d.ts"],
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@api/*": ["../../packages/shared/src/api/*"],
+      "@assets/*": ["../../packages/ui/src/assets/*"],
+      "@components/*": ["../../packages/ui/src/components/*"],
+      "@composables/*": ["../../packages/shared/src/composables/*"],
+      "@directives": ["../../packages/shared/src/directives/index.ts"],
+      "@directives/*": ["../../packages/shared/src/directives/*"],
+      "@enums/*": ["../../packages/shared/src/enums/*"],
+      "@layouts/*": ["./src/layouts/*"],
+      "@locales": ["../../packages/shared/src/locales/index.ts"],
+      "@locales/*": ["../../packages/shared/src/locales/*"],
+      "@mock": ["../../packages/mock/src/index.ts"],
+      "@mock/*": ["../../packages/mock/src/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@plugins": ["./src/plugins/index.ts"],
+      "@plugins/*": ["./src/plugins/*"],
+      "@router": ["./src/router/index.ts"],
+      "@router/*": ["./src/router/*"],
+      "@store": ["../../packages/shared/src/store/index.ts"],
+      "@store/*": ["../../packages/shared/src/store/*"],
+      "@utils": ["../../packages/shared/src/utils/index.ts"],
+      "@utils/*": ["../../packages/shared/src/utils/*"],
+      "@vv/shared": ["../../packages/shared/src/index.ts"],
+      "@vv/shared/*": ["../../packages/shared/src/*"],
+      "@vv/ui": ["../../packages/ui/src/index.ts"],
+      "@vv/ui/*": ["../../packages/ui/src/*"]
+    }
+  }
+}

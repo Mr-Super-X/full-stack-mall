@@ -1,0 +1,1 @@
+{ "name": "admin", "port": 5174, "requiredRoutes": ["Forbidden", "NotFound", "ServerError"] }

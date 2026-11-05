@@ -1,0 +1,20 @@
+/* base 层 · 无障碍基线
+ *
+ * 背景：reset.css 全局 outline: 0 抹掉了浏览器默认焦点指示器，
+ * 键盘导航可达性依赖各组件自觉补 :focus-visible——本文件提供全局统一兜底；
+ * 组件层自定义焦点样式（类选择器）优先级高于本规则，自动胜出。
+ *
+ * :focus-visible 仅键盘导航触发（鼠标点击不触发），对鼠标用户零视觉干扰。
+ */
+
+/* 键盘焦点指示器（全局兜底） */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* 文本选区：跟随品牌色，文字色消费 EP 白色 token（暗色联动） */
+::selection {
+  background: var(--color-primary);
+  color: var(--el-color-white, #fff);
+}

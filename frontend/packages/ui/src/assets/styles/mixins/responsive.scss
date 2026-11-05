@@ -1,0 +1,81 @@
+// 响应式断点 mixin（移动端优先 / Mobile First）
+//
+// 用法：
+//   @use '@assets/styles/mixins/responsive' as *;
+//   .my-grid {
+//     grid-template-columns: 1fr;
+//     @include vv-responsive(md) {
+//       grid-template-columns: repeat(2, 1fr);
+//     }
+//     @include vv-responsive(lg) {
+//       grid-template-columns: repeat(3, 1fr);
+//     }
+//   }
+//
+// 断点值参考 Tailwind 约定：
+//   sm:  640px   （手机横屏 / 小平板）
+//   md:  768px   （平板竖屏）
+//   lg:  1024px  （平板横屏 / 小桌面）
+//   xl:  1280px  （桌面）
+//   2xl: 1536px  （大桌面 / 4K）
+//
+// 注意：本文件只包含 mixin，不输出任何 CSS 类。
+// 组件 @use 时仅编译期拼接，不会导致样式重复。
+
+/// 响应式断点（min-width 向上匹配，移动端优先）
+///
+/// @param {'sm' | 'md' | 'lg' | 'xl' | '2xl'} $breakpoint 断点名
+@mixin vv-responsive($breakpoint) {
+  @if $breakpoint == sm {
+    @media (min-width: 640px) {
+      @content;
+    }
+  } @else if $breakpoint == md {
+    @media (min-width: 768px) {
+      @content;
+    }
+  } @else if $breakpoint == lg {
+    @media (min-width: 1024px) {
+      @content;
+    }
+  } @else if $breakpoint == xl {
+    @media (min-width: 1280px) {
+      @content;
+    }
+  } @else if $breakpoint == 2xl {
+    @media (min-width: 1536px) {
+      @content;
+    }
+  } @else {
+    @error "Unknown breakpoint: #{$breakpoint}. Expected: sm | md | lg | xl | 2xl";
+  }
+}
+
+/// 反向响应式（max-width，向下匹配）
+///
+/// @param {'sm' | 'md' | 'lg' | 'xl' | '2xl'} $breakpoint 断点名
+@mixin vv-responsive-down($breakpoint) {
+  @if $breakpoint == sm {
+    @media (max-width: 639px) {
+      @content;
+    }
+  } @else if $breakpoint == md {
+    @media (max-width: 767px) {
+      @content;
+    }
+  } @else if $breakpoint == lg {
+    @media (max-width: 1023px) {
+      @content;
+    }
+  } @else if $breakpoint == xl {
+    @media (max-width: 1279px) {
+      @content;
+    }
+  } @else if $breakpoint == 2xl {
+    @media (max-width: 1535px) {
+      @content;
+    }
+  } @else {
+    @error "Unknown breakpoint: #{$breakpoint}. Expected: sm | md | lg | xl | 2xl";
+  }
+}

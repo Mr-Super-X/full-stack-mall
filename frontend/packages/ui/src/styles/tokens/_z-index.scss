@@ -1,0 +1,23 @@
+// tokens 层 · z-index 语义化层级
+//
+// 强约束（docs/49 §3.4）：
+//   - 全局层级一律消费下列 token；组件/布局内部叠放用 1-100 自管
+//   - 新增全局层级先在本文件增补 token 并注释语义，禁止随手写数字
+// 分层说明：toast(1080) 之上为「覆盖全屏/调试」场景——值沿用各组件历史硬编码
+// （行为零变化），语义归位（2026-10-29 样式审计补充分层）
+
+:root {
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+  --z-index-toast: 1080;
+  --z-index-banner: 1999; // NetworkBanner 常驻横幅：贴 EP ElMessage(2000+) 之下——瞬时错误提示优先于常驻横幅
+  --z-index-fullscreen: 1500; // ProTable 全屏：盖过常规 modal，低于覆盖层
+  --z-index-layout-overlay: 4000; // 布局设置面板（LayoutSwitcher）：高于全屏，低于调试层
+  --z-index-debug-toast: 9998; // XForm 调试错误 toast：调试信息须浮于业务 UI
+  --z-index-debug-banner: 9999; // XForm 调试 banner：全站最高（开发态专用）
+}

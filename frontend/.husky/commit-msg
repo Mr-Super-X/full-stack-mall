@@ -1,0 +1,6 @@
+# 禁止 AI 协作痕迹进入 commit message（owner 规定 2026-10-30，CLAUDE.md §4 #16）
+# 检查逻辑独立在 scripts/check-commit-msg.sh（可单独执行/测试，词表含国外+国产 AI 工具）
+# 命中即 exit 1 并附 --no-verify 逃生指引，不再执行 commitlint
+sh scripts/check-commit-msg.sh "$1" || exit 1
+
+pnpm exec commitlint --edit "$1"

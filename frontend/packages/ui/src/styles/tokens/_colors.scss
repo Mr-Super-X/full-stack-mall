@@ -1,0 +1,28 @@
+// tokens 层 · 颜色族
+//
+// 双层变量设计：
+//   SCSS 变量（$color-*）：编译期常量，供 element-overwrite/theme-vars.scss
+//     灯色阶 color.mix 计算（本包唯一消费方）
+//   CSS 变量（--color-*）：运行时变量，组件经 var() 消费；injectBrandColor
+//     启动时按 VITE_BRAND_COLOR 覆盖 --color-primary（@vv/shared/app-bootstrap）
+//
+// 命名纪律：语义化命名（--color-danger 而非 --red）；新增色值先进 tokens（docs/49 §3）
+
+// ─── SCSS 编译期常量 ─────────────────────────────────────────
+
+$color-primary: #409eff;
+$color-success: #67c23a;
+$color-warning: #e6a23c;
+$color-danger: #f56c6c;
+$color-info: #909399;
+
+// ─── CSS 运行时变量（业务组件通过 var() 读取）────────────────
+
+:root {
+  // ─── 颜色 ────────────────────────────────────────────────
+  --color-primary: #{$color-primary};
+  --color-success: #{$color-success};
+  --color-warning: #{$color-warning};
+  --color-danger: #{$color-danger};
+  --color-info: #{$color-info};
+}

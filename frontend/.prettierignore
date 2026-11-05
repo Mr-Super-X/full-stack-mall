@@ -1,0 +1,12 @@
+dist
+dist-ssr
+coverage
+node_modules
+pnpm-lock.yaml
+*.min.js
+*.min.css
+CHANGELOG.md
+docs/superpowers
+# tsconfig.app.json 由 scripts/generate-tsconfig-paths.ts 单一来源生成（check:aliases 锁定
+# 紧凑数组形态），prettier 展开数组会导致一致性校验漂移——交由生成器全权负责格式
+apps/*/tsconfig.app.json

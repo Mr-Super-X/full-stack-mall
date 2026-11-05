@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <!-- viewport meta 由 src/plugins/remAdaptation.ts 在 install 时创建（app.use 先于首帧渲染，时序安全）；
+         VIEWPORT_CONTENT 常量为唯一事实源，不在此静态拷贝（防两处漂移） -->
+    <!-- 首屏占位标题；main.ts 会按 VITE_APP_TITLE 覆盖，路由切换后按 meta.title 动态更新 -->
+    <title>企业中后台管理</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+# Monorepo 迁移期临时精简钩子（2026-10-21，P0 阶段启用）
+# 原五步链（generate:tsconfig-paths / type-check / check:aliases）假设单根 src/，
+# P0-P1 迁移期结构性不适用；完整多包门禁链在 P5 重建：
+# docs/superpowers/plans/2026-10-21-monorepo-migration.md（Task P5-1 / P5-5）
+# 暂存区文件先自动格式化 + ESLint fix（lint-staged 仅处理变更文件，不全库扫描）
+pnpm lint-staged
+# 路由一致性检查（P0-2 起已改指 apps/*/src/modules，P0 期间仍指 src/，均可用）
+pnpm check:routes

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <!-- auth 无 remAdaptation 插件（h5 布局在 apps/h5），viewport meta 静态声明；
+         content 与 @vv/shared 的 remAdaptation VIEWPORT_CONTENT 保持一致（P5 下沉单源） -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <!-- 首屏占位标题；main.ts 会按 VITE_APP_TITLE 覆盖 -->
+    <title>统一登录</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

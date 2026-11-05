@@ -1,0 +1,113 @@
+// 项目 CSS 自定义属性（CSS Variables）+ SCSS 编译期常量
+//
+// ─── 双层变量设计 ──────────────────────────────────────────────
+//
+//   SCSS 变量（$xxx）：编译期常量，可被 mixin 引用（如灯色阶计算）
+//   CSS 变量（--xxx）：运行时变量，组件通过 var() 读取，主题切换时跟随
+//
+// 命名规范：
+//   --color-* / $color-*    颜色
+//   --spacing-*             间距（步进 4）
+//   --radius-*              圆角
+//   --font-size-*           字号
+//   --font-weight-*         字重
+//   --line-height-*         行高
+//   --font-family-*         字体族
+//   --shadow-*              阴影
+//   --z-index-*             层级
+//   --duration-*            动画时长
+//   --ease-*                缓动函数
+//   --header-* / --sidebar-*  布局尺寸
+
+// ─── SCSS 编译期常量（供 mixin 计算使用）────────────────────
+
+$color-primary: #409eff;
+$color-success: #67c23a;
+$color-warning: #e6a23c;
+$color-danger: #f56c6c;
+$color-info: #909399;
+
+// ─── CSS 运行时变量（业务组件通过 var() 读取）────────────────
+
+:root {
+  // ─── 颜色 ────────────────────────────────────────────────
+  --color-primary: #{$color-primary};
+  --color-success: #{$color-success};
+  --color-warning: #{$color-warning};
+  --color-danger: #{$color-danger};
+  --color-info: #{$color-info};
+
+  // ─── 间距（步进 4）────────────────────────────────────────
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  // ─── 圆角 ─────────────────────────────────────────────────
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  // ─── 字号 ─────────────────────────────────────────────────
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+
+  // ─── 字重 ─────────────────────────────────────────────────
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  // ─── 行高 ─────────────────────────────────────────────────
+  --line-height-tight: 1.25;
+  --line-height-base: 1.5;
+  --line-height-relaxed: 1.75;
+
+  // ─── 字体族 ───────────────────────────────────────────────
+  --font-family-base:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-mono: 'Fira Code', Monaco, Consolas, 'Courier New', monospace;
+
+  // ─── 阴影 ─────────────────────────────────────────────────
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.15);
+
+  // ─── z-index 语义化层级 ────────────────────────────────────
+  // 局部层（组件内部叠放）用 1-100 自管；全局层按下列 token。2026-10-29 样式审计补充分层：
+  // toast(1080) 之上为「覆盖全屏/调试」场景——值沿用各组件历史硬编码（行为零变化），语义归位
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+  --z-index-toast: 1080;
+  --z-index-banner: 1999; // NetworkBanner 常驻横幅：贴 EP ElMessage(2000+) 之下——瞬时错误提示优先于常驻横幅
+  --z-index-fullscreen: 1500; // ProTable 全屏：盖过常规 modal，低于覆盖层
+  --z-index-layout-overlay: 4000; // 布局设置面板（LayoutSwitcher）：高于全屏，低于调试层
+  --z-index-debug-toast: 9998; // XForm 调试错误 toast：调试信息须浮于业务 UI
+  --z-index-debug-banner: 9999; // XForm 调试 banner：全站最高（开发态专用）
+
+  // ─── 动画时长 ─────────────────────────────────────────────
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+
+  // ─── 缓动函数 ─────────────────────────────────────────────
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  // ─── 布局尺寸 ─────────────────────────────────────────────
+  --header-height: 60px;
+  --sidebar-width: 220px;
+  --sidebar-collapsed-width: 64px;
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@vv-app/__APP_NAME__",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-s \"build-only {@}\" \"type-check:full\" --",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build",
+    "type-check:full": "vue-tsc --build --force",
+    "test": "vitest run",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vv/mock": "workspace:*",
+    "@vv/shared": "workspace:*",
+    "@vv/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@vue/test-utils": "^2.4.11",
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.9",
+    "@vv/config": "workspace:*"
+  }
+}

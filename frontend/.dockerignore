@@ -1,0 +1,23 @@
+# ---- 依赖与构建产物（容器内重装重建，宿主机状态不进 context）----
+node_modules
+**/node_modules
+**/dist
+dist-prod
+.turbo
+**/.turbo
+**/*.tsbuildinfo
+
+# ---- VCS 与 CI/CD ----
+.git
+.github
+
+# ---- 文档与测试产物（构建无关）----
+docs
+tests/e2e/test-results
+tests/e2e/playwright-report
+playwright-report
+
+# ---- 本地工作文件与日志 ----
+*.log
+.claude
+.agent-reports

@@ -1,0 +1,29 @@
+{
+  "name": "@vv/mock",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "type-check": "vue-tsc --build"
+  },
+  "peerDependencies": {
+    "vue": "catalog:",
+    "element-plus": "catalog:",
+    "axios": "catalog:",
+    "lodash-es": "catalog:",
+    "vue-router": "catalog:",
+    "pinia": "catalog:",
+    "pinia-plugin-persistedstate": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.0",
+    "vite-plugin-mock": "^3.0.2"
+  },
+  "dependencies": {
+    "@vv/shared": "workspace:*"
+  }
+}

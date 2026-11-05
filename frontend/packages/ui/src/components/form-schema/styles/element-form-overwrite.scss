@@ -1,0 +1,124 @@
+.#{$BEM_PREFIX}-x-form {
+  /* el-date-editor 样式覆盖 */
+  .el-date-editor.el-input,
+  .el-date-editor.el-input__wrapper {
+    width: 100%;
+  }
+
+  /* el-input-number 样式覆盖 */
+  .el-input-number {
+    width: 100%;
+  }
+
+  /* Card / Row / FormItem 等顶层 schema 节点同辈垂直间距：
+     关键洞察——element-plus + XForm 渲染逻辑：
+       schema.column = 1 → 全部 child 包在同一个 row 内，每个 child 一个 col-24，
+         配合 ElRow 默认 flex-wrap: wrap 自动垂直堆叠（col-24 占 100% 宽度）
+       schema.column = N → 一个 row 包 N 个 col-N 水平排列
+     用 row-gap（flex-wrap 容器专属：只控制 wrap 后的行间距，不影响同 row 内 col
+     水平对齐）替代之前的 .el-row > .el-col + .el-col margin-top：
+       之前方案在 column: N 时给同 row 内第二个 col 加 margin-top 导致错位
+       row-gap 只对 wrap 后的多 row 生效（column: 1 垂直堆叠场景），
+       同 row 内 col 水平排列不受影响（gap 是行间距而非列间距）*/
+  .el-row {
+    row-gap: 16px;
+  }
+  /* 嵌套 Card（在父 Card body 内）的 row-gap 略小，与外层区分层次 */
+  .el-card .el-row {
+    row-gap: 12px;
+  }
+
+  /* ArrayNode 容器内部 header 与 body 间距：
+     array-node__header（标题区）与 array-node__body（行内容区）是 render-array-node
+     渲染的两个直接兄弟 div，无默认 margin，多个 array demo 视觉紧贴。
+     用兄弟选择器 + body 给 body 加 margin-top，避开嵌套 + last-child 陷阱 */
+  .array-node__header + .array-node__body {
+    margin-top: 16px;
+  }
+  /* ArrayNode header 内部布局：title 在左、添加/操作按钮在右。
+     默认是 inline 显示，title 与按钮之间无间距且 baseline 对齐不佳；
+     转 flex + align-items: center + gap 让 title 与所有右侧元素自动间距 12px */
+  .array-node__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  /* ArrayNode body 内部 row 与 row 间距：
+     兄弟选择器 + row 给同辈 row 之间加 12px 垂直间距，避开 :last-child 陷阱 */
+  .array-node__body > * + * {
+    margin-top: 12px;
+  }
+
+  /* ArrayNode 行布局：row-body（行内表单字段栅格）与 row-actions（上移/下移/删除）
+     水平排列。render-array-node 渲染结构即 body+actions 两个 div，此前引擎未提供
+     默认布局，消费者被迫自行补 CSS（见 XFormStyleOverride demo 的场景补丁） */
+  .array-node__row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    /* F7 拖拽排序：源行半透明（dragstart 加 .is-dragging，dragend 清除） */
+    &.is-dragging {
+      opacity: 0.5;
+    }
+    /* F7 落点指示线：dragover 时按鼠标垂直位置（上半/下半）加 .is-drop-before / .is-drop-after，
+       用 ::before/::after 渲染 2px --el-color-primary 插入线（绝对定位跨整行宽度） */
+    &.is-drop-before,
+    &.is-drop-after {
+      position: relative;
+      &::before,
+      &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--el-color-primary);
+        pointer-events: none;
+      }
+    }
+    &.is-drop-before::before {
+      top: -1px;
+    }
+    &.is-drop-after::after {
+      bottom: -1px;
+    }
+  }
+  .array-node__row-body {
+    /* 占据剩余宽度；min-width:0 允许内部 el-row 栅格收缩，防止长字段撑破行 */
+    flex: 1;
+    min-width: 0;
+  }
+  .array-node__row-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+    /* 操作区垂直落位对齐首行表单控件；标签置顶（labelPosition=top）等场景
+       消费方可覆盖 --xform-array-actions-offset 微调 */
+    // padding-top: var(--xform-array-actions-offset, 24px);
+  }
+
+  /* ArrayNode 空态：虚线框 + 占位文字，避免空态文案无视觉边界裸奔 */
+  .array-node__empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--el-text-color-placeholder);
+    font-size: 13px;
+    border: 1px dashed var(--el-border-color);
+    border-radius: 6px;
+  }
+
+  /* 字段级 dirty 标记（设计师审查 F13）：showDirtyMark=true 时被修改字段的 label 右侧
+     追加橙色圆点（--el-color-warning），给用户"我改了哪里"的视觉线索。
+     数据侧 use-form-dirty.ts 维护 dirtyFieldsRef 响应式集合，render-form-item 给
+     对应 el-form-item 追加 .is-dirty class，此处用 ::after 渲染圆点本身 */
+  .el-form-item.is-dirty .el-form-item__label::after {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--el-color-warning);
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+}

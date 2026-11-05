@@ -1,0 +1,24 @@
+// 第三方组件库（Element Plus）样式覆盖入口
+//
+// 目录结构：
+//   - theme-vars.scss  Element Plus 主题变量（5 主色 × 5 灯色阶 = 25 个 CSS 变量）
+//                     必须在 variables.scss 之后加载
+//   - <component>.scss  按需新增：单个组件的样式覆盖（按钮 / 表格 / 表单 / 弹窗 等）
+//
+// 加载位置：src/assets/styles/index.scss（仅此一处）
+// 加载顺序：theme-vars → 组件覆盖文件（按字母序）
+//
+// 扩展方式：
+//   1. 在本目录下新增 <component>.scss（如 button.scss / table.scss）
+//   2. 在本文件 @use 处按字母序追加一行
+//   3. 命名规范：文件名 = 组件名（kebab-case），与覆盖目标一一对应
+//   4. 内容组织：
+//      - 顶部放覆盖说明注释（覆盖了哪些类名 / 为什么需要覆盖）
+//      - 主体按 Element Plus 内部 BEM 层级书写（避免过深选择器）
+//      - 主题色必须用 var(--el-color-primary) 等 CSS 变量，禁用硬编码
+
+@use './theme-vars.scss';
+
+// 按需追加组件覆盖文件（示例，按字母序排列）：
+// @use './button.scss';
+// @use './table.scss';

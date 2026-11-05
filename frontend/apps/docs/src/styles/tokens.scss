@@ -1,0 +1,12 @@
+// 端级 Design Tokens（本端私有 CSS 变量）。
+//
+// 何时写这里：变量被本端 ≥2 个布局/模块共享时；只服务单布局/单页面的 token 就近放
+// layouts/<l>/styles/ 或 modules/<m>/styles/（就近原则，docs/49 §5）。
+// demo 演示内的色值/覆盖属被演示对象本身，豁免 token 化（docs/49 §6 豁免登记）。
+//
+// 命名强约束：一律 --docs-* 前缀，杜绝跨 app 撞名；全局共享变量
+// （--color-* / --z-index-* 等）归 packages/ui variables.scss，勿在此重复定义。
+
+// :root {
+//   --docs-example: 0;
+// }

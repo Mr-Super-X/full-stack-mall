@@ -1,0 +1,7 @@
+// H5 移动端级样式入口——在 main.ts 中紧跟 '@vv/ui/app-styles' 之后 import。
+//
+// 加载顺序即覆盖顺序：公共层（@vv/ui app-styles）→ 本端级层 → 布局/模块级 → 组件级。
+// 分层规范与归属判定见 docs/49-样式分层架构规范.md §5。
+
+@use './tokens.scss';
+@use './ui-overwrite.scss';

@@ -1,0 +1,1 @@
+{ "name": "__APP_NAME__", "port": "__APP_PORT__", "requiredRoutes": ["NotFound"] }

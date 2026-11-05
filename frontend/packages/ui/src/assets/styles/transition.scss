@@ -1,0 +1,97 @@
+// 全局过渡动画
+//
+// 包含：
+// 1. 全局 @keyframes（淡入淡出 / 滑入滑出 / 缩放）
+// 2. 过渡工具类（与 @keyframes 配合使用）
+//
+// 用法：
+//   <div class="vv-transition-fade vv-fade-in">...</div>
+//   <div :class="['vv-slide-up', isOpen ? 'vv-fade-in' : 'vv-fade-out']">...</div>
+//
+// 注意：
+// - mixin 工具不在此文件（避免 SFC @use 时重复输出 CSS），
+//   按需在 SFC <style> 中 @use '@assets/styles/mixins/transitions'
+// - Vue Transition 组件的 enter-active-class / leave-active-class 也可引用这些类名
+
+// ─── 全局动画 keyframes ────────────────────────────────────────
+
+@keyframes vv-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vv-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes vv-slide-up {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes vv-slide-down {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes vv-zoom-in {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// ─── 过渡工具类（与 keyframes 配合）─────────────────────────────
+
+// 淡入淡出过渡（搭配 .vv-fade-in / .vv-fade-out 使用）
+.vv-transition-fade {
+  transition: opacity 0.2s ease-in-out;
+}
+
+// 滑入滑出过渡（搭配 .vv-slide-up / .vv-slide-down 使用）
+.vv-transition-slide {
+  transition:
+    transform 0.2s ease-out,
+    opacity 0.2s ease-out;
+}
+
+// 缩放过渡（搭配 .vv-zoom-in 使用）
+.vv-transition-scale {
+  transition:
+    transform 0.2s ease-out,
+    opacity 0.2s ease-out;
+}
+
+// 通用：尊重用户的 prefers-reduced-motion 设置
+@media (prefers-reduced-motion: reduce) {
+  .vv-transition-fade,
+  .vv-transition-slide,
+  .vv-transition-scale {
+    transition: none;
+  }
+}

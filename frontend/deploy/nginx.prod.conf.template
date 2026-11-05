@@ -1,0 +1,106 @@
+# 生产网关（nginx 静态托管 + API 反代）—— scripts/node-gateway.ts（dev 网关）的生产形态对照。
+#
+# 渲染机制：nginx 官方镜像 entrypoint（20-envsubst-on-templates.sh）把本模板中
+# 容器 env 已定义的变量（此处仅 API_UPSTREAM）envsubst 渲染到 /etc/nginx/conf.d/；
+# nginx 内置变量（$host/$uri/$remote_addr…）不在容器 env，不会被误替换。
+#
+# 路径语义与 dev 网关逐条对齐（scripts/node-gateway.ts 头注）：
+#   /         → 302 /portal/
+#   /<app>/   → dist-prod/<app>/ 静态产物（未命中回退该 app 的 index.html，history SPA）
+#   /api/     → 反代 ${API_UPSTREAM}（无 URI 部分 = 原始路径原样透传；SSE 关缓冲）
+#   未匹配    → 404
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # ---- 传输优化 ----
+    gzip on;
+    gzip_min_length 1k;
+    gzip_comp_level 5;
+    gzip_types text/css application/javascript application/json image/svg+xml font/woff2;
+    gzip_vary on;
+    sendfile on;
+    tcp_nopush on;
+
+    # ---- 安全响应头（2026-10-29 /autoplan Round 3 R3-E4；gh-pages 侧由 build-pages 输出 _headers 同步）----
+    # ⚠️ nginx add_header 不跨层继承：下方 assets location 有自己的 add_header，
+    # 安全头须在该 location 内重复一份，否则静态产物响应丢失这组头
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options DENY;
+    add_header Referrer-Policy strict-origin-when-cross-origin;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()";
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
+
+    # ---- 根路径 302 → portal（$http_host 保留浏览器原始 Host 含端口，对齐 dev 网关
+    # rootRedirect 语义——防容器内监听 80 对外映射 8080 时相对 redirect 丢端口）----
+    location = / {
+        return 302 $scheme://$http_host/portal/;
+    }
+
+    # 浏览器默认拉根路径 favicon：指到 portal 产物（public/ 文件构建于 /portal/ 下）
+    location = /favicon.ico {
+        return 302 $scheme://$http_host/portal/favicon.ico;
+    }
+
+    # ---- 带内容哈希的构建产物长缓存（vite assets 目录；未命中即 404，不回退 SPA）----
+    location ~* ^/(admin|auth|portal|h5|big|docs)/assets/.+\.(js|css|woff2?|png|jpe?g|gif|svg|webp)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        # 安全头重复组（add_header 不跨层继承，见 server 块头注）
+        add_header X-Content-Type-Options nosniff;
+        add_header X-Frame-Options DENY;
+        add_header Referrer-Policy strict-origin-when-cross-origin;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=()";
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
+        try_files $uri =404;
+    }
+
+    # ---- 6 app 静态托管 + history 模式 SPA fallback ----
+    # alias 前缀与各 app VITE_BASE=/<app>/ 严格对齐；fallback 走 root 拼 /<app>/index.html
+    location /admin/ {
+        alias /usr/share/nginx/html/admin/;
+        try_files $uri $uri/ /admin/index.html;
+    }
+    location /auth/ {
+        alias /usr/share/nginx/html/auth/;
+        try_files $uri $uri/ /auth/index.html;
+    }
+    location /portal/ {
+        alias /usr/share/nginx/html/portal/;
+        try_files $uri $uri/ /portal/index.html;
+    }
+    location /h5/ {
+        alias /usr/share/nginx/html/h5/;
+        try_files $uri $uri/ /h5/index.html;
+    }
+    location /big/ {
+        alias /usr/share/nginx/html/big/;
+        try_files $uri $uri/ /big/index.html;
+    }
+    location /docs/ {
+        alias /usr/share/nginx/html/docs/;
+        try_files $uri $uri/ /docs/index.html;
+    }
+
+    # ---- API 反代（真实后端；SSE/stream 依赖关缓冲三行，见 docs/13）----
+    location /api/ {
+        proxy_pass ${API_UPSTREAM};   # 无 URI 部分：/api/x 原样转发到 upstream/api/x
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+    }
+
+    # 未匹配前缀 404（对齐 dev 网关行为）
+    location / {
+        return 404;
+    }
+}

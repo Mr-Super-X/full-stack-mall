@@ -1,0 +1,6 @@
+# affected 子集测试（2026-10-28 /autoplan D2 决策）：原 `pnpm test` 经 turbo dependsOn ^build
+# 会每次 push 先全量 build 6 app + 4 包再全量测试，日常循环被拖慢。
+# 与 CI PR 模式同参数（--filter=[origin/master]...）：只跑自 origin/master 以来
+# 变更的包及其依赖测试；master 全量网由 CI（turbo run test 无 filter）兜底。
+# 紧急逃生门：git push --no-verify（README Git 节已披露此成本与用法）。
+pnpm exec turbo run test --filter=[origin/master]...

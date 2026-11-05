@@ -1,0 +1,75 @@
+/**
+ * ProTable A11y 全局样式（v3.5 PR1-A：WCAG 2.1 AA 合规）
+ *
+ * 职责：
+ * 1) focus-visible 全局样式 —— 键盘 Tab 聚焦时高亮，鼠标点击不显示（避免视觉噪音）
+ * 2) prefers-reduced-motion 全局抑制 —— 用户系统开启减弱动效偏好时禁用过渡
+ * 3) sr-only 工具类 —— 视觉隐藏但供屏幕阅读器朗读（编辑态播报 / 选中播报）
+ *
+ * 设计原则：
+ * - 用 :focus-visible（Chrome 86+/Safari 15.4+/FF 85+）取代 :focus —— 区分键盘与鼠标聚焦
+ * - 用 prefers-reduced-motion media query 抑制 transition/animation
+ * - sr-only 用 clip-path 而非 display:none（屏幕阅读器仍可读）
+ * - 选择器特异性不依赖 !important（项目规范 §4 #13）：靠 BEM 命名空间 + 源码顺序决胜
+ *
+ * @group ProTable 全局样式
+ */
+
+/* ─────────── focus-visible 全局 ─────────── */
+
+/* 键盘 Tab 聚焦：元素焦点环（避免鼠标点击也高亮的视觉噪音） */
+.#{$BEM_PREFIX}-pro-table :focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* el-tag 内部 × 按钮：EP 默认无焦点样式，自定义覆盖 */
+.#{$BEM_PREFIX}-pro-table .el-tag__close:focus-visible,
+.#{$BEM_PREFIX}-pro-table .el-tag .close-btn:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+/* el-checkbox 键盘聚焦：内层 input 默认 outline 很弱，强化可见性 */
+.#{$BEM_PREFIX}-pro-table .el-checkbox__input:focus-visible,
+.#{$BEM_PREFIX}-pro-table .el-checkbox:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+/* ─────────── sr-only 工具类 ─────────── */
+
+/**
+ * 视觉隐藏但屏幕阅读器可读（用于 aria-live 播报场景）。
+ * - width/height 1px：保留盒模型占位
+ * - position absolute + 极远坐标：移出视口
+ * - clip-path: inset(50%)：现代裁剪方式（兼容主流屏幕阅读器）
+ * - white-space: nowrap：避免折行破坏 layout
+ */
+.#{$BEM_PREFIX}-pro-table .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ─────────── prefers-reduced-motion 全局抑制 ─────────── */
+
+/* 用户系统开启「减弱动效」偏好（macOS 辅助功能 / Windows 设置 / iOS 辅助触控）：
+   关闭所有过渡与动画，元素状态变更立即生效 */
+@media (prefers-reduced-motion: reduce) {
+  .#{$BEM_PREFIX}-pro-table,
+  .#{$BEM_PREFIX}-pro-table * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

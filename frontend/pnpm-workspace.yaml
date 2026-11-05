@@ -1,0 +1,129 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+catalog:
+  '@commitlint/cli': '^21.2.1'
+  '@commitlint/config-conventional': '^21.2.0'
+  '@commitlint/types': '^21.2.0'
+  '@element-plus/icons-vue': '^2.3.2'
+  '@iconify-json/ep': '^1.2.4'
+  '@iconify-json/tabler': '^1.2.42'
+  '@playwright/test': '^1.63.0'
+  '@release-it/conventional-changelog': '^12.0.0'
+  '@tsconfig/node24': '^24.0.4'
+  '@types/js-cookie': '^3.0.6'
+  '@types/jsdom': '^28.0.3'
+  '@types/lodash-es': '^4.17.12'
+  '@types/node': '^24.13.2'
+  '@types/postcss-pxtorem': '^6.1.0'
+  '@vitejs/plugin-vue': '^6.0.7'
+  '@vitejs/plugin-vue-jsx': '^5.1.5'
+  '@vitest/coverage-v8': '^4.1.10'
+  '@vitest/ui': '^4.1.10'
+  '@vue/eslint-config-prettier': '^10.2.0'
+  '@vue/eslint-config-typescript': '^14.9.0'
+  '@vue/test-utils': '^2.4.11'
+  '@vue/tsconfig': '^0.9.1'
+  '@wangeditor/editor': '^5.1.23'
+  '@wangeditor/editor-for-vue': '^5.1.12'
+  axios: '^1.18.1'
+  commitizen: '^4.3.2'
+  cross-env: '^10.1.0'
+  cz-customizable: '^7.5.4'
+  dayjs: '^1.11.21'
+  dompurify: '^3.4.15'
+  echarts: '^6.1.0'
+  element-plus: '^2.14.3'
+  eslint: '^10.7.0'
+  eslint-plugin-vue: '^10.9.2'
+  hash-wasm: '^4.12.0'
+  highlight.js: '11.11.1'
+  husky: '^9.1.7'
+  js-cookie: '^3.0.8'
+  jsdom: '^29.1.1'
+  lint-staged: '^17.0.8'
+  lodash-es: '^4.18.1'
+  normalize.css: '^8.0.1'
+  npm-run-all2: '^9.0.2'
+  only-allow: '^1.2.2'
+  pinia: '^3.0.4'
+  pinia-plugin-persistedstate: '^4.7.1'
+  postcss: '8.5.19'
+  postcss-pxtorem: '^6.1.0'
+  prettier: '^3.9.5'
+  release-it: '^21.0.0'
+  rollup-plugin-visualizer: '^7.0.1'
+  sass: '^1.101.0'
+  sortablejs: '^1.15.7'
+  turbo: '^2.11.0'
+  typescript: '~6.0.0'
+  unocss: '^66.7.5'
+  unplugin-auto-import: '^21.0.0'
+  unplugin-icons: '^24.0.0'
+  unplugin-vue-components: '^32.1.0'
+  vite: '^8.0.16'
+  vite-plugin-mock: '^3.0.2'
+  vite-plugin-vue-devtools: '^8.1.2'
+  vitest: '^4.1.9'
+  vitest-axe: '^0.1.0'
+  # 精确钉版与 overrides 同源（2026-10-29 /autoplan Round 3 R3-E7）：catalog 写区间会被
+  # overrides 全覆盖，给读者「Vue 3.5」错误信号（叙事裂缝家族实证）——两处都钉精确值
+  vue: '3.6.0-beta.17'
+  vue-i18n: '^11.4.6'
+  vue-router: '^5.1.0'
+  vue-tsc: '^3.3.11'
+  vant: '^4.10.2'
+  vxe-table: '^4.21.7'
+  web-vitals: '^6.2.1'
+  zod: '^4.4.3'
+
+allowBuilds:
+  '@parcel/watcher': true
+  es5-ext: false
+  esbuild: true
+
+minimumReleaseAgeExclude:
+  - vxe-table@4.21.7
+
+# vue 精确钉版（2026-10-28 /autoplan C1 决策）：原钉浮动 'beta' tag——lockfile 缺席时
+# （模板消费者复制配置 / pnpm update 重建）新解析出的 beta 构建与验证时不一致，
+# 克隆不可复现。钉 3.6.0-beta.17 = 当前 lockfile 验证版本，零行为变更。
+# TODO( Mr.Mickey, 2027-01-31 前 )：vue 3.6 稳定线发布后整体回稳定版并删除 overrides
+# 全段 + peerDependencyRules.allowAny——升级批次须过 6 app build + e2e 冒烟。
+# ⚠️ 清单完整性门槛（2026-10-28 /autoplan R2-E9）：新增任何 @vue/* 依赖时必须同步
+# 在此补一行 overrides——未枚举的同族包会按自身 range 解析到 3.5.x 稳定线，
+# 与钉住的 3.6.0-beta.17 家族静默混版。
+overrides:
+  'vue': '3.6.0-beta.17'
+  '@vue/compiler-core': '3.6.0-beta.17'
+  '@vue/compiler-dom': '3.6.0-beta.17'
+  '@vue/compiler-sfc': '3.6.0-beta.17'
+  '@vue/compiler-ssr': '3.6.0-beta.17'
+  '@vue/compiler-vapor': '3.6.0-beta.17'
+  '@vue/reactivity': '3.6.0-beta.17'
+  '@vue/runtime-core': '3.6.0-beta.17'
+  '@vue/runtime-dom': '3.6.0-beta.17'
+  '@vue/runtime-vapor': '3.6.0-beta.17'
+  '@vue/server-renderer': '3.6.0-beta.17'
+  '@vue/shared': '3.6.0-beta.17'
+  '@vue/compat': '3.6.0-beta.17'
+
+peerDependencyRules:
+  allowAny:
+    - 'vue'
+
+packageExtensions:
+  # vxe-table@4.21.x 的 es 产物运行时 import '@vxe-ui/core'（es/ui/index.js），
+  # 但包的 package.json 未声明 dependencies/peerDependencies → pnpm 严格 node_modules
+  # 下 @vxe-ui/core 根本不进依赖图，vite dev 预构建产物保留裸导入导致 import-analysis 报错。
+  # 补声明依赖后 pnpm 会安装 @vxe-ui/core（连带其 dependencies：xe-utils / dom-zindex）
+  'vxe-table@*':
+    dependencies:
+      '@vxe-ui/core': '^4.4.0'
+
+# pnpm 11 项目级 hoisting 配置须写此处（.npmrc 项目级配置不再被读取）。
+# 提升 vxe-table 的运行时依赖到根 node_modules，供 vite dev 预构建产物中的裸导入解析
+publicHoistPattern:
+  - '*@vxe-ui/*'
+  - 'xe-utils'
+  - 'dom-zindex'

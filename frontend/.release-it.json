@@ -1,0 +1,27 @@
+{
+  "git": {
+    "commitMessage": "chore(release): v${version}",
+    "tagName": "v${version}",
+    "tagAnnotation": "Release v${version}",
+    "requireBranch": ["master", "release/*"],
+    "requireCleanWorkingDir": true,
+    "pushRepo": "origin",
+    "pushArgs": "--follow-tags",
+    "requireCommits": true,
+    "requireUpstream": true
+  },
+  "hooks": {
+    "before:init": ["pnpm type-check"],
+    "before:release": ["pnpm test --run"],
+    "after:release": ["echo 🎉 发版完成！"]
+  },
+  "npm": {
+    "publish": false
+  },
+  "github": {
+    "release": true
+  },
+  "gitlab": {
+    "release": false
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "@vv/shared",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./store": "./src/store/index.ts",
+    "./router-guards": "./src/router-guards/index.ts",
+    "./utils": "./src/utils/index.ts",
+    "./test-utils/fakeLocation": "./src/test-utils/fakeLocation.ts",
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "type-check": "vue-tsc --build",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "vue": "catalog:",
+    "vue-router": "catalog:",
+    "pinia": "catalog:",
+    "axios": "catalog:",
+    "vue-i18n": "catalog:",
+    "element-plus": "catalog:",
+    "hash-wasm": "catalog:",
+    "lodash-es": "catalog:",
+    "dayjs": "catalog:",
+    "pinia-plugin-persistedstate": "catalog:",
+    "web-vitals": "catalog:",
+    "normalize.css": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vue/test-utils": "^2.4.11",
+    "@vv/config": "workspace:*",
+    "typescript": "~6.0.0",
+    "vitest": "^4.1.9",
+    "vue-tsc": "^3.3.11",
+    "jsdom": "^29.1.1"
+  }
+}

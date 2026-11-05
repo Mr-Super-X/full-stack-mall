@@ -1,0 +1,17 @@
+{
+  "extends": "../shared/tsconfig.base.json",
+  // env.d.ts / persistence-types.d.ts 与 packages/ui/tsconfig.json 同先例：mock 自 2026-10-23 起
+  // 经包名消费 @vv/shared（ProTable 契约类型），shared 源码需要 vite/client 的 ImportMeta
+  // 增强 + pinia persistedstate 的 persist 选项类型增强才能类型通过（shared 源码已全量显式 import，
+  // 无运行时全局声明依赖，见 P0 共享包自包含设计）
+  "include": [
+    "src/**/*",
+    "../shared/src/types/env.d.ts",
+    "../shared/src/types/persistence-types.d.ts"
+  ],
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo"
+    // ProTable 契约类型自 2026-10-23 起消费 @vv/shared 包名（依赖方向铁律：mock→shared 单向，
+    // 不再经 @components 别名直指 ui 源码）；本包已无别名消费，paths 随之移除
+  }
+}

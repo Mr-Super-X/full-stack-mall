@@ -1,0 +1,37 @@
+// 全局样式入口
+//
+// 目录骨架（「值」与「用法」分离，docs/49）：
+//   tokens/     设计令牌：颜色/间距/字号/圆角/阴影/层级/动效（值定义层）
+//   themes/     主题覆盖：light/dark 只做变量覆盖（值覆盖层）
+//   base/       reset + 元素级全局样式（含 a11y 基线）
+//   tools/      SCSS mixin/function（零 CSS 产出，不进本入口）
+//   utilities/  工具类（.vv-* 复合场景类，与 UnoCSS 互补）
+//   element-overwrite/  L3 UI 库覆盖层
+//
+// 加载顺序约定（从基础到覆盖，后加载可覆盖先加载）：
+//   1. base/reset.css            浏览器默认样式重置（最基础）
+//   2. tokens/index.scss         设计令牌（主题无关变量）
+//   3. themes/index.scss         主题感知变量覆盖（light + dark）
+//   4. base/transition.scss      全局过渡动画（@keyframes + 过渡工具类）
+//   5. base/a11y.css             无障碍基线（:focus-visible / ::selection）
+//   6. element-overwrite/        第三方组件库样式覆盖（依赖 tokens 的 $color-*）
+//   7. utilities/custom.scss     项目自定义工具类（最后加载，优先级最高）
+//
+// 添加新全局样式文件的规则：
+//   - 越基础越靠前（reset / tokens / themes）
+//   - base 元素级样式（动画/a11y）居中段
+//   - 自定义工具类永远放最后
+//
+// 注意：tools/ 的 mixin 不进本入口（SCSS module 不允许 @use 两次且须保持零产出），
+// 按需在 SFC <style> 中 @use '@vv/ui/styles/tools/xxx'；bem mixin 由
+// vite additionalData 全量预注入（packages/config/src/scss.ts），无须手写。
+//
+// 引用入口：@vv/ui/app-styles（各 app main.ts 唯一一处）
+
+@use './base/reset.css';
+@use './tokens/index.scss' as tokens;
+@use './themes/index.scss' as themes;
+@use './base/transition.scss';
+@use './base/a11y.css';
+@use './element-overwrite/index.scss' as element-overwrite;
+@use './utilities/custom.scss';

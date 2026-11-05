@@ -1,0 +1,36 @@
+// h5 移动端视觉 token（2026-10-30 样式审计——h5-demo vant 色系魔法值收敛单源）
+// vant 灰阶四色：文字两档 + 边框 + 页面底（h5 layout 与 h5-demo 模块共用）
+// 挂截点：layouts/h5/index.vue 的 @use（非 scoped，CSS 变量对子组件可见——同 portal/big-tokens 模式）
+
+:root {
+  --h5-text: #1a1a1a; // 主文字
+  --h5-text-2: #646566; // 次级文字
+  --h5-text-title: #323233; // 卡片标题（vant 标题黑；2026-11-03 裸值普查收编）
+  --h5-line: #ebedf0; // 边框 / 分割线
+  --h5-bg: #f7f8fa; // 页面底
+  --h5-card-bg: #ffffff; // 卡片底
+  --h5-shadow-card: rgba(0, 0, 0, 0.06); // 卡片投影
+}
+
+// ─── 暗色覆盖（2026-11-03 样式审计补齐：全部 7 个色值双主题）───
+
+@mixin h5-dark {
+  --h5-text: #e5e5e5;
+  --h5-text-2: #a0a0a3;
+  --h5-text-title: #e8e8e8;
+  --h5-line: #3a3a3d;
+  --h5-bg: #1a1a1a;
+  --h5-card-bg: #262626;
+  --h5-shadow-card: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] {
+  @include h5-dark;
+}
+
+// 跟随系统：仅当用户未显式设置 data-theme（与 themes/ 机制同构）
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    @include h5-dark;
+  }
+}

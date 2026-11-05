@@ -1,0 +1,23 @@
+# 生产形态本地模拟 / 单机部署 —— 对照 pnpm dev:gateway（本地「开发」网关，node 实现）：
+# 本文件是「生产」形态：多阶段构建聚合产物 + nginx 静态托管 + /api 反代真实后端。
+#
+# 用法：
+#   docker compose -f docker-compose.prod.yml up --build
+#   # 浏览器 http://localhost:8080/（302 → /portal/；统一登录协议与 dev 网关同构：
+#   # 未登录跳 /auth/login?redirect=...，cookie 同域漫游）
+#
+# 部署到自己服务器只需改 API_UPSTREAM 指向真实后端（容器网络服务名或 IP）。
+# 注意：VITE_MENU_SOURCE=remote 需要后端菜单接口就绪（无后端时页面菜单为空属预期）；
+# 想先看页面骨架，可临时在 build 阶段改 VITE_MENU_SOURCE=local 重建。
+services:
+  web:
+    build: .
+    image: vv-web:prod
+    container_name: vv-web
+    ports:
+      - '8080:80'
+    environment:
+      # 唯一按部署环境修改的变量：真实后端 upstream（nginx envsubst 渲染进配置）。
+      # 宿主机起的服务用 host.docker.internal；真实服务器用内网服务名（如 http://backend:8080）
+      API_UPSTREAM: http://host.docker.internal:8081
+    restart: unless-stopped

@@ -1,0 +1,108 @@
+// 主题变量（主题感知）
+//
+// 当前支持：light（默认）+ dark
+//
+// 切换方式：
+//   document.documentElement.setAttribute('data-theme', 'dark')
+//
+// 自动跟随系统：
+//   用户未显式设置 data-theme 时，跟随 prefers-color-scheme
+//
+// 扩展新主题（如 sepia / high-contrast）：
+//   1. 在下方"主题 mixin"区块添加 @mixin theme-xxx { ... }
+//   2. 在"主题选择器"区块添加 [data-theme='xxx'] { @include theme-xxx; }
+//   3. 如需跟随系统，新增 @media (prefers-color-scheme: xxx) 块引用同名 mixin
+//
+// 设计原则：
+//   - 主题只覆盖"主题感知"变量（背景/文字/边框）
+//   - 品牌色（--color-primary 等）在 variables.scss 定义，主题按需微调
+//   - 命名规范：--bg-* / --text-* / --border-*（与 Element Plus / Vant 对齐）
+//   - 复用 SCSS @mixin 避免变量重复（light/dark 只需写一次）
+
+// ─── 主题 mixin（集中管理，便于复用）────────────────────
+
+@mixin theme-light {
+  // 背景色
+  --bg-base: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --bg-tertiary: #fafafa;
+
+  // 文字色
+  --text-primary: #303133;
+  --text-regular: #606266;
+  --text-secondary: #909399;
+  --text-placeholder: #c0c4cc;
+
+  // 边框色
+  --border-base: #dcdfe6;
+  --border-light: #e4e7ed;
+  --border-lighter: #ebeef5;
+  --border-extra-light: #f2f6fc;
+}
+
+@mixin theme-dark {
+  // 背景色
+  --bg-base: #1a1a1a;
+  --bg-secondary: #2c2c2c;
+  --bg-tertiary: #262626;
+
+  // 文字色
+  --text-primary: #e5e5e5;
+  --text-regular: #c0c0c0;
+  --text-secondary: #909399;
+  --text-placeholder: #606266;
+
+  // 边框色
+  --border-base: #4c4d4f;
+  --border-light: #414243;
+  --border-lighter: #363637;
+  --border-extra-light: #2c2c2c;
+}
+
+// ─── 主题选择器（mixin 应用点）─────────────────────────
+
+// 默认 + 显式 light
+:root,
+[data-theme='light'] {
+  @include theme-light;
+}
+
+// 显式 dark
+[data-theme='dark'] {
+  @include theme-dark;
+}
+
+// 跟随系统：仅当用户未显式设置 data-theme
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    @include theme-dark;
+  }
+}
+
+// ─── 扩展示例（未来启用，未注释即可生效）─────────────
+//
+// 步骤 1：定义 mixin
+// @mixin theme-sepia {
+//   --bg-base: #f4ecd8;
+//   --bg-secondary: #e8dcc0;
+//   --text-primary: #5b4636;
+//   --text-regular: #7a6552;
+//   --text-secondary: #9c8770;
+//   --text-placeholder: #b8a890;
+//   --border-base: #d4c4a8;
+//   --border-light: #c8b898;
+//   --border-lighter: #bca888;
+//   --border-extra-light: #b09878;
+// }
+//
+// 步骤 2：注册选择器
+// [data-theme='sepia'] {
+//   @include theme-sepia;
+// }
+//
+// 步骤 3（如需跟随系统）：
+// @media (prefers-color-scheme: no-preference) {
+//   :root:not([data-theme]) {
+//     // 不常用，可省略
+//   }
+// }

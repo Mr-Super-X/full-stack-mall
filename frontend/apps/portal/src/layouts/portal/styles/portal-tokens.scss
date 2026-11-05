@@ -1,0 +1,80 @@
+// Portal 视觉 token（2026-11-04 云灰改版 · 极简留白族）
+// 值锁定自根 style-tokens.json（云灰模板，seed 29060，ui-style-skill 选型产出）；
+// 沿用 --portal-* 命名体系——云灰调色板吸收为 portal 端色板，组件引用方式不变。
+//
+// 用法契约（明暗双主题安全，勿直接换用 brand-deep 做按钮底）：
+// - 实心按钮 = --portal-brand 底 + --portal-on-solid 字（白字对比亮面 4.9 / dark 5.0）
+// - 浅色按钮 / pill = --portal-brand-soft 底 + --portal-brand-deep 字
+// - 数据高亮 / 链接文字 = --portal-brand-deep（暗色下为浅色主色文字，语义自洽）
+// - 点缀 --portal-accent 面积 ≤10%（标签 / 插画点睛，不用作文字主色）
+
+:root {
+  // 布局常量（非色值，不随主题变）
+  --portal-header-h: 64px; // sticky 顶栏高度
+  --portal-max-width: 1200px; // 内容区宽度
+  --portal-z-index-header: var(
+    --z-index-fixed
+  ); // 顶栏层级挂靠全局 fixed 层(1030)，杜绝与全局 dropdown(1000) 撞值
+
+  // 中性纸面（云灰：页面暖灰白 / 卡片纯白 / 输入浅灰）
+  --portal-bg: #f6f6f4; // 页面底（原纯白，云灰改版）
+  --portal-bg-alt: #f1f1ef; // hover 底 / 输入底（原分区底 #fafafa；特性区改与页面同色后服务交互态）
+  --portal-bg-card: #ffffff; // 卡片底
+  --portal-ink: #333638; // 主文字（原 #111111）
+  --portal-ink-2: #66696c; // 次要文字（原 #555555）
+  --portal-ink-3: #a3a6a8; // 弱化文字（新增：元信息 / 占位）
+  --portal-line: #e4e4e1; // 1px 细线（原 #eeeeee）
+  --portal-line-strong: #cfd0cc; // 强调描边（hover 态 / ghost 按钮边）
+
+  // 品牌族（云灰蓝，点亮面积 ≤10%）
+  --portal-brand: #5e6d7c; // 品牌主色：实心按钮底 / hover 边
+  --portal-brand-deep: #445466; // 主色文字：pill 字 / 浅按钮字 / 数据高亮
+  --portal-brand-soft: #e6ebf0; // 浅主底：pill 底 / icon 块 / 浅色按钮
+
+  // 点缀族（陶粉，面积 ≤10%）
+  --portal-accent: #b08d85;
+  --portal-accent-soft: #f3e9e6;
+
+  // 恒深色底（页脚等深底区；不随主题反转，dark 下保持深档）
+  --portal-bg-inverse: #2e3134;
+
+  // 深底反色系列（SiteFooter 深色底等；不随主题变）
+  --portal-on-ink: rgba(255, 255, 255, 0.75); // 深底主文字
+  --portal-on-ink-2: rgba(255, 255, 255, 0.55); // 深底次要文字
+  --portal-on-ink-3: rgba(255, 255, 255, 0.45); // 深底弱化文字
+  --portal-on-line: rgba(255, 255, 255, 0.15); // 深底细线
+  --portal-on-solid: #ffffff; // 深底实色白（按钮字/头像字）
+}
+
+// ─── 暗色覆盖（2026-11-04 云灰蓝黑化，替换原黑白反转）───
+// 提亮规则参照中后台莫兰迪雾霾蓝 precedent（DESIGN.md 中后台暗色节）：
+// dark 下 --portal-brand 保持深档作实心按钮底（白字对比 ~5.0），
+// --portal-brand-deep 语义反转为主色文字（浅化 #a9bdd1），--portal-brand-soft 转为深色底。
+// on-* 深底反色族、布局尺寸、z-index 非色值不随主题变，无需覆盖
+
+@mixin portal-dark {
+  --portal-bg: #24272b; // 页面底（蓝黑）
+  --portal-bg-alt: #2b2e33; // hover / 输入底
+  --portal-bg-card: #2e3237; // 卡片底（比页面底亮一档，维持亮面反差方向）
+  --portal-ink: #e8e9e7; // 主文字
+  --portal-ink-2: #a6a9ab; // 次要文字
+  --portal-ink-3: #7c7f81; // 弱化文字
+  --portal-line: #3a3d41; // 细线
+  --portal-line-strong: #4a4d51; // 强调描边
+  --portal-brand: #5e7488; // 品牌主色（实心按钮底，白字对比 ~5.0）
+  --portal-brand-deep: #a9bdd1; // 主色文字（浅化，dark 语义反转）
+  --portal-brand-soft: #2e3740; // 浅主底 → 深色 pill / icon 块底
+  --portal-accent: #c4a69e; // 点缀提亮
+  --portal-accent-soft: #38302e;
+}
+
+[data-theme='dark'] {
+  @include portal-dark;
+}
+
+// 跟随系统：仅当用户未显式设置 data-theme（与 themes/ 机制同构）
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    @include portal-dark;
+  }
+}

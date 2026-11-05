@@ -1,0 +1,51 @@
+// h5-mall 商城首页视觉 token（陶土 · 莫兰迪）——模块内唯一风格源。
+//
+// 值来源根 style-tokens.json 陶土模板（ui-style-skill 选型，seed 4877）；
+// 单一事实源登记于 DESIGN.md「H5 商城 h5-mall」节（登记先行规则）。
+//
+// 结构裁决（读代码读不出的约定，变更前先看这里）：
+//   - token 挂在 `.vv-h5-mall` 模块根选择器上而非 :root —— 仅本模块子树生效，
+//     对 h5 布局的 vant 灰阶（layouts/h5/styles/h5-tokens.scss）零污染；
+//   - 刻意不配暗色覆盖 —— 商城页为恒定暖陶视觉（同 big 端先例）；
+//   - 单点消费：仅 views/index.vue 经 `@use` 引入，sass 对被 use 文件只发射一次 CSS，
+//     若未来第二个消费方出现，须改 @forward + 容器单点（否则 token 重复发射）。
+//
+// 本文件在 postcss-pxtorem 转换范围内（src/modules/h5-mall/），px 值写 828 设计稿标注。
+//
+// 显式 @use 'bem' 的原因（2026-11-04 构建报错实证）：vite 的 additionalData 只注入
+// SFC style 入口文件，不会注入被 @use 的 sass 模块 —— 缺这行时 $BEM_PREFIX 在本文件未定义。
+// 与 additionalData 的 `@use 'bem' as * with(...)` 共存安全（sass 允许同模块二次无 with 引用）。
+
+@use 'bem' as *;
+
+.#{$BEM_PREFIX}-h5-mall {
+  --mall-bg-page: #efebe5;
+  --mall-bg-card: #f8f6f2;
+  --mall-bg-field: #f3f0ea;
+  --mall-bg-inverse: #43473f;
+  --mall-ink-1: #3c403d;
+  --mall-ink-2: #6e7169;
+  --mall-ink-3: #a5a79f;
+  --mall-line: #e2ddd3;
+  --mall-line-strong: #cfc8bc;
+  --mall-brand: #b08d85;
+  --mall-brand-deep: #7e6159;
+  --mall-brand-soft: #f3e9e6;
+  --mall-accent: #7e97ac;
+  --mall-accent-soft: #e5edf2;
+  --mall-ok: #5e8168;
+  --mall-warn: #97794b;
+  --mall-err: #a96a60;
+  // 实心组件（按钮 / 角标）上的白字 —— token notes「实心按钮 = brand-deep 底 + 白字」
+  --mall-on-brand: #ffffff;
+  --mall-font-head: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', serif;
+  --mall-font-body:
+    'PingFang SC', 'HarmonyOS Sans SC', 'Source Han Sans SC', 'Noto Sans SC', 'Microsoft YaHei',
+    system-ui, -apple-system, sans-serif;
+  --mall-r-sm: 18px;
+  --mall-r-md: 31px;
+  --mall-r-lg: 49px;
+  --mall-sh-2: 0 22px 57px -40px rgba(60, 63, 60, 0.2);
+  --mall-dur: 0.28s;
+  --mall-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}

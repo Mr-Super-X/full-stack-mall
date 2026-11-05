@@ -1,0 +1,1 @@
+{ "name": "portal", "port": 5176, "requiredRoutes": ["NotFound"] }

@@ -1,0 +1,72 @@
+// themes 层入口：主题 = 令牌的覆盖文件（主题感知变量）
+//
+// 当前支持：light（默认）+ dark
+//
+// 切换方式（theme store applyTheme，@vv/shared/store/modules/theme）：
+//   显式：document.documentElement.setAttribute('data-theme', 'dark') + classList.toggle('dark')
+//   自动：用户未显式设置 data-theme 时，跟随 prefers-color-scheme
+// 双轨识别：本文件经 [data-theme] 选择器驱动业务变量（--bg-*/--text-*/--border-*）；
+//   html.dark class 驱动 element-plus dark/css-vars（EP 组件暗色，app-styles 引入）
+//
+// 扩展新主题（如 sepia / high-contrast）：
+//   1. 新建 _xxx.scss 定义 @mixin theme-xxx { ... }
+//   2. 本文件 @use 并在"主题选择器"区块添加 [data-theme='xxx'] { @include theme-xxx; }
+//   3. 如需跟随系统，新增 @media (prefers-color-scheme: xxx) 块引用同名 mixin
+//
+// 设计原则：
+//   - 主题只覆盖"主题感知"变量（背景/文字/边框），不做第二套样式
+//   - 品牌色（--color-primary 等）在 tokens/_colors.scss 定义，主题按需微调
+//   - 命名规范：--bg-* / --text-* / --border-*（与 Element Plus / Vant 对齐）
+//   - mixin 与选择器分离：mixin 在 _light.scss / _dark.scss（零 CSS 产出），
+//     本文件只做选择器应用点
+
+@use './light.scss' as *;
+@use './dark.scss' as *;
+
+// ─── 主题选择器（mixin 应用点）─────────────────────────
+
+// 默认 + 显式 light
+:root,
+[data-theme='light'] {
+  @include theme-light;
+}
+
+// 显式 dark
+[data-theme='dark'] {
+  @include theme-dark;
+}
+
+// 跟随系统：仅当用户未显式设置 data-theme
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    @include theme-dark;
+  }
+}
+
+// ─── 扩展示例（未来启用，取消注释即可生效）─────────────
+//
+// 步骤 1：新建 _sepia.scss 定义 mixin，本文件顶部 @use './sepia.scss' as *
+// @mixin theme-sepia {
+//   --bg-base: #f4ecd8;
+//   --bg-secondary: #e8dcc0;
+//   --text-primary: #5b4636;
+//   --text-regular: #7a6552;
+//   --text-secondary: #9c8770;
+//   --text-placeholder: #b8a890;
+//   --border-base: #d4c4a8;
+//   --border-light: #c8b898;
+//   --border-lighter: #bca888;
+//   --border-extra-light: #b09878;
+// }
+//
+// 步骤 2：注册选择器
+// [data-theme='sepia'] {
+//   @include theme-sepia;
+// }
+//
+// 步骤 3（如需跟随系统）：
+// @media (prefers-color-scheme: no-preference) {
+//   :root:not([data-theme]) {
+//     // 不常用，可省略
+//   }
+// }

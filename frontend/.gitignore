@@ -1,0 +1,86 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+.DS_Store
+dist
+dist-ssr
+dist-prod
+coverage
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.omc
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*.tsbuildinfo
+
+.eslintcache
+
+# Cypress
+/cypress/videos/
+/cypress/screenshots/
+
+# Vitest
+__screenshots__/
+
+# Vite
+*.timestamp-*-*.mjs
+
+# vite-plugin-mock 编译临时文件（_*.bundled_*，落在 mock 源同目录——mock 已迁 packages/mock/src，
+# 故用 ** 覆盖包内路径；运行时 clean-mock-bundled 清理，此处提交兜底屏蔽 race 残留）
+**/_*.bundled_*.mjs
+**/_*.bundled_*.cjs
+
+# Local backup and OMC runtime state
+.claude/backups/
+.claude/tmp/
+.claude/.agent-reports/
+.claude/agent-reports/
+.claude/verify/
+.claude/.snapshots/
+.claude/scheduled_tasks.lock
+.claude/settings.json
+.claude/settings.local.json
+.claude/mockups/
+.omc/state/
+.omc/sessions/
+.omc/notepad.md
+# components.d.ts / auto-imports.d.ts 均为 unplugin 自动生成物（2026-10-20 图标体系：components.d.ts 恢复忽略）。
+# components.d.ts 内容随「最近一次 dev/build 类型 + transform 到的组件」摇摆（build 会因 demo DEV 门控
+# 冲掉 i- 图标条目），入库必然产生提交后 dirty 噪音；type-check 依赖由 build 脚本保证（build 先行生成）。
+# 以本地生成为准，勿提交、勿手工编辑。
+# P0-2：源码已迁入 apps/admin（monorepo），忽略规则放宽为任意深度 src/types/，
+# 覆盖未来多应用形态；生成语义不变（unplugin 自动生成、勿提交勿手编）
+**/src/types/components.d.ts
+**/src/types/auto-imports.d.ts
+.gstack/
+.verify/
+.superpowers/
+.turbo/
+
+# Playwright产物
+.playwright-mcp/
+claude/
+playwright-report
+test-results
+
+# Impeccable 设计工具运行时产物（surface brief / decision payload / 决策 mocks /
+# review 截图 / quality-bar 参考图——均为本地工具生成物，不入库；
+# surface brief 的持久化版本如需共享经 code review 后再单独加白名单）
+**/.impeccable/
+# ui-style-skill 设计工具运行时产物
+ui-templates/

@@ -1,0 +1,120 @@
+// =====================================================================
+// BEM mixin · 编程式 BEM 命名拼接（Element Plus / Ant Design Vue 同款）
+// =====================================================================
+// 命名规则：
+//   Block      → .user-card           （连字符式小写，前缀由 $BEM_PREFIX 注入）
+//   Element    → .user-card__avatar   （双下划线）
+//   Modifier   → .user-card--featured （双连字符）
+//   State      → .is-active / .is-disabled（用 `is` mixin，按 BEM 扩展约定）
+//   状态修饰   → .theme-light（用 `when` mixin，非 BEM 但常见于 Vue 生态）
+//
+// 前缀来源（与 src/utils/bem.ts 的 createNamespace 共享同一来源）：
+//   1. vite.config.ts 在 css.preprocessorOptions.scss.additionalData 注入：
+//        $BEM_PREFIX: 'vv';          // 取自 process.env.VITE_BEM_PREFIX
+//   2. 本文件用 `!default` 提供兜底 'vv'，未注入时仍可工作（向后兼容）
+//   3. 单元测试或手写 SCSS 也可不注入，直接依赖 !default 兜底值
+//
+// 用法：
+//   @use '@assets/styles/mixins/bem' as *;
+//   .user-card {
+//     @include b(user-card) {
+//       padding: 16px;
+//       @include e(avatar)  { width: 40px; }
+//       @include e(name)    { font-weight: 600; }
+//       @include m(featured) { border: 2px solid gold; }
+//       @include is(active)  { color: blue; }
+//     }
+//   }
+//
+// 编译产物（与手写 BEM 字符串完全一致）：
+//   .user-card { padding: 16px; }
+//   .user-card__avatar { width: 40px; }
+//   .user-card__name { font-weight: 600; }
+//   .user-card--featured { border: 2px solid gold; }
+//   .user-card.is-active { color: blue; }
+//
+// 等价于 src/utils/bem.ts 的运行时拼接：
+//   const bem = createNamespace('user-card')
+//   bem.b()       // 'vv-user-card'
+//   bem.e('avatar') // 'vv-user-card__avatar'
+// =====================================================================
+
+// 前缀变量：被 vite.config.ts 的 additionalData 注入实际值；未注入时回退 'vv'。
+// 用 `!default` 保证「调用方/注入方先声明，本文件兜底」的优先级。
+// 空字符串场景：调用方设置 $BEM_PREFIX: '' 时，b() 输出无前缀的 .user-card。
+$BEM_PREFIX: 'vv' !default;
+
+// 块名状态变量：b() 内设置 !global，e/m/is/when 读取。
+// 在 stylesheet 根声明 !default 是 Sass 1.78+ 强制要求：
+//   "As of Dart Sass 2.0.0, !global assignments won't be able to declare new variables."
+//   "Recommendation: add `$B: null` at the stylesheet root."
+// @use 这个文件的 stylesheet 不需要重复声明（namespace 内共享），
+// 但 @include b() 的 stylesheet 必须有 $B 声明，或 vite 配置 silenceDeprecations。
+$B: null !default;
+
+// 块（Block）— 注册当前块名并打开嵌套作用域。
+// 子选择器（e/m/is/when）会基于块名拼接。
+@mixin b($block) {
+  $B: $block !global; // 保存到全局，供后续 mixin 读取
+  // 拼接前缀：空串/null 时直接输出 block，避免出现 .-.user-card 这类多余连字符。
+  // 用 if() 函数表达式；dart-sass 1.78+ 标记 if-function 为 deprecation 但函数仍可用，
+  // 在 vite.config.ts 的 silenceDeprecations 中白名单（与 new-global 同策略）。
+  // 不改用 @if 规则的原因：@if 是 block 级语句而这里是表达式级（要赋值给 $full 变量），
+  // 需要额外拆两个分支重复赋值，代码冗余。也不改用 CSS 模式 if(...: ...; else:) 因为
+  // dart-sass 1.101 在 .scss 模式下不支持该语法（解析为 CSS if 失败）。
+  $full: if($BEM_PREFIX == '' or $BEM_PREFIX == null, $block, '#{$BEM_PREFIX}-#{$block}');
+  .#{$full} {
+    @content;
+  }
+}
+
+// 元素（Element）— 拼成 `.block__element`。
+// 必须放在 @include b() 内部使用。
+@mixin e($element) {
+  @if $B == null {
+    @error 'bem mixin: @include e() 必须在 @include b() 内部使用';
+  }
+  .#{$B}__#{$element} {
+    @content;
+  }
+}
+
+// 修饰符（Modifier）— 拼成 `.block--modifier`。
+// 必须放在 @include b() 内部使用。
+@mixin m($modifier) {
+  @if $B == null {
+    @error 'bem mixin: @include m() 必须在 @include b() 内部使用';
+  }
+  .#{$B}--#{$modifier} {
+    @content;
+  }
+}
+
+// 状态（State，BEM 扩展）— 拼成 `.block.is-state`。
+// Vue 中常通过 :class="{ 'is-active': isActive }" 切换。
+@mixin is($state) {
+  @if $B == null {
+    @error 'bem mixin: @include is() 必须在 @include b() 内部使用';
+  }
+  .#{$B}.is-#{$state} {
+    @content;
+  }
+}
+
+// 主题 / 场景前缀（Vue 生态常见）— 拼成 `.block--when-suffix`。
+// 例：@include when(light) → .block--when-light
+//     @include when(dark)  → .block--when-dark
+@mixin when($suffix) {
+  @if $B == null {
+    @error 'bem mixin: @include when() 必须在 @include b() 内部使用';
+  }
+  .#{$B}--when-#{$suffix} {
+    @content;
+  }
+}
+
+// 全局重置（仅供测试或重置块名作用域时使用）。
+// 正常组件开发不需要调用。
+@mixin reset-block {
+  $B: null !global;
+}

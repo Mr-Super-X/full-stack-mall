@@ -1,0 +1,26 @@
+// 全局样式入口
+//
+// 加载顺序约定（从基础到覆盖，后加载可覆盖先加载）：
+//   1. reset.css          浏览器默认样式重置（最基础）
+//   2. variables.scss     项目级 CSS 变量（颜色/间距/圆角/尺寸，主题无关）
+//   3. theme.scss         主题感知变量（背景/文字/边框，light + dark 双主题）
+//   4. transition.scss    全局过渡动画（@keyframes + 过渡工具类）
+//   5. element-overwrite/      第三方组件库样式覆盖目录（依赖 variables.scss）
+//   6. custom.scss        项目自定义全局样式（最后加载，优先级最高）
+//
+// 添加新全局样式文件的规则：
+//   - 越基础越靠前（reset / variables / theme）
+//   - 主题覆盖放在自定义样式之前
+//   - 自定义样式永远放最后
+//
+// 注意：mixin 工具不进此入口（SCSS module 不允许 @use 两次），
+// 按需在 SFC <style> 中 @use '@assets/styles/mixins/xxx'。
+//
+// 引用入口：src/main.ts（唯一一处，main.ts 中只需导入本文件）
+
+@use './reset.css';
+@use './variables.scss';
+@use './theme.scss';
+@use './transition.scss';
+@use './element-overwrite/index.scss';
+@use './custom.scss';

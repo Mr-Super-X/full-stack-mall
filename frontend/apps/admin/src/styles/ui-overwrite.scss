@@ -1,0 +1,7 @@
+// 端级 UI 库覆盖（Element Plus 变量级定制）。
+//
+// 何时写这里：本端整体换肤（主色/圆角/密度等与全局默认不同）时；
+// 单布局品牌主题走 layouts/<l>/styles/（admin 范本：mixin + 容器类施加，docs/49 §4 纪律 3），
+// 全局主色/灯色阶归 packages/ui element-overwrite/theme-vars.scss。
+//
+// 纪律：优先覆盖 CSS 变量；禁 !important；选择器覆盖权重 ≤ 两级（BEM 根/容器类 + EP 类）。

@@ -1,0 +1,28 @@
+// themes 层 · light（默认主题）
+//
+// 只定义「主题感知」变量（背景/文字/边框）；品牌色在 tokens/_colors.scss 定义
+// 命名规范：--bg-* / --text-* / --border-*（与 Element Plus / Vant 对齐）
+// mixin 形态零 CSS 产出——由 themes/index.scss 的选择器应用点 @include 生效
+
+@mixin theme-light {
+  // 背景色
+  --bg-base: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --bg-tertiary: #fafafa;
+
+  // 文字色
+  --text-primary: #303133;
+  --text-regular: #606266;
+  --text-secondary: #909399;
+  --text-placeholder: #c0c4cc;
+
+  // 边框色
+  --border-base: #dcdfe6;
+  --border-light: #e4e7ed;
+  --border-lighter: #ebeef5;
+  --border-extra-light: #f2f6fc;
+
+  // 滚动条（base/reset.css 消费；主题感知，暗色见 _dark.scss）
+  --scrollbar-thumb: #b8b8b8;
+  --scrollbar-thumb-hover: #878987;
+}

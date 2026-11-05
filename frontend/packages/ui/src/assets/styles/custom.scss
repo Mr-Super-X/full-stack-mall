@@ -1,0 +1,66 @@
+// 项目自定义全局样式
+//
+// 单一职责：复合场景工具类（与 UnoCSS 互补，处理项目特有的全局样式）
+//
+// 注意：
+// - 全局 @keyframes 与过渡动画在 transition.scss
+// - Element Plus 主题覆盖在 element-overwrite/ 目录
+// - 全局 CSS 变量在 variables.scss
+// - mixin 工具不在此文件（避免 SFC @use 时重复输出 CSS 类），
+//   按需在 SFC <style> 中 @use '@assets/styles/mixins/xxx'
+// - 不要写组件作用域样式（应写在 SFC <style> 块并以 BEM 命名空间隔离，见 CLAUDE.md §3）
+
+// ─── 复合场景工具类（UnoCSS 没覆盖）─────────────────────────────
+// 命名约定：全部 .vv- 前缀，与 BEM Block 前缀统一
+
+// 禁止选中（防止按钮/标签被双击选中）
+.vv-no-select {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+// 单行省略
+.vv-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 多行省略（-webkit-line-clamp 是必要属性，line-clamp 是标准属性）
+.vv-ellipsis-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.vv-ellipsis-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// Flex 布局快捷类（与 UnoCSS shortcuts 互补，处理需要语义化类名的场景）
+.vv-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vv-flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+// 清除浮动（兼容老代码）
+.vv-clearfix::after {
+  content: '';
+  display: table;
+  clear: both;
+}

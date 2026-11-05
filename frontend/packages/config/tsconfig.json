@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": ["src/**/*"],
+  "compilerOptions": {
+    // src 内是 Node 侧工程配置（node:path/node:url/process.env），DOM lib 之外需 Node 类型
+    "types": ["node"],
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo"
+  }
+}

@@ -1,0 +1,32 @@
+// Element Plus 主题变量覆盖
+//
+// 覆盖两类：
+//   1. 主色（--el-color-primary/success/warning/danger/info）
+//   2. 灯色阶（--el-color-xxx-light-3/5/7/8/9）：用于 hover/active/淡化背景
+//
+// 灯色阶计算：SCSS color.mix(主色, white, N%) — Element Plus 内部惯例
+//
+// 加载位置：index.scss（仅此一处），保证在 tokens/ 之后被加载
+// （依赖 tokens/_colors.scss 的 $color-* SCSS 变量做编译期计算）
+
+@use 'sass:color';
+@use '../tokens/index.scss' as *;
+
+// 灯色阶 mixin（集中管理，避免 5 色 × 5 阶 重复）
+// light-3/5/7/8/9 对应：30%/50%/70%/80%/90% 混入白色
+@mixin el-light-variants($name, $color) {
+  --el-color-#{$name}: #{$color};
+  --el-color-#{$name}-light-3: #{color.mix($color, white, 70%)};
+  --el-color-#{$name}-light-5: #{color.mix($color, white, 50%)};
+  --el-color-#{$name}-light-7: #{color.mix($color, white, 30%)};
+  --el-color-#{$name}-light-8: #{color.mix($color, white, 20%)};
+  --el-color-#{$name}-light-9: #{color.mix($color, white, 10%)};
+}
+
+:root {
+  @include el-light-variants(primary, $color-primary);
+  @include el-light-variants(success, $color-success);
+  @include el-light-variants(warning, $color-warning);
+  @include el-light-variants(danger, $color-danger);
+  @include el-light-variants(info, $color-info);
+}

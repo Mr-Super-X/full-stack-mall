@@ -1,0 +1,28 @@
+// themes 层 · dark（暗色主题）
+//
+// 与 _light.scss 同构，仅覆盖「主题感知」变量值
+// 消费方式：[data-theme='dark'] / prefers-color-scheme 选择器 @include（themes/index.scss）
+// EP 组件暗色变量由 element-plus dark/css-vars 包承接（html.dark，app-styles 四件套）
+
+@mixin theme-dark {
+  // 背景色
+  --bg-base: #1a1a1a;
+  --bg-secondary: #2c2c2c;
+  --bg-tertiary: #262626;
+
+  // 文字色
+  --text-primary: #e5e5e5;
+  --text-regular: #c0c0c0;
+  --text-secondary: #909399;
+  --text-placeholder: #606266;
+
+  // 边框色
+  --border-base: #4c4d4f;
+  --border-light: #414243;
+  --border-lighter: #363637;
+  --border-extra-light: #2c2c2c;
+
+  // 滚动条（深底上的可见灰阶，对齐 #1a1a1a 背景的可辨识对比度）
+  --scrollbar-thumb: #4e4e52;
+  --scrollbar-thumb-hover: #68686e;
+}

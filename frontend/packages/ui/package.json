@@ -1,0 +1,51 @@
+{
+  "name": "@vv/ui",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./composables/useDialog": "./src/composables/useDialog.ts",
+    "./composables/useConfirm": "./src/composables/useConfirm.ts",
+    "./composables/useLogout": "./src/composables/useLogout.ts",
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "type-check": "vue-tsc --build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vv/shared": "workspace:*",
+    "normalize.css": "catalog:"
+  },
+  "peerDependencies": {
+    "vue": "catalog:",
+    "vue-router": "catalog:",
+    "vue-i18n": "catalog:",
+    "pinia": "catalog:",
+    "element-plus": "catalog:",
+    "@element-plus/icons-vue": "catalog:",
+    "lodash-es": "catalog:",
+    "dayjs": "catalog:",
+    "echarts": "^6.1.0",
+    "vxe-table": "^4.21.7",
+    "zod": "catalog:",
+    "sortablejs": "catalog:",
+    "@wangeditor/editor": "catalog:",
+    "@wangeditor/editor-for-vue": "catalog:",
+    "dompurify": "catalog:"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/test-utils": "^2.4.11",
+    "@vv/config": "workspace:*",
+    "jsdom": "^29.1.1",
+    "typescript": "~6.0.0",
+    "unplugin-auto-import": "^21.0.0",
+    "unplugin-icons": "^24.0.0",
+    "unplugin-vue-components": "^32.1.0",
+    "vitest": "^4.1.9",
+    "vitest-axe": "^0.1.0",
+    "vue-tsc": "^3.3.11"
+  }
+}

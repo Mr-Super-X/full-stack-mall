@@ -1,0 +1,49 @@
+/**
+ * 端级 UI 库覆盖 —— Vant 4 主题变量定制（vant 官方推荐的 CSS 变量方式）。
+ *
+ * 归位记录：自 layouts/h5/styles/vant-vars.scss 迁入（2026-11-02 样式分层落地，
+ * docs/49 §4「端级 UI 库覆盖」标准实例）；内容零改动。
+ *
+ * 背景：vant 4 的样式是 CSS 变量驱动（--van-button-height / --van-primary-color 等），
+ * 不依赖 SCSS/Less 变量编译。覆盖方式两种：
+ *   ① 本文件：全局 :root 覆盖（影响整个 h5 app，推荐——主题色/圆角等全局一致性）
+ *   ② ConfigProvider 组件：局部覆盖（如某个表单卡片单独主题色，见 vant 官方文档）
+ *
+ * 与 rem 适配的关系：vant 组件内部尺寸（按钮 44px、输入框 48px）是物理 px，
+ * 不经过本项目 pxtorem 转换（exclude 正则锚定 appRoot/src，vant 样式在 node_modules）。
+ * 如需统一缩放，改本文件的 rem 值（如 --van-button-height: 4rem）。
+ *
+ * 变量全集见 vant 官方文档「主题定制」章节；本文件只覆盖品牌色 + 常用尺寸。
+ *
+ * 选择器 `:root:root` 双写（2026-10-28 /autoplan R2-E1）：vant 每个组件的 style
+ * 入口都 import 同一份 base.css（内含 `:root,:host{--van-*}` 默认值）。dev 下 CSS
+ * 按模块求值顺序注入 <style>，懒加载的 vant 组件 CSS 晚于 main.ts 静态引入的本文件，
+ * 双方特异度同为 (0,1,0) 时后注入者胜——裸 :root 在 dev 下被默认值压平（实测
+ * --van-primary-color 回落 #1989fa）。`:root:root` 提升特异度至 (0,2,0)，
+ * 不依赖注入顺序稳定生效；prod 构建产物顺序本正确，双写零行为变化。
+ *
+ * @see https://vant-ui.github.io/vant/#/zh-CN/config-provider （主题定制官方文档）
+ * @group h5 主题
+ */
+
+:root:root {
+  /* 品牌色（vant 默认 #1989fa 蓝 → 本项目品牌橙） */
+  --van-primary-color: #ff6a00;
+  --van-success-color: #07c160;
+  --van-danger-color: #ee0a24;
+  --van-warning-color: #ff976a;
+
+  /* 圆角（vant 默认 2px → 移动端更圆润） */
+  --van-border-radius-base: 4px;
+  --van-border-radius-sm: 2px;
+  --van-border-radius-md: 8px;
+  --van-border-radius-lg: 12px;
+
+  /* 按钮高度（vant 默认 44px → 44px 保持，如需缩放改 rem 值） */
+  --van-button-height: 44px;
+  --van-button-small-height: 32px;
+  --van-button-mini-height: 24px;
+
+  /* 输入框高度（vant 默认 48px） */
+  --van-input-height: 48px;
+}

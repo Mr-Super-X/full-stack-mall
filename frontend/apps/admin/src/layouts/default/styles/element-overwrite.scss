@@ -1,0 +1,31 @@
+// Default 布局 Element Plus 弹层变量映射
+//
+// 用途：让 teleport 到 <body> 的 EP 弹层（el-dropdown-menu / el-select-dropdown /
+// el-dialog / el-message / el-notification 等）也能消费 default 布局的紫色主题变量。
+//
+// 机制：default 布局挂载时 index.vue 往 <html> 写 data-layout="default"（卸载时清除），
+// 本文件在该属性选择器上施加与 .vv-default-layout 容器相同的 EP 变量 mixin（default-tokens.scss）。
+// 属性随路由切换——portal 布局页面无此属性，弹层回落项目全局主题，无泄漏。
+// 就近原则：容器内元素同时命中容器变量与本选择器时，容器规则优先（两处值一致，无冲突）。
+//
+// 为什么不逐组件写覆盖规则：dropdown / select / dialog 等弹层类名与 portal 布局全局共享，
+// 直接写规则无法限定作用域；变量映射一次覆盖所有弹层，且跟随亮暗主题切换。
+
+@use './default-tokens.scss' as tokens;
+
+// 亮色：default 布局激活期间的 EP 变量（含 body 下的弹层）
+[data-layout='default'] {
+  @include tokens.default-layout-ep-light;
+}
+
+// 显式 dark：需同时命中 data-layout 与 data-theme（theme store 机制）
+[data-theme='dark'][data-layout='default'] {
+  @include tokens.default-layout-ep-dark;
+}
+
+// 跟随系统：仅当用户未显式设置 data-theme
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme])[data-layout='default'] {
+    @include tokens.default-layout-ep-dark;
+  }
+}
