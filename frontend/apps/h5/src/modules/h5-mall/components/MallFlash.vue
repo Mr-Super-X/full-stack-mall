@@ -1,19 +1,25 @@
 <script setup lang="ts">
 // ref 由 unplugin-auto-import 注入（CLAUDE.md §1.6）
-import type { MallFlashItem } from '../config/mall'
+import type { MallGoodsItem } from '../apis/index'
 import { useCountdown } from '../composables/useCountdown'
 import MallPh from './MallPh.vue'
 
 /**
  * 限时甄选：每日 10:00–22:00，倒计时指向每日 22:00（useCountdown 语义）。
+ * 数据来源：后端 API（MallGoodsItem，originPrice 可空——无折扣时不显示划线价）。
  */
 const bem = createNamespace('mall-flash')
 
 defineProps<{
-  items: readonly MallFlashItem[]
+  items: readonly MallGoodsItem[]
 }>()
 
 const { remaining } = useCountdown(22)
+
+/** 色块档位按 id 派生（后端无此字段，前端占位图用） */
+function phOf(id: number): 'a' | 'b' | 'c' {
+  return id % 3 === 0 ? 'a' : id % 3 === 1 ? 'b' : 'c'
+}
 </script>
 
 <template>
@@ -24,14 +30,16 @@ const { remaining } = useCountdown(22)
       <span :class="bem.e('sub')">每日 10:00 – 22:00 · 两件再享 9 折</span>
     </div>
     <div :class="bem.e('grid')">
-      <a v-for="item in items" :key="item.name" :class="bem.e('item')" href="#goods">
-        <MallPh :ph="item.ph" :garm="item.garm" radius="sm">
-          <template #tag>{{ item.tag }}</template>
+      <a v-for="item in items" :key="item.id" :class="bem.e('item')" href="#goods">
+        <!-- 有图渲染真实图，无图兜底占位色块 -->
+        <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.name" :class="bem.e('img')" />
+        <MallPh v-else :ph="phOf(item.id)" :garm="item.garm ?? 'tshirt'" radius="sm">
+          <template v-if="item.tag" #tag>{{ item.tag }}</template>
         </MallPh>
         <div :class="bem.e('name')">{{ item.name }}</div>
         <div :class="bem.e('price')">
           <b>¥{{ item.price }}</b>
-          <s>¥{{ item.originPrice }}</s>
+          <s v-if="item.originPrice">¥{{ item.originPrice }}</s>
         </div>
       </a>
     </div>
@@ -87,6 +95,13 @@ const { remaining } = useCountdown(22)
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 26px;
+  }
+
+  &__img {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    border-radius: var(--mall-r-sm);
   }
 
   &__name {

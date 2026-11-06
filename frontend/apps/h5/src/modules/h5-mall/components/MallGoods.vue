@@ -1,11 +1,12 @@
 <script setup lang="ts">
 // ref 由 unplugin-auto-import 注入（CLAUDE.md §1.6）
-import type { MallGoodsItem } from '../config/mall'
+import type { MallGoodsItem } from '../apis/index'
 import MallPh from './MallPh.vue'
 
 /**
  * 为你推荐：筛选 chips（本地选中态，原型不联动列表）+ 双列商品卡。
  * 收藏态由父级持有（favs），加购 / 收藏经 emits 上报，由父级统一弹 toast 与计数。
+ * 数据来源：后端 API（MallGoodsItem 含 ownerType/conditionGrade，寄卖商品显示成色角标）。
  */
 const bem = createNamespace('mall-goods')
 
@@ -25,6 +26,16 @@ const activeChip = ref(props.chips[0] ?? '推荐')
 
 function isFav(id: number): boolean {
   return props.favs.includes(id)
+}
+
+/** 寄卖商品（非 NEW 成色）显示成色角标 */
+function showConditionTag(item: MallGoodsItem): boolean {
+  return item.ownerType === 'CONSIGNMENT' && item.conditionGrade !== 'NEW'
+}
+
+/** 色块档位按 id 派生（后端无此字段，前端占位图用） */
+function phOf(id: number): 'a' | 'b' | 'c' {
+  return id % 3 === 0 ? 'a' : id % 3 === 1 ? 'b' : 'c'
 }
 </script>
 
@@ -48,24 +59,27 @@ function isFav(id: number): boolean {
     </div>
     <div :class="bem.e('grid')">
       <div v-for="item in goods" :key="item.id" :class="bem.e('gcard')">
-        <MallPh :ph="item.ph" :garm="item.garm">
-          <template #action>
-            <button
-              type="button"
-              :class="[bem.e('fav'), bem.is('on', isFav(item.id))]"
-              :aria-label="`${isFav(item.id) ? '取消收藏' : '收藏'} ${item.name}`"
-              :aria-pressed="isFav(item.id)"
-              @click="emit('toggleFav', item)"
-            >
-              <svg :class="bem.e('favic')" aria-hidden="true"><use href="#mall-i-heart" /></svg>
-            </button>
-          </template>
-        </MallPh>
+        <!-- 有图渲染真实图，无图兜底占位色块（Review Focus 4） -->
+        <div :class="bem.e('phwrap')">
+          <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.name" :class="bem.e('img')" />
+          <MallPh v-else :ph="phOf(item.id)" :garm="item.garm ?? 'tshirt'" />
+          <button
+            type="button"
+            :class="[bem.e('fav'), bem.is('on', isFav(item.id))]"
+            :aria-label="`${isFav(item.id) ? '取消收藏' : '收藏'} ${item.name}`"
+            :aria-pressed="isFav(item.id)"
+            @click="emit('toggleFav', item)"
+          >
+            <svg :class="bem.e('favic')" aria-hidden="true"><use href="#mall-i-heart" /></svg>
+          </button>
+        </div>
         <div :class="bem.e('name')">{{ item.name }}</div>
-        <span :class="bem.e('minitag')">{{ item.minitag }}</span>
+        <span v-if="showConditionTag(item)" :class="bem.e('condition')">{{ item.conditionGrade }}</span>
+        <span v-else-if="item.sellingPoint" :class="bem.e('minitag')">{{ item.sellingPoint }}</span>
         <div :class="bem.e('foot')">
           <span :class="bem.e('price')">
             <b>¥{{ item.price }}</b>
+            <s v-if="item.originPrice" :class="bem.e('origin')">¥{{ item.originPrice }}</s>
           </span>
           <button type="button" :class="bem.e('addbtn')" @click="emit('add', item)">
             加入购物袋
@@ -149,7 +163,8 @@ function isFav(id: number): boolean {
     -webkit-line-clamp: 2;
   }
 
-  &__minitag {
+  &__minitag,
+  &__condition {
     display: inline-block;
     margin-top: 13px;
     padding: 2px 13px;
@@ -158,6 +173,12 @@ function isFav(id: number): boolean {
     background: var(--mall-bg-card);
     border: 1px solid var(--mall-line);
     border-radius: 9px;
+  }
+
+  &__condition {
+    color: var(--mall-brand-deep);
+    background: var(--mall-brand-soft);
+    border-color: var(--mall-line-strong);
   }
 
   &__foot {
@@ -176,6 +197,12 @@ function isFav(id: number): boolean {
     }
   }
 
+  &__origin {
+    margin-left: 9px;
+    font-size: 24px;
+    color: var(--mall-ink-3);
+  }
+
   &__addbtn {
     display: inline-flex;
     align-items: center;
@@ -191,6 +218,19 @@ function isFav(id: number): boolean {
     &:active {
       transform: scale(0.94);
     }
+  }
+
+  &__phwrap {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    border-radius: var(--mall-r-md);
+  }
+
+  &__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   &__fav {

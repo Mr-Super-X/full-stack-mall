@@ -1,15 +1,7 @@
 <script setup lang="ts">
 // ref 由 unplugin-auto-import 注入（CLAUDE.md §1.6）
-import type { MallGoodsItem } from '../config/mall'
-import {
-  MALL_CATS,
-  MALL_CHIPS,
-  MALL_FLASH,
-  MALL_GOODS,
-  MALL_NEWS,
-  MALL_NOTICE,
-  MALL_TOPIC,
-} from '../config/mall'
+import type { MallGoodsItem } from '../apis/index'
+import { useMallHome } from '../composables/useMallHome'
 import { useReveal } from '../composables/useReveal'
 import { useToast } from '../composables/useToast'
 import MallCats from '../components/MallCats.vue'
@@ -31,6 +23,7 @@ import MallTopic from '../components/MallTopic.vue'
  *
  * 容器职责：持有跨区块交互态（购物袋计数 / 收藏集合 / Toast），
  * 区块组件经 props 下传、emits 上报；入场渐显由 useReveal 统一驱动。
+ * 数据来源：useMallHome() 拉取 /mall/home/content，替代 mall.ts 硬编码。
  */
 const bem = createNamespace('h5-mall')
 
@@ -39,12 +32,41 @@ useReveal(rootRef)
 
 const { visible: toastVisible, message: toastMessage, show } = useToast()
 
+/** 首页聚合内容（走后端 API） */
+const { home, loading, error, isEmpty, refresh } = useMallHome()
+
 /** 购物袋计数（Tabbar 角标，>99 显示 99+） */
 const cartCount = ref(0)
 /** 已收藏商品 id 集合 */
 const favs = ref<number[]>([])
 /** Tabbar 选中 key（v-model 受控；切 tab 联动点见 MallTabbar emit 语义） */
 const activeTab = ref('home')
+
+/** 金刚区品类（后端 categories 映射到原型 MALL_CATS 形状；icon 字段直接透传） */
+const mallCats = computed(() => {
+  return (home.value?.categories ?? []).map((c) => ({ label: c.name, icon: c.icon ?? 'spark' }))
+})
+
+/** 限时甄选（后端 flash.items） */
+const mallFlash = computed(() => home.value?.flash.items ?? [])
+
+/** 新品横滑（后端 news） */
+const mallNews = computed(() => home.value?.news ?? [])
+
+/** 为你推荐（后端 recommend） */
+const mallGoods = computed(() => home.value?.recommend ?? [])
+
+/** 为你推荐筛选 chips（原型静态，阶段 1 不接后端分类筛选） */
+const MALL_CHIPS: readonly string[] = ['推荐', '上衣', '裙装', '裤装', '外套', '配饰']
+
+/** 编辑专题（原型静态，阶段 1 不接后端） */
+const MALL_TOPIC = {
+  kicker: "EDITORS' PICK",
+  title: '棉麻 Capsule · 第 12 期',
+  desc: '一件穿十年的基础衣柜：从 7 个单品开始。',
+  meta: '每周四更新 · 已更新 12 期',
+  artText: '拾贰',
+} as const
 
 function onAdd(): void {
   cartCount.value += 1
@@ -66,22 +88,39 @@ function onToggleFav(item: MallGoodsItem): void {
 <template>
   <div ref="rootRef" :class="bem.b()">
     <MallSprite />
-    <MallNotice :text="MALL_NOTICE" />
+    <MallNotice :text="home?.notice ?? ''" />
     <MallTopbar />
     <main>
-      <MallHero class="rv" />
-      <MallCats class="rv" :cats="MALL_CATS" />
-      <MallFlash class="rv" :items="MALL_FLASH" />
-      <MallNew class="rv" :items="MALL_NEWS" />
-      <MallTopic class="rv" :topic="MALL_TOPIC" />
-      <MallGoods
-        class="rv"
-        :goods="MALL_GOODS"
-        :chips="MALL_CHIPS"
-        :favs="favs"
-        @add="onAdd"
-        @toggle-fav="onToggleFav"
-      />
+      <!-- Loading 态：骨架屏（区分于空态） -->
+      <div v-if="loading" :class="bem.e('loading')">
+        <van-skeleton title avatar :row="3" />
+      </div>
+      <!-- Error 态：错误提示 + 重试按钮 -->
+      <div v-else-if="error" :class="bem.e('error')">
+        <van-empty description="加载失败，请检查网络">
+          <van-button round type="primary" @click="refresh">重试</van-button>
+        </van-empty>
+      </div>
+      <!-- Empty 态：空数据占位（区分于 Loading） -->
+      <div v-else-if="isEmpty" :class="bem.e('empty')">
+        <van-empty description="暂无商品" />
+      </div>
+      <!-- 正常态 -->
+      <template v-else-if="home">
+        <MallHero class="rv" />
+        <MallCats class="rv" :cats="mallCats" />
+        <MallFlash class="rv" :items="mallFlash" />
+        <MallNew class="rv" :items="mallNews" />
+        <MallTopic class="rv" :topic="MALL_TOPIC" />
+        <MallGoods
+          class="rv"
+          :goods="mallGoods"
+          :chips="MALL_CHIPS"
+          :favs="favs"
+          @add="onAdd"
+          @toggle-fav="onToggleFav"
+        />
+      </template>
     </main>
     <MallServeFooter class="rv" />
     <MallTabbar v-model="activeTab" :cart-count="cartCount" />
@@ -124,6 +163,12 @@ function onToggleFav(item: MallGoodsItem): void {
   .rv.in {
     opacity: 1;
     transform: none;
+  }
+
+  &__loading,
+  &__error,
+  &__empty {
+    padding: 106px 53px;
   }
 }
 

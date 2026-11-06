@@ -35,6 +35,61 @@ const routes: RouteRecordRaw[] = [
           noTags: true, // h5 无 TagsView，标记仅作契约文档（同 h5-demo 语义）
         },
       },
+      {
+        path: 'list',
+        name: 'H5MallList',
+        component: () => import('../views/list.vue'),
+        meta: {
+          title: '商品列表',
+          requiresAuth: false,
+          noTags: true,
+        },
+      },
+      {
+        path: 'detail/:id',
+        name: 'H5MallDetail',
+        component: () => import('../views/detail.vue'),
+        meta: {
+          title: '商品详情',
+          requiresAuth: false,
+          noTags: true,
+        },
+      },
+      {
+        path: 'login',
+        name: 'H5MallLogin',
+        component: () => import('../views/login.vue'),
+        meta: {
+          title: '登录',
+          requiresAuth: false,
+          noTags: true,
+        },
+      },
+      {
+        path: 'register',
+        name: 'H5MallRegister',
+        component: () => import('../views/register.vue'),
+        meta: {
+          title: '注册',
+          requiresAuth: false,
+          noTags: true,
+        },
+      },
+      {
+        path: '404',
+        name: 'H5MallNotFound',
+        component: () => import('../views/not-found.vue'),
+        meta: {
+          title: '页面不存在',
+          requiresAuth: false,
+          noTags: true,
+        },
+      },
+      // catch-all：/h5-mall 下未匹配路径一律进 404（防白屏）
+      {
+        path: ':pathMatch(.*)*',
+        redirect: '/h5-mall/404',
+      },
     ],
   },
 ]

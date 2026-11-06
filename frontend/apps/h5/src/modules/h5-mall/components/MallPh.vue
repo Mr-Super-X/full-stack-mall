@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import type { MallGarm, MallPh } from '../config/mall'
+import type { MallPh } from '../config/mall'
 
 /**
  * 商品占位图（纯 token 色块 + 线稿）：限时甄选 / 新品横滑 / 为你推荐三处共用。
  *
  * 色块三档（ph）映射模块 token 浅底；tag / action 以具名插槽交给调用方，
  * 避免把角标与收藏按钮的逻辑耦合进占位组件。
+ * garm 放宽为 string（后端返回任意线稿 key，前端不校验联合类型）。
  */
 withDefaults(
   defineProps<{
     /** 色块档位：a 灰陶 / b 陶粉 / c 雾蓝 */
     ph: MallPh
-    /** 线稿 symbol 后缀（完整 id = mall-g-${garm}） */
-    garm: MallGarm
+    /** 线稿 symbol 后缀（完整 id = mall-g-${garm}）；后端返回 string，前端不校验 */
+    garm: string
     /** 圆角档位：sm 用于限时甄选小图，其余用 md */
     radius?: 'sm' | 'md'
   }>(),

@@ -1,16 +1,22 @@
 <script setup lang="ts">
-import type { MallNewItem } from '../config/mall'
+import type { MallGoodsItem } from '../apis/index'
 import MallPh from './MallPh.vue'
 
 /**
  * 新品上架：横滑卡片（scroll-snap 吸附）。
  * 容器左右各留双份页边距（section 边距 + hscroll 内边距）——源 HTML 即此结构，首卡呈缩进感。
+ * 数据来源：后端 API（MallGoodsItem，ph/garm 兜底占位块）。
  */
 const bem = createNamespace('mall-new')
 
 defineProps<{
-  items: readonly MallNewItem[]
+  items: readonly MallGoodsItem[]
 }>()
+
+/** 色块档位按 id 派生（后端无此字段，前端占位图用） */
+function phOf(id: number): 'a' | 'b' | 'c' {
+  return id % 3 === 0 ? 'a' : id % 3 === 1 ? 'b' : 'c'
+}
 </script>
 
 <template>
@@ -24,8 +30,10 @@ defineProps<{
       </a>
     </div>
     <div :class="bem.e('scroll')">
-      <a v-for="item in items" :key="item.name" :class="bem.e('card')" href="#goods">
-        <MallPh :class="bem.e('ph')" :ph="item.ph" :garm="item.garm">
+      <a v-for="item in items" :key="item.id" :class="bem.e('card')" href="#goods">
+        <!-- 有图渲染真实图，无图兜底占位色块 -->
+        <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.name" :class="bem.e('img')" />
+        <MallPh v-else :class="bem.e('ph')" :ph="phOf(item.id)" :garm="item.garm ?? 'tshirt'">
           <template v-if="item.tag" #tag>{{ item.tag }}</template>
         </MallPh>
         <div :class="bem.e('name')">{{ item.name }}</div>
@@ -101,6 +109,13 @@ defineProps<{
 
   &__ph {
     width: 371px;
+  }
+
+  &__img {
+    width: 371px;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    border-radius: var(--mall-r-md);
   }
 
   &__name {

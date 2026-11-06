@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { MALL_CATS } from '../config/mall'
-
 /** 金刚区品类入口（6 宫格，点击为原型锚点跳转） */
-type Cat = (typeof MALL_CATS)[number]
+interface Cat {
+  label: string
+  icon: string
+}
 
 const bem = createNamespace('mall-cats')
 

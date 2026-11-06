@@ -21,9 +21,17 @@ import { createGlobalComponents } from '@vv/ui'
 // ui 全局运行时装配入口（弹窗 appContext + 网络错误反馈）
 import { setupUiAppContext } from '@vv/ui/composables/setup-ui-app-context'
 import { bootstrapApp } from '@vv/shared'
+import { configurePaginationAdapter } from '@api/page-adapter'
 import '@vv/ui/app-styles'
 // 端级样式层（ui-overwrite.scss 承载 vant 4 主题变量覆盖，自 layouts/h5/styles/ 归位，docs/49 §5）
 import '@/styles/index.scss'
+
+// 分页适配器：覆盖 v2 默认约定（pageIndex/records/current/size）为当前后端约定（page/list）
+// 后端：Spring Boot + MyBatis-Plus，分页响应 {list, total, page, pageSize}，入参 page/pageSize
+configurePaginationAdapter({
+  request: { pageField: 'page', pageSizeField: 'pageSize' },
+  response: { listField: 'list', pageField: 'page', pageSizeField: 'pageSize', totalField: 'total' },
+})
 
 await bootstrapApp({
   rootComponent: App,
