@@ -7,35 +7,65 @@
  * - 用户开启 prefers-reduced-motion → 直接全部可见，不做位移动效
  * - 环境无 IntersectionObserver（如 jsdom / 老 WebView）→ 直接全部可见
  *
+ * 异步内容支持：组件挂载时数据未到（v-if 分支下 .rv 不在 DOM），
+ * MutationObserver 监听子树，后插入的 .rv 元素动态加入观察——否则异步区块永远 opacity:0。
+ *
  * @param rootRef 模块根元素 ref（挂载后查询其下 `.rv`）
  */
 export function useReveal(rootRef: Readonly<Ref<HTMLElement | null>>): void {
   let io: IntersectionObserver | undefined
+  let mo: MutationObserver | undefined
 
   onMounted(() => {
     const root = rootRef.value
     if (!root) return
-    const targets = Array.from(root.querySelectorAll<HTMLElement>('.rv'))
 
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
-    if (reduced || typeof IntersectionObserver === 'undefined') {
-      targets.forEach((el) => el.classList.add('in'))
-      return
+    const noIO = typeof IntersectionObserver === 'undefined'
+
+    /** 已接管的元素（防 MutationObserver 重复 observe） */
+    const seen = new WeakSet<HTMLElement>()
+
+    function reveal(el: HTMLElement): void {
+      el.classList.add('in')
     }
 
-    io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('in')
-            io?.unobserve(entry.target)
+    function observeEl(el: HTMLElement): void {
+      if (seen.has(el)) return
+      seen.add(el)
+      if (reduced || noIO) {
+        reveal(el)
+        return
+      }
+      io!.observe(el)
+    }
+
+    if (!reduced && !noIO) {
+      io = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              reveal(entry.target as HTMLElement)
+              io?.unobserve(entry.target)
+            }
           }
-        }
-      },
-      { threshold: 0.08 }
-    )
-    targets.forEach((el) => io!.observe(el))
+        },
+        { threshold: 0.08 }
+      )
+    }
+
+    // 挂载时已存在的 .rv（同步渲染区块）
+    root.querySelectorAll<HTMLElement>('.rv').forEach(observeEl)
+
+    // 挂载后动态插入的 .rv（异步数据驱动渲染，如 useMallHome 返回后的 v-else 分支）
+    mo = new MutationObserver(() => {
+      root.querySelectorAll<HTMLElement>('.rv:not(.in)').forEach(observeEl)
+    })
+    mo.observe(root, { childList: true, subtree: true })
   })
 
-  onScopeDispose(() => io?.disconnect())
+  onScopeDispose(() => {
+    io?.disconnect()
+    mo?.disconnect()
+  })
 }

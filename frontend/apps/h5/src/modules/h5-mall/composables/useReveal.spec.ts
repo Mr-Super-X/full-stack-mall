@@ -103,4 +103,34 @@ describe('useReveal', () => {
     w.unmount()
     expect(io.observed.size).toBe(0)
   })
+
+  it('挂载后动态插入的 .rv 元素也应被观察（异步数据驱动渲染）', async () => {
+    vi.stubGlobal('IntersectionObserver', MockIO)
+    // Host 初始只有 1 个 .rv；showSecond 翻 true 模拟 API 返回后插入第二个
+    const Host = defineComponent({
+      setup() {
+        const root = ref<HTMLElement | null>(null)
+        const showSecond = ref(false)
+        useReveal(root)
+        return { root, showSecond }
+      },
+      render() {
+        return h('div', { ref: 'root' }, [
+          h('section', { class: 'rv' }, 'A'),
+          this.showSecond ? h('section', { class: 'rv' }, 'B') : null,
+        ])
+      },
+    })
+    const w = mount(Host)
+    await nextTick()
+    const io = MockIO.instances[0]!
+    expect(io.observed.size).toBe(1)
+
+    ;(w.vm as unknown as { showSecond: boolean }).showSecond = true
+    await nextTick()
+    // MutationObserver 回调走宏任务，等一拍
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(io.observed.size).toBe(2)
+  })
 })

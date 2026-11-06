@@ -301,9 +301,12 @@ INSERT INTO product_item (product_id, size, color, condition_grade, price, origi
   (14, NULL, '黑金', 'GOOD',     12800.00, NULL, 1),
   (15, NULL, '燕麦色', 'LIKE_NEW', 680.00,  NULL, 1);
 
--- 商品图片：picsum 占位图，sort=0 为主图
+-- 商品图片：picsum 占位图，sort=0 为主图；每商品 2 张（详情页轮播演示）
 INSERT INTO product_image (product_id, url, sort)
 SELECT p.id, CONCAT('https://picsum.photos/seed/mall-p', p.id, '-1/750/750'), 0 FROM product p;
+
+INSERT INTO product_image (product_id, url, sort)
+SELECT p.id, CONCAT('https://picsum.photos/seed/mall-p', p.id, '-2/750/750'), 1 FROM product p;
 
 INSERT INTO home_banner (id, title, pic_url, link_url, sort) VALUES
   (1, '新客立减 ¥30',       'https://picsum.photos/seed/mall-banner-1/750/320', '/h5-mall', 1),
