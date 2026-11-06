@@ -1,0 +1,30 @@
+server:
+  port: 18080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: mall-backend
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://localhost:13306/mall?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:mall-root}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+  mapper-locations: classpath*:mapper/*.xml
+
+app:
+  cors:
+    # 前端各 app dev server 端口 + dev-gateway；逗号分隔，环境变量可整体覆盖
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:8080}
+  jwt:
+    # 仅开发用默认值；生产必须通过 JWT_SECRET 环境变量覆盖
+    secret: ${JWT_SECRET:dev-only-mall-jwt-secret-key-please-override-in-prod}
+    expire-hours: ${JWT_EXPIRE_HOURS:24}
+    cookie-name: token

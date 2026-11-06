@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fullstackmall.shop.product.mapper.ProductMapper">
+
+  <!--
+    卡片聚合查询：价格/库存下沉 product_item 后，列表展示价 = 最低规格价（"¥xx 起"）。
+    GROUP BY 主键 p.id，p.* 列功能依赖于主键，满足 ONLY_FULL_GROUP_BY。
+    ORDER BY 走 choose 白名单（聚合别名 price 可直接排序），非法 sort 回退 id DESC。
+  -->
+  <select id="selectSummaryPage" resultType="com.fullstackmall.shop.product.dto.ProductSummaryDTO">
+    SELECT p.id, p.name, p.tag, p.selling_point, p.garm, p.sales, p.owner_type, p.sale_mode,
+           MIN(i.price) AS price,
+           MAX(i.origin_price) AS origin_price,
+           (SELECT img.url FROM product_image img WHERE img.product_id = p.id ORDER BY img.sort LIMIT 1) AS image_url,
+           (SELECT i2.condition_grade FROM product_item i2 WHERE i2.product_id = p.id ORDER BY i2.price ASC LIMIT 1) AS condition_grade
+    FROM product p
+    LEFT JOIN product_item i ON i.product_id = p.id
+    WHERE p.status = 1
+    <if test="q.keyword != null and q.keyword != ''">
+      AND p.name LIKE CONCAT('%', #{q.keyword}, '%')
+    </if>
+    <if test="q.categoryId != null">
+      AND p.category_id = #{q.categoryId}
+    </if>
+    <if test="q.discountOnly != null and q.discountOnly">
+      AND EXISTS (SELECT 1 FROM product_item d WHERE d.product_id = p.id AND d.origin_price &gt; d.price)
+    </if>
+    GROUP BY p.id
+    <choose>
+      <when test="q.sort == 'price_asc'">ORDER BY price ASC</when>
+      <when test="q.sort == 'price_desc'">ORDER BY price DESC</when>
+      <when test="q.sort == 'sales_desc'">ORDER BY p.sales DESC</when>
+      <otherwise>ORDER BY p.id DESC</otherwise>
+    </choose>
+  </select>
+
+</mapper>
