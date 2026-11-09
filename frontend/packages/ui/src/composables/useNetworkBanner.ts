@@ -38,6 +38,10 @@ import NetworkBanner from '../components/common/NetworkBanner.vue'
 /** 手动关闭后的冷却期（ms）：冷却期内新网络错误不重新弹出横幅 */
 export const MANUAL_DISMISS_COOLDOWN_MS = 30_000
 
+/** 瞬时网络错误（模块热重载/vite 重启/刷新取消在途请求）的横幅自动消失时长（ms）——
+ *  持续故障靠恢复信号/后续错误维持横幅；无后续信号则按时长兜底消失，避免一闪而过残留困扰 */
+const TRANSIENT_BANNER_TTL_MS = 4_000
+
 /** 横幅单例状态（模块级响应式——全局横幅本就单例，组件直接渲染本状态） */
 export const networkBannerState = reactive({
   visible: false,
@@ -48,10 +52,21 @@ export const networkBannerState = reactive({
 /** 手动关闭时间戳（0 = 未手动关闭或已被恢复信号清零） */
 let dismissedAt = 0
 
+/** 瞬时横幅自动消失计时器（故障持续期间靠新错误/恢复信号维持，无信号则 TTL 兜底消失） */
+let transientTimer: ReturnType<typeof setTimeout> | undefined
+
 /** 用户点关闭：立即隐藏 + 进入冷却期 */
 export function dismissNetworkBanner(): void {
   networkBannerState.visible = false
   dismissedAt = Date.now()
+  clearTransientTimer()
+}
+
+function clearTransientTimer(): void {
+  if (transientTimer !== undefined) {
+    clearTimeout(transientTimer)
+    transientTimer = undefined
+  }
 }
 
 /** 网络级错误 → 横幅通道；业务级错误 → toast 兜底（拦截器事件化前的默认行为） */
@@ -68,6 +83,13 @@ function handleHttpError(event: HttpErrorEvent): void {
   }
   dismissedAt = 0
   networkBannerState.visible = true
+  // 瞬时错误（刷新取消在途请求/模块热重载）无后续成功时，TTL 兜底消失——
+  // 持续故障期间新错误会重置计时器维持横幅，恢复信号立即清除
+  clearTransientTimer()
+  transientTimer = setTimeout(() => {
+    networkBannerState.visible = false
+    transientTimer = undefined
+  }, TRANSIENT_BANNER_TTL_MS)
 }
 
 /** 恢复信号：任意请求成功 = 网络已通 → 隐藏归零 + 清冷却 */
@@ -75,6 +97,7 @@ function handleRecovered(): void {
   networkBannerState.visible = false
   networkBannerState.count = 0
   dismissedAt = 0
+  clearTransientTimer()
 }
 
 let mounted = false
@@ -106,6 +129,7 @@ export function resetNetworkBanner(): void {
   networkBannerState.visible = false
   networkBannerState.count = 0
   dismissedAt = 0
+  clearTransientTimer()
 }
 
 // 事件订阅挂模块顶层：import 即生效，与 UI 挂载时序解耦（首个请求的失败不依赖
