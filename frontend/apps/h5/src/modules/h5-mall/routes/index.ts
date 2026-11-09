@@ -9,6 +9,9 @@
  *   免登录，方便手机扫码真机预览
  * - 本模块路径在 postcss-pxtorem 转换范围（src/modules/h5- 前缀约定），
  *   视图样式直接写 828 设计稿 px，构建时自动转 rem
+ * - 常驻外壳（2026-11-09，阶段 3 收尾）：layout 下再嵌套 `../views/shell.vue`，
+ *   首页/列表/订单/工作台挂 shell 下享常驻 tabbar；详情/登录/注册/404 与 shell 平级不渲染 tabbar
+ *   （模块边界裁决：AGENTS.md §1.2 禁 layouts 引用 modules/，tabbar 常驻不落 layout 而落模块外壳）
  *
  * @see [`../views/index.vue`](../views/index.vue) 商城首页
  * @see [`../../router/whitelist.ts`](../../router/whitelist.ts) routeNames 消费方
@@ -25,25 +28,53 @@ const routes: RouteRecordRaw[] = [
     path: '/h5-mall',
     component: () => import('@/layouts/h5/index.vue'),
     children: [
+      // 常驻外壳：享常驻 tabbar 的页挂 shell 下（切 tab 不消失）；
+      // 详情/登录/注册/404 与 shell 平级——不渲染 tabbar（模块边界裁决见 ledger Task 1 Ruling）
       {
         path: '',
-        name: 'H5Mall',
-        component: () => import('../views/index.vue'),
-        meta: {
-          title: '拙衣商城',
-          requiresAuth: false,
-          noTags: true, // h5 无 TagsView，标记仅作契约文档（同 h5-demo 语义）
-        },
-      },
-      {
-        path: 'list',
-        name: 'H5MallList',
-        component: () => import('../views/list.vue'),
-        meta: {
-          title: '商品列表',
-          requiresAuth: false,
-          noTags: true,
-        },
+        component: () => import('../views/shell.vue'),
+        children: [
+          {
+            path: '',
+            name: 'H5Mall',
+            component: () => import('../views/index.vue'),
+            meta: {
+              title: '拙衣商城',
+              requiresAuth: false,
+              noTags: true, // h5 无 TagsView，标记仅作契约文档（同 h5-demo 语义）
+            },
+          },
+          {
+            path: 'list',
+            name: 'H5MallList',
+            component: () => import('../views/list.vue'),
+            meta: {
+              title: '商品列表',
+              requiresAuth: false,
+              noTags: true,
+            },
+          },
+          {
+            path: 'orders',
+            name: 'H5MallOrders',
+            component: () => import('../views/orders.vue'),
+            meta: {
+              title: '我的订单',
+              requiresAuth: false,
+              noTags: true,
+            },
+          },
+          {
+            path: 'seller',
+            name: 'H5MallSeller',
+            component: () => import('../views/seller.vue'),
+            meta: {
+              title: '卖家工作台',
+              requiresAuth: false,
+              noTags: true,
+            },
+          },
+        ],
       },
       {
         path: 'detail/:id',

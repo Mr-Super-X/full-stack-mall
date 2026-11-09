@@ -99,7 +99,7 @@ describe('h5-mall 商城首页（API 驱动）', () => {
     expect(w.findAll('.vv-mall-goods__gcard')).toHaveLength(1)
   })
 
-  it('点「加入购物袋」：角标 +1 且 Toast 弹出', async () => {
+  it('点「加入购物袋」：Toast 弹出', async () => {
     vi.mocked(h5MallApi.getHome).mockResolvedValue(mockHome)
 
     const w = mount(HomeIndex)
@@ -110,8 +110,7 @@ describe('h5-mall 商城首页（API 驱动）', () => {
 
     expect(w.findComponent(MallToast).props('visible')).toBe(true)
     expect(w.findComponent(MallToast).props('message')).toBe('已加入购物袋')
-    // Tabbar 购物袋角标出现数字 1
-    expect(w.find('.vv-mall-tabbar__cartn').text()).toBe('1')
+    // 注：常驻 tabbar 已上移至 shell.vue（ledger Task 1 Ruling），角标断言随之移除
   })
 
   it('收藏切换：aria-pressed 翻转 + Toast 文案跟随', async () => {

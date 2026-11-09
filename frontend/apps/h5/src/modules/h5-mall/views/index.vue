@@ -2,7 +2,6 @@
 // ref 由 unplugin-auto-import 注入（CLAUDE.md §1.6）
 import type { MallGoodsItem } from '../apis/index'
 import { useMallHome } from '../composables/useMallHome'
-import { useMallTabNav } from '../composables/useMallTabNav'
 import { useReveal } from '../composables/useReveal'
 import { useToast } from '../composables/useToast'
 import MallCats from '../components/MallCats.vue'
@@ -13,18 +12,20 @@ import MallNew from '../components/MallNew.vue'
 import MallNotice from '../components/MallNotice.vue'
 import MallServeFooter from '../components/MallServeFooter.vue'
 import MallSprite from '../components/MallSprite.vue'
-import MallTabbar from '../components/MallTabbar.vue'
 import MallToast from '../components/MallToast.vue'
 import MallTopbar from '../components/MallTopbar.vue'
 import MallTopic from '../components/MallTopic.vue'
 
 /**
  * 拙衣商城 H5 首页（陶土 · 莫兰迪）：公告 + 吸顶栏 + Banner + 金刚区 +
- * 限时甄选 + 新品横滑 + 编辑专题 + 为你推荐 + 服务页脚 + Tabbar + Toast。
+ * 限时甄选 + 新品横滑 + 编辑专题 + 为你推荐 + 服务页脚 + Toast。
  *
- * 容器职责：持有跨区块交互态（购物袋计数 / 收藏集合 / Toast），
- * 区块组件经 props 下传、emits 上报；入场渐显由 useReveal 统一驱动。
- * 数据来源：useMallHome() 拉取 /mall/home/content，替代 mall.ts 硬编码。
+ * 容器职责：持有跨区块交互态（收藏集合 / Toast），区块组件经 props 下传、
+ * emits 上报；入场渐显由 useReveal 统一驱动。数据来源：useMallHome() 拉取
+ * /mall/home/content，替代 mall.ts 硬编码。
+ *
+ * Tabbar 说明：常驻 tabbar 已上移至 ../shell.vue（切 tab 不消失），本页不再渲染；
+ * 底部留白（padding-bottom）随之迁至外壳，见 shell.vue 样式。
  */
 const bem = createNamespace('h5-mall')
 
@@ -36,17 +37,8 @@ const { visible: toastVisible, message: toastMessage, show } = useToast()
 /** 首页聚合内容（走后端 API） */
 const { home, loading, error, isEmpty, refresh } = useMallHome()
 
-/** 购物袋计数（Tabbar 角标，>99 显示 99+） */
-const cartCount = ref(0)
 /** 已收藏商品 id 集合 */
 const favs = ref<number[]>([])
-/** Tabbar 选中 key（v-model 受控；切 tab 联动点见 useMallTabNav——grid 跳列表页，bag/user toast 提示） */
-const activeTab = ref('home')
-
-/** tab key → 路由接线（分类跳列表页并重置选中态；未实现 tab toast 提示） */
-useMallTabNav(activeTab, {
-  onTodo: (tab) => show(tab === 'bag' ? '购物袋功能开发中' : '个人中心开发中'),
-})
 
 /** 金刚区品类（后端 categories 映射到原型 MALL_CATS 形状；icon 字段直接透传） */
 const mallCats = computed(() => {
@@ -75,7 +67,6 @@ const MALL_TOPIC = {
 } as const
 
 function onAdd(): void {
-  cartCount.value += 1
   show('已加入购物袋')
 }
 
@@ -129,7 +120,6 @@ function onToggleFav(item: MallGoodsItem): void {
       </template>
     </main>
     <MallServeFooter class="rv" />
-    <MallTabbar v-model="activeTab" :cart-count="cartCount" />
     <MallToast :visible="toastVisible" :message="toastMessage" />
   </div>
 </template>
@@ -143,9 +133,6 @@ function onToggleFav(item: MallGoodsItem): void {
   min-height: 100vh;
   // 100dvh 渐进增强：规避 iOS Safari 地址栏收缩溢出（与 layouts/h5 同策略）
   min-height: 100dvh;
-  // 为 fixed tabbar 留出底部空间：容器高 TB_H(134)@362 稿 × (828/362) ≈ 307 稿 px；
-  // safe-area 由 tabbar 容器自身 padding 承担，此处不再叠加
-  padding-bottom: 307px;
   font-family: var(--mall-font-body);
   font-size: 34px;
   line-height: 1.7;

@@ -23,17 +23,25 @@ describe('useMallTabNav', () => {
     expect(activeTab.value).toBe('home')
   })
 
-  it('购物袋/我的应走 onTodo 提示且不跳转', async () => {
+  it('我的应跳订单页并重置选中态回首页（选中态由路由同步回写）', async () => {
+    const activeTab = ref('home')
+    const onTodo = vi.fn()
+    useMallTabNav(activeTab, { onTodo })
+
+    activeTab.value = 'user'
+    await vi.waitFor(() => expect(pushByName).toHaveBeenCalledWith('H5MallOrders'))
+
+    expect(activeTab.value).toBe('home')
+    expect(onTodo).not.toHaveBeenCalled()
+  })
+
+  it('购物袋应走 onTodo 提示且不跳转', async () => {
     const activeTab = ref('home')
     const onTodo = vi.fn()
     useMallTabNav(activeTab, { onTodo })
 
     activeTab.value = 'bag'
     await vi.waitFor(() => expect(onTodo).toHaveBeenCalledWith('bag'))
-    expect(pushByName).not.toHaveBeenCalled()
-
-    activeTab.value = 'user'
-    await vi.waitFor(() => expect(onTodo).toHaveBeenCalledWith('user'))
     expect(pushByName).not.toHaveBeenCalled()
   })
 
