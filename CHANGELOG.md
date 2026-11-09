@@ -1,0 +1,98 @@
+# 更新日志
+
+本项目的所有显著变更都将记录在此文件中。
+
+格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
+版本按项目的**阶段交付**组织（阶段 0 ~ 5，见 `docs/superpowers/specs/2026-11-06-resale-mall-design.md` 路线章节），
+每个阶段都有可运行产物。
+
+## [阶段 3] - 2026-11-09
+
+可运行产物：订单全生命周期流转 + 平台对卖家的三步结算闭环（后端；admin 页面见计划 07）。
+
+### Added（后端 · 阶段 3：订单流转与 Payout 三步结算）
+
+- 支付成功联动寄卖单 `LISTED → SOLD`（条件 UPDATE 状态迁移，`PaymentServiceImpl` 注入 `ConsignmentListingMapper`）
+- 卖家订单列表 `GET /mall/orders/sold`：按 `OrderItem.sellerId` 归集我售出的订单，含商品快照/订单状态/金额，支付信息批量加载
+- 发货 `POST /mall/orders/{id}/ship`：主体鉴权（寄卖件验卖家本人，不符 404；自营件验 ADMIN，不符 403），`PAID → SHIPPED` 条件迁移
+- 确认收货 `POST /mall/orders/{id}/confirm`：`SHIPPED → COMPLETED`，同事务按寄卖件生成 `Payout PENDING`
+  - 佣金经 `productItem → consignment_listing.listed_product_id` 回联取率，`gross × rate / 100`（HALF_UP 两位小数），`sellerAmount = gross - commission`
+  - `uk(order_item_id)` 幂等：重复确认不产生重复 Payout
+- Payout 审批三步条件迁移（`payout` 新包）：管理员列表（默认 PENDING）/ `confirm`（PENDING → CONFIRMED）/ `pay`（CONFIRMED → PAID），PAID 时寄卖单 `SOLD → SETTLED` 联动
+
+### Fixed（后端 · 阶段 3 终审修复）
+
+- `PayoutServiceImpl.confirm` 补充 `@Transactional`，与 `pay` 对齐
+- `OrderServiceImpl.parseAddress` / `toItemDTO` 快照 JSON 解析失败的静默 catch 补充 `log.warn`（兜底展示但可追踪，不吞错）
+
+## [阶段 2] - 2026-11-09
+
+可运行产物：买家直购闭环（购物车 → 下单 → 模拟支付）+ 卖家寄卖申请到商品上架全链路。
+
+### Added（后端 · 阶段 2 下半场：购物车下单与模拟支付）
+
+- 购物车 CRUD（MySQL 存储）：`GET/POST/PUT/DELETE /mall/cart/**`，勾选状态管理
+- 下单 `POST /mall/orders`：单 `@Transactional` 内完成地址归属校验 → 购物车归属校验 → 快照行组装（`itemSnapshot` JSON + 价格快照，快照铁律）→ 条件 UPDATE 扣库存（行数 0 即 `STOCK_NOT_ENOUGH` 回滚）→ 订单落库（订单号时间戳+随机，重试 ≤3）→ 清空购物车 → 创建 `Payment CREATED`
+- 惰性关单：`expiredAt` 下单时写入，查询时发现过期则同事务标记 `CANCELLED` 并回补库存，无需调度器
+- 模拟支付（`PaymentProvider` 抽象 + `FakeProvider` 本地闭环）：
+  - `GET /mall/payments/fake/checkout` 收银台页面（金额字符串携带，对齐真实支付宝）
+  - `POST /mall/payments/fake/notify` 异步通知：验签（md5）→ `paymentNo` 幂等 → 状态机单向迁移 → 金额校验 → 订单 `PAID` 条件迁移（行数守卫防销量重复累加）
+- 订单查询：`GET /mall/orders`（我的订单列表）、`GET /mall/orders/{id}`（详情，含地址/商品快照组装）
+- 寄卖商品直购约束：寄卖件库存恒为 1，不走购物车，报错 `CONSIGNMENT_DIRECT_ONLY`
+
+### Added（后端 · 阶段 2 上半场：寄卖全流程与地址 CRUD）
+
+- 寄卖申请 `POST /mall/consignments`：用户提交闲置（标题/描述/成色/期望价/类目/图片）
+- 我的寄卖列表 `GET /mall/consignments/mine`、详情 `GET /mall/consignments/{id}`
+- 管理员审核 `GET /mall/admin/consignments` + `POST /mall/admin/consignments/{id}/review`：`SUBMITTED|REVIEWING → PRICED/REJECTED` 条件迁移（含平台定价与佣金率）
+- 卖家接受定价 `POST /mall/consignments/{id}/accept`：单事务铸造商品（`Product ownerType=CONSIGNMENT` + `ProductItem stock=1` + 图片），`PRICED → LISTED` 条件迁移防重复铸造
+- 地址 CRUD `GET/POST/PUT/DELETE /mall/addresses/**`：归属校验、默认地址唯一性（MySQL 生成列 `default_guard` + 唯一键兜底并发）
+
+### Fixed（前端 · 阶段 1 遗留）
+
+- 分类 Tab 不跳转：新增 `useMallTabNav` 组合式 API，grid Tab 跳转列表页，未实现 Tab 回退首页并提示（`312eb79`）
+
+### Chore
+
+- 删除冗余的 GitHub issue 模板与 CI/CD 配置文件（`0ed314d`）
+
+## [阶段 1] - 2026-11-06
+
+可运行产物：H5 买家端浏览器真实可逛（首页/列表/详情对接真实后端），注册登录鉴权闭环。
+
+### Added（后端：商品域重构与 JWT 用户鉴权）
+
+- 商品域按设计蓝图重建：`Product`（`ownerType` PLATFORM/CONSIGNMENT + `saleMode` NORMAL/SECKILL/CROWDFUND/SUBSCRIPTION，后两者 v2 占位）/ `ProductItem`（多 SKU 库存）/ `ProductImage` / `Category`
+- 统一响应信封 `{code, message, data}`（`code=200` 成功），分页统一 `PageResult{list,total,page,pageSize}`，业务错误 HTTP 200 + 非 200 业务码
+- JWT 鉴权（jjwt 0.12.6 HS256）：注册/登录 `POST /mall/auth/register|login`（BCrypt 密码散列），HttpOnly Cookie 携带，`AuthInterceptor` 注入 `UserContext`
+- `AdminInterceptor`：`/mall/admin/**` 仅 ADMIN 角色可访问
+- 商品接口：首页聚合 `GET /mall/home`、列表 `GET /mall/products`（分页/类目筛选）、详情 `GET /mall/products/{id}`（含 SKU 与图片）
+- 种子数据：3 用户（admin/seller/buyer）+ 13 个自营多 SKU 商品 + 2 个寄卖商品
+- 设计文档与 5 阶段路线：`docs/superpowers/specs/2026-11-06-resale-mall-design.md`
+
+### Added（前端：H5 对接后端与登录注册）
+
+- `h5-mall` 模块：首页（轮播/分类 Tab/商品流）、列表页（分页加载）、详情页（轮播 + 成色报告 + 卖家卡片）、登录/注册页、404 页
+- `apis/index.ts` 对接真实后端契约；`useMallHome` / `useProductList` / `useProductDetail` / `useAuthForm` 组合式 API
+- 统一 `http.ts`（axios `withCredentials`），分页适配器对接后端 `PageResult` 字段
+- vitest 配置内联 `vant` 依赖修复 CSS 加载
+
+### Fixed（前端）
+
+- 首页异步内容不可见：`useReveal` 增加 MutationObserver 监听动态插入元素（`2c361ce`）
+- 详情页轮播不显示修复（`2c361ce`）
+
+## [阶段 0] - 2026-11-05
+
+可运行产物：monorepo 工程骨架可安装、可启动。
+
+### Added
+
+- `frontend` 前端工程初始化：pnpm workspace + turbo monorepo，Vue 3 + TypeScript + Vite + Pinia + Vant（H5 买家端）+ UnoCSS（`3b61b7a`）
+- 根目录 `.gitignore` 补全（`c80d38c`）
+- `README.md` 项目结构说明（`0605002`）
+
+[阶段 3]: https://github.com/Mr-Super-X/full-stack-mall/compare/312eb79...9cd9862
+[阶段 2]: https://github.com/Mr-Super-X/full-stack-mall/compare/2c361ce...312eb79
+[阶段 1]: https://github.com/Mr-Super-X/full-stack-mall/compare/0605002...2c361ce
+[阶段 0]: https://github.com/Mr-Super-X/full-stack-mall/commits/0605002
