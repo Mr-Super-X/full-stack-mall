@@ -14,11 +14,18 @@ public enum ResultCode {
     USERNAME_EXISTS(400, "用户名已被注册"),
     BAD_CREDENTIALS(400, "用户名或密码错误"),
     CONSIGNMENT_STATE_ILLEGAL(400, "当前状态不允许该操作"),
+    STOCK_NOT_ENOUGH(400, "库存不足"),
+    ORDER_STATE_ILLEGAL(400, "当前订单状态不允许该操作"),
+    PAYMENT_STATE_ILLEGAL(400, "当前支付状态不允许回调"),
+    CONSIGNMENT_DIRECT_ONLY(400, "寄卖商品请直接购买"),
     UNAUTHORIZED(401, "未登录或登录已过期"),
     FORBIDDEN(403, "无权限访问"),
     PRODUCT_NOT_FOUND(404, "商品不存在"),
     CONSIGNMENT_NOT_FOUND(404, "寄卖单不存在"),
     ADDRESS_NOT_FOUND(404, "地址不存在"),
+    ORDER_NOT_FOUND(404, "订单不存在"),
+    PAYMENT_NOT_FOUND(404, "支付单不存在"),
+    CART_ITEM_NOT_FOUND(404, "购物车条目不存在"),
     INTERNAL_ERROR(500, "系统繁忙，请稍后重试");
 
     private final int code;

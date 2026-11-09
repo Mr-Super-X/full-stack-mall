@@ -39,7 +39,7 @@
 |------|------|------|------|
 | 0 | 需求梳理 + ER 图 + 接口契约 | 设计文档 | ✅ 2026-11-06 |
 | 1 | 商品域重构 + JWT 鉴权 + 前端对接 | **能逛的商城** | ✅ 2026-11-06 |
-| 2 | 寄卖全流程 + 地址 + 购物车 + 下单 + 模拟支付 | **能买能卖的商城 ⭐MVP** | ⬜ |
+| 2 | 寄卖全流程 + 地址 + 购物车 + 下单 + 模拟支付 | **能买能卖的商城 ⭐MVP** | ✅ 2026-11-09 |
 | 3 | 订单流转 + Payout 结算 + 管理后台 | **能运营的商城** | ⬜ |
 | 4 | 秒杀（条件更新 → Redis 预扣演进）+ 搜索优化 | **有技术深度的商城** | ⬜ |
 | 5 | 部署上线 + README 作品集化 | **作品集素材** | ⬜ |
@@ -47,10 +47,10 @@
 ## 快速开始
 
 ```bash
-# 后端（Docker 化，无需本机 JDK/Maven）
+# 后端（MySQL 走 Docker；应用本体本机 mvn 启动，需 JDK 17 + Maven 3.8.9+）
 cd backend
 docker compose up -d mysql   # MySQL 8.4，端口 13306，root 密码 mall-root（仅本地）
-docker compose up -d app     # Spring Boot，端口 18080，context-path /api
+mvn spring-boot:run          # Spring Boot，端口 18080，context-path /api
 
 # 前端（pnpm monorepo，Node >=22.18，pnpm >=11）
 cd frontend
@@ -63,7 +63,7 @@ pnpm -C apps/h5 dev          # h5 买家端（Vant）
 ```
 full-stack-mall/
 ├── frontend/   # Vue3 pnpm monorepo（apps/* × packages/*，治理规则见 frontend/AGENTS.md）
-├── backend/    # Spring Boot（按业务分包，Docker 化，sql/init.sql 幂等可重跑）
+├── backend/    # Spring Boot（按业务分包，MySQL Docker 化，sql/init.sql 幂等可重跑）
 └── docs/       # superpowers/specs 设计文档 · superpowers/plans 实施计划
 ```
 

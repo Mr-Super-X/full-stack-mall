@@ -28,3 +28,7 @@ app:
     secret: ${JWT_SECRET:dev-only-mall-jwt-secret-key-please-override-in-prod}
     expire-hours: ${JWT_EXPIRE_HOURS:24}
     cookie-name: token
+  payment:
+    # 支付回调验签密钥（独立于 JWT 密钥，一端泄露不连带失守——终审 MEDIUM 修复）
+    # 仅开发用默认值；生产必须通过 PAYMENT_SECRET 环境变量覆盖
+    secret: ${PAYMENT_SECRET:dev-only-mall-payment-secret-please-override-in-prod}
