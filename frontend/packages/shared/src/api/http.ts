@@ -217,6 +217,10 @@ const buildApiError = (
   new ApiError({
     code: body?.code ?? -1,
     message: body?.message || fallbackMessage,
+    // 业务码错误（HTTP 200 + body.code≠200）显式回填 HTTP status——否则 status=undefined，
+    // 会被 isNetworkLevelError(undefined)=true 误判网络级弹「网络连接异常」横幅
+    // （真后端把 404 包成 code:500 时，/menu 等业务错误误报网络异常，2026-11-09 实测根因）
+    status: response.status,
     url: response.config.url,
   })
 

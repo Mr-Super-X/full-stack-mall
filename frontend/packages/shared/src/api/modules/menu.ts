@@ -53,9 +53,12 @@ export const menuApi = {
    * 获取当前用户的可见菜单树（按角色权限过滤后）。
    *
    * 可降级探测：失败仅回退 local 菜单（remote.ts 已 catch + fallback），不打扰用户——
-   * 故标 silent，全局反馈层（toast/网络横幅）不感知。未标时连真后端（VITE_USE_MOCK=false
-   * 关 mock 中间件）守卫探测 /mock/menu 超时（5s）会误弹「网络连接异常」横幅（页面刷新瞬时，
-   * 恢复后消失，2026-11-09 实测）。
+   * 故标 silent，全局反馈层（toast/网络横幅）不感知。
+   *
+   * url 用绝对路径 `/mock/menu`（不经 baseURL）：/menu 是模板 mock 专属接口，后端无对应端点——
+   * 相对路径会拼 baseURL（连真后端时 /api/menu → 404 被全局包成 code:500 报「系统繁忙」）；
+   * 绝对路径固定打 mock 中间件（网关 /mock/ 前缀），mock 关时 silent fallback，mock 开时正常。
+   * （2026-11-09 实测：admin 连真后端时 remote 探测 /api/menu 报「系统繁忙」根因）
    *
    * 支持的 config 字段：
    * - `timeout?`：单次请求超时（毫秒）
@@ -63,5 +66,5 @@ export const menuApi = {
    * @group 业务 API：菜单
    */
   getMenu: (config: { timeout?: number } = {}) =>
-    request<RemoteMenuItem[]>({ url: '/menu', method: 'get', silent: true, ...config }),
+    request<RemoteMenuItem[]>({ url: '/mock/menu', method: 'get', silent: true, ...config }),
 }
