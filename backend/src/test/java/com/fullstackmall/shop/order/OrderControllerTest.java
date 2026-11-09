@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -93,5 +94,65 @@ class OrderControllerTest {
                         .content("{\"addressId\":1,\"source\":\"CART\",\"cartItemIds\":[1]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(401));
+    }
+
+    // ── Task 2（阶段 3）：卖家订单列表端点 ────────────────────────
+
+    @Test
+    void 卖家订单列表成功返回() throws Exception {
+        given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
+        OrderDTO dto = new OrderDTO();
+        dto.setId(2L);
+        dto.setOrderNo("M20261109120000-4821");
+        dto.setStatus("SHIPPED");
+        dto.setPayAmount(new BigDecimal("680.00"));
+        given(orderService.sold(org.mockito.ArgumentMatchers.isNull())).willReturn(java.util.List.of(dto));
+
+        mockMvc.perform(get("/mall/orders/sold")
+                        .cookie(new jakarta.servlet.http.Cookie("token", "t")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data[0].status").value("SHIPPED"));
+    }
+
+    @Test
+    void 卖家订单状态参数透传() throws Exception {
+        given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
+        given(orderService.sold("SHIPPED")).willReturn(java.util.List.of());
+
+        mockMvc.perform(get("/mall/orders/sold")
+                        .param("status", "SHIPPED")
+                        .cookie(new jakarta.servlet.http.Cookie("token", "t")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        org.mockito.Mockito.verify(orderService).sold("SHIPPED");
+    }
+
+    // ── Task 3（阶段 3）：发货端点 ────────────────────────────────
+
+    @Test
+    void 发货成功返回200() throws Exception {
+        given(jwtService.parse("t")).willReturn(new LoginUser(2L, "seller", "USER"));
+
+        mockMvc.perform(post("/mall/orders/1/ship")
+                        .cookie(new jakarta.servlet.http.Cookie("token", "t")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        org.mockito.Mockito.verify(orderService).ship(1L);
+    }
+
+    @Test
+    void 发货角色不符返回403() throws Exception {
+        given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
+        org.mockito.Mockito.doThrow(new com.fullstackmall.shop.common.BusinessException(
+                        com.fullstackmall.shop.common.ResultCode.FORBIDDEN))
+                .when(orderService).ship(1L);
+
+        mockMvc.perform(post("/mall/orders/1/ship")
+                        .cookie(new jakarta.servlet.http.Cookie("token", "t")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(403));
     }
 }

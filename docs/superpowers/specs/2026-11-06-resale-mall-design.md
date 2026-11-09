@@ -239,9 +239,10 @@ stateDiagram-v2
 | 商品 C 端 | `GET /mall/product/list`（关键词/品牌/成色/价格区间/排序/分页）· `GET /mall/product/{id}` · `GET /mall/product/category/tree` | 1（重构） |
 | 地址 | `GET /mall/addresses` · `POST /mall/addresses` · `PATCH /mall/addresses/{id}` · `DELETE /mall/addresses/{id}`（含默认地址标记） | 2 |
 | 寄卖 | `POST /mall/consignments` 提交 · `GET /mall/consignments/mine` · `GET /mall/consignments/{id}` · `POST /mall/consignments/{id}/accept`（卖家确认定价 → 铸造 Product 上架） | 2 |
-| 寄卖管理 | `GET /mall/admin/consignments?status=REVIEWING` · `POST /mall/admin/consignments/{id}/review`（核价通过→PRICED / 驳回→REJECTED 附原因）· `POST /mall/admin/consignments/{id}/settle`（结算打款） | 3 |
+| 寄卖管理 | `GET /mall/admin/consignments?status=REVIEWING` · `POST /mall/admin/consignments/{id}/review`（核价通过→PRICED / 驳回→REJECTED 附原因）· ~~`POST /mall/admin/consignments/{id}/settle`~~（结算审批移至 `/mall/admin/payouts/*`，见结算管理行，plan-06 调整） | 3 |
 | 购物车 | `GET /mall/cart` · `POST /mall/cart/items` · `PATCH /mall/cart/items/{id}` · `DELETE /mall/cart/items/{id}` | 2 |
-| 订单 | `POST /mall/orders` · `GET /mall/orders?status=` · `GET /mall/orders/{id}` · `POST /mall/orders/{id}/cancel` · `POST /mall/orders/{id}/ship`（卖家发寄卖件 / admin 发自营件）· `POST /mall/orders/{id}/confirm`（确认收货→触发 Payout） | 2-3 |
+| 订单 | `POST /mall/orders` · `GET /mall/orders?status=` · `GET /mall/orders/sold`（卖家视角，plan-06 新增）· `GET /mall/orders/{id}` · `POST /mall/orders/{id}/cancel` · `POST /mall/orders/{id}/ship`（卖家发寄卖件 / admin 发自营件）· `POST /mall/orders/{id}/confirm`（确认收货→生成 Payout PENDING） | 2-3 |
+| 结算管理 | `GET /mall/admin/payouts?status=PENDING` · `POST /mall/admin/payouts/{id}/confirm`（初审）· `POST /mall/admin/payouts/{id}/pay`（打款→寄卖单 SETTLED）——plan-06 从"挂在寄卖单上的 settle"调整为"挂在结算单资源上"（审批对象是 Payout，REST 归属更准确） | 3 |
 | 支付 | `POST /mall/payments/{paymentNo}/pay`（返回沙箱跳转 URL）· `POST /mall/payments/alipay/notify`（异步回调）· `GET /mall/payments/{paymentNo}`（前端轮询） | 2 |
 | 秒杀 | `GET /mall/seckill/active` · `POST /mall/seckill/{activityId}/orders` | 4 |
 | 自营后台 | `POST /mall/admin/products` · `PATCH /mall/admin/products/{id}` · `POST /mall/admin/seckill-activities` | 3-4 |

@@ -21,7 +21,13 @@ import com.fullstackmall.shop.order.mapper.OrderItemMapper;
 import com.fullstackmall.shop.order.mapper.OrderMapper;
 import com.fullstackmall.shop.order.service.OrderNoGenerator;
 import com.fullstackmall.shop.order.service.OrderService;
+import com.fullstackmall.shop.consignment.entity.ConsignmentListing;
+import com.fullstackmall.shop.consignment.enums.ConsignmentStatus;
+import com.fullstackmall.shop.consignment.mapper.ConsignmentListingMapper;
 import com.fullstackmall.shop.payment.entity.Payment;
+import com.fullstackmall.shop.payout.entity.Payout;
+import com.fullstackmall.shop.payout.enums.PayoutStatus;
+import com.fullstackmall.shop.payout.mapper.PayoutMapper;
 import com.fullstackmall.shop.payment.enums.PayChannel;
 import com.fullstackmall.shop.payment.enums.PaymentStatus;
 import com.fullstackmall.shop.payment.mapper.PaymentMapper;
@@ -33,11 +39,13 @@ import com.fullstackmall.shop.product.mapper.ProductImageMapper;
 import com.fullstackmall.shop.product.mapper.ProductItemMapper;
 import com.fullstackmall.shop.product.mapper.ProductMapper;
 import com.fullstackmall.shop.user.context.UserContext;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -50,6 +58,7 @@ import java.util.stream.Collectors;
  * 订单业务实现。下单是单一事务（快照 + 条件扣库存 + 清购物车 + 建支付单）；
  * 扣减与状态迁移一律字符串列名 UpdateWrapper 条件更新（纯单测无 Lambda 缓存依赖）。
  */
+@Slf4j
 @Service
 public class OrderServiceImpl implements OrderService {
 
@@ -65,11 +74,14 @@ public class OrderServiceImpl implements OrderService {
     private final ProductImageMapper productImageMapper;
     private final PaymentMapper paymentMapper;
     private final AddressMapper addressMapper;
+    private final PayoutMapper payoutMapper;
+    private final ConsignmentListingMapper consignmentListingMapper;
 
     public OrderServiceImpl(OrderMapper orderMapper, OrderItemMapper orderItemMapper,
                             CartItemMapper cartItemMapper, ProductItemMapper productItemMapper,
                             ProductMapper productMapper, ProductImageMapper productImageMapper,
-                            PaymentMapper paymentMapper, AddressMapper addressMapper) {
+                            PaymentMapper paymentMapper, AddressMapper addressMapper,
+                            PayoutMapper payoutMapper, ConsignmentListingMapper consignmentListingMapper) {
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
         this.cartItemMapper = cartItemMapper;
@@ -78,6 +90,8 @@ public class OrderServiceImpl implements OrderService {
         this.productImageMapper = productImageMapper;
         this.paymentMapper = paymentMapper;
         this.addressMapper = addressMapper;
+        this.payoutMapper = payoutMapper;
+        this.consignmentListingMapper = consignmentListingMapper;
     }
 
     @Override
@@ -307,12 +321,108 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public List<OrderDTO> sold(String status) {
+        Long sellerId = UserContext.getRequired().userId();
+        List<OrderItem> myLines = orderItemMapper.selectList(Wrappers.<OrderItem>lambdaQuery()
+                .eq(OrderItem::getSellerId, sellerId));
+        if (myLines.isEmpty()) {
+            return List.of();
+        }
+        List<Long> orderIds = myLines.stream().map(OrderItem::getOrderId).distinct().toList();
+        List<Order> orders = orderMapper.selectBatchIds(orderIds).stream()
+                .filter(o -> !org.springframework.util.StringUtils.hasText(status)
+                        || o.getStatus().name().equals(status))
+                .sorted(Comparator.comparing(Order::getId).reversed())
+                .toList();
+        Map<Long, List<OrderItem>> linesByOrder = myLines.stream()
+                .collect(java.util.stream.Collectors.groupingBy(OrderItem::getOrderId));
+        // 支付单批量加载（终审 HIGH 修复：避免逐单 selectOne 的 N+1）
+        Map<Long, Payment> paymentByOrder = paymentMapper.selectList(Wrappers.<Payment>lambdaQuery()
+                        .in(Payment::getOrderId, orderIds))
+                .stream().collect(java.util.stream.Collectors.toMap(
+                        Payment::getOrderId, p -> p, (a, b) -> a));
+        return orders.stream()
+                .map(o -> toDTO(o, linesByOrder.getOrDefault(o.getId(), List.of()),
+                        paymentByOrder.get(o.getId())))
+                .toList();
+    }
+
+    @Override
     @Transactional
     public OrderDTO detail(Long id) {
         Order order = requireOwnedOrder(id);
         // 惰性关单：超时未支付即取消 + 还库存（查询触发，无需定时任务）
         closeExpiredOrder(order);
         return toDTO(order, loadLines(order.getId()), loadPayment(order.getId()));
+    }
+
+    @Override
+    @Transactional
+    public void ship(Long id) {
+        Order order = orderMapper.selectById(id);
+        if (order == null) {
+            throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
+        }
+        List<OrderItem> lines = loadLines(id);
+        boolean hasConsignment = lines.stream().anyMatch(l -> l.getSellerId() != null);
+        com.fullstackmall.shop.user.context.LoginUser current = UserContext.getRequired();
+        if (hasConsignment) {
+            // 寄卖件：必须该卖家本人发货（404 口径，不暴露"这单是别人卖的"这一存在性）
+            boolean isSeller = lines.stream()
+                    .filter(l -> l.getSellerId() != null)
+                    .allMatch(l -> l.getSellerId().equals(current.userId()));
+            if (!isSeller) {
+                throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
+            }
+        } else if (!"ADMIN".equals(current.role())) {
+            // 全自营件：必须平台管理员发货（寄卖不进购物车，订单主体天然单一）
+            throw new BusinessException(ResultCode.FORBIDDEN);
+        }
+        // 条件迁移 PAID→SHIPPED（行数 0：并发重复发货/未支付）
+        migrateOrderStatus(id, OrderStatus.SHIPPED, OrderStatus.PAID);
+    }
+
+    @Override
+    @Transactional
+    public void confirm(Long id) {
+        Order order = requireOwnedOrder(id);
+        // 条件迁移 SHIPPED→COMPLETED（行数 0：未发货/重复确认）
+        migrateOrderStatus(id, OrderStatus.COMPLETED, OrderStatus.SHIPPED);
+        // 同事务：寄卖明细（sellerId 非空）逐个生成结算单（钱的两条线：收货才结算）
+        List<OrderItem> lines = loadLines(id);
+        for (OrderItem line : lines) {
+            if (line.getSellerId() == null) {
+                continue;
+            }
+            // 幂等：uk(order_item_id) 已存在则跳过（并发/重复 confirm 不重复生成、不报错）
+            Long exists = payoutMapper.selectCount(Wrappers.<Payout>lambdaQuery()
+                    .eq(Payout::getOrderItemId, line.getId()));
+            if (exists != null && exists > 0) {
+                continue;
+            }
+            ProductItem item = productItemMapper.selectById(line.getProductItemId());
+            if (item == null) {
+                continue;
+            }
+            // 佣金率回联寄卖单（铸造商品时挂在 listed_product_id 上；REJECTED 历史不参与结算）
+            ConsignmentListing listing = consignmentListingMapper.selectOne(
+                    Wrappers.<ConsignmentListing>lambdaQuery()
+                            .eq(ConsignmentListing::getListedProductId, item.getProductId())
+                            .ne(ConsignmentListing::getStatus, ConsignmentStatus.REJECTED));
+            BigDecimal rate = listing != null && listing.getCommissionRate() != null
+                    ? listing.getCommissionRate() : BigDecimal.ZERO;
+            BigDecimal gross = line.getPrice().multiply(BigDecimal.valueOf(line.getQuantity()));
+            BigDecimal commission = gross.multiply(rate)
+                    .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+            BigDecimal sellerAmount = gross.subtract(commission);
+            Payout payout = new Payout();
+            payout.setSellerId(line.getSellerId());
+            payout.setOrderItemId(line.getId());
+            payout.setSellerAmount(sellerAmount);
+            payout.setCommission(commission);
+            payout.setStatus(PayoutStatus.PENDING);
+            payoutMapper.insert(payout);
+        }
     }
 
     @Override
@@ -394,18 +504,20 @@ public class OrderServiceImpl implements OrderService {
         dto.setExpiredAt(order.getExpiredAt());
         dto.setCreateTime(order.getCreateTime());
         dto.setPaymentNo(payment != null ? payment.getPaymentNo() : null);
-        dto.setAddress(parseAddress(order.getAddressSnapshot()));
+        dto.setAddress(parseAddress(order.getAddressSnapshot(), order.getId()));
         dto.setItems(lines.stream().map(this::toItemDTO).toList());
         return dto;
     }
 
-    private AddressSnapshotDTO parseAddress(String json) {
+    private AddressSnapshotDTO parseAddress(String json, Long orderId) {
         if (json == null || json.isBlank()) {
             return null;
         }
         try {
             return OBJECT_MAPPER.readValue(json, AddressSnapshotDTO.class);
         } catch (Exception e) {
+            // 地址快照解析失败：烂数据按无地址展示，但必须可追踪（不吞错）
+            log.warn("订单地址快照 JSON 解析失败，按无地址兜底展示：orderId={}", orderId, e);
             return null;
         }
     }
@@ -427,7 +539,8 @@ public class OrderServiceImpl implements OrderService {
             dto.setBrand((String) snapshot.get("brand"));
             dto.setOwnerType((String) snapshot.get("ownerType"));
         } catch (Exception e) {
-            // 快照解析失败不炸订单展示（烂数据按无快照字段展示）
+            // 快照解析失败不炸订单展示（烂数据按无快照字段展示），但必须可追踪（不吞错）
+            log.warn("订单明细快照 JSON 解析失败，按无快照字段兜底展示：orderItemId={}", line.getId(), e);
         }
         return dto;
     }

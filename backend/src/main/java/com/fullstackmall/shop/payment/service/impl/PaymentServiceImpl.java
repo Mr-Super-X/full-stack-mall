@@ -3,6 +3,8 @@ package com.fullstackmall.shop.payment.service.impl;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fullstackmall.shop.common.BusinessException;
 import com.fullstackmall.shop.common.ResultCode;
+import com.fullstackmall.shop.consignment.enums.ConsignmentStatus;
+import com.fullstackmall.shop.consignment.mapper.ConsignmentListingMapper;
 import com.fullstackmall.shop.order.entity.Order;
 import com.fullstackmall.shop.order.entity.OrderItem;
 import com.fullstackmall.shop.order.enums.OrderStatus;
@@ -42,16 +44,19 @@ public class PaymentServiceImpl implements PaymentService {
     private final ProductItemMapper productItemMapper;
     private final ProductMapper productMapper;
     private final PaymentProvider paymentProvider;
+    private final ConsignmentListingMapper consignmentListingMapper;
 
     public PaymentServiceImpl(PaymentMapper paymentMapper, OrderMapper orderMapper,
                               OrderItemMapper orderItemMapper, ProductItemMapper productItemMapper,
-                              ProductMapper productMapper, PaymentProvider paymentProvider) {
+                              ProductMapper productMapper, PaymentProvider paymentProvider,
+                              ConsignmentListingMapper consignmentListingMapper) {
         this.paymentMapper = paymentMapper;
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
         this.productItemMapper = productItemMapper;
         this.productMapper = productMapper;
         this.paymentProvider = paymentProvider;
+        this.consignmentListingMapper = consignmentListingMapper;
     }
 
     @Override
@@ -122,6 +127,8 @@ public class PaymentServiceImpl implements PaymentService {
         migratePaymentStatus(payment.getId(), PaymentStatus.SUCCESS, PaymentStatus.CREATED, PaymentStatus.PAYING);
         if (migrateOrderPaid(order.getId())) {
             accrueSales(order.getId());
+            // 售出联动：寄卖明细对应寄卖单 LISTED→SOLD（C2C 状态机闭环，幂等容忍）
+            markConsignmentsSold(order.getId());
         }
         return Map.of("success", true);
     }
@@ -187,6 +194,33 @@ public class PaymentServiceImpl implements PaymentService {
             productMapper.update(null, Wrappers.<com.fullstackmall.shop.product.entity.Product>update()
                     .setSql("sales = sales + " + line.getQuantity())
                     .eq("id", item.getProductId()));
+        }
+    }
+
+    /**
+     * 售出联动：订单转 PAID 后，寄卖明细（sellerId 非空）对应寄卖单 LISTED→SOLD。
+     * 链路：OrderItem.productItemId → productItem.productId → consignment_listing.listed_product_id。
+     * 幂等容忍：条件迁移行数 0（并发已迁/单不存在）只记 debug，不影响支付主流程。
+     */
+    private void markConsignmentsSold(Long orderId) {
+        List<OrderItem> lines = orderItemMapper.selectList(Wrappers.<OrderItem>lambdaQuery()
+                .eq(OrderItem::getOrderId, orderId));
+        for (OrderItem line : lines) {
+            if (line.getSellerId() == null) {
+                continue; // 自营明细无寄卖单联动
+            }
+            ProductItem item = productItemMapper.selectById(line.getProductItemId());
+            if (item == null) {
+                continue;
+            }
+            int rows = consignmentListingMapper.update(null,
+                    Wrappers.<com.fullstackmall.shop.consignment.entity.ConsignmentListing>update()
+                            .set("status", ConsignmentStatus.SOLD.name())
+                            .eq("listed_product_id", item.getProductId())
+                            .eq("status", ConsignmentStatus.LISTED.name()));
+            if (rows == 0) {
+                log.debug("寄卖单已售出或不存在，跳过联动：orderId={}, productId={}", orderId, item.getProductId());
+            }
         }
     }
 }

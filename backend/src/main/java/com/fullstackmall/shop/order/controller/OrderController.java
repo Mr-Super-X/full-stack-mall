@@ -39,6 +39,12 @@ public class OrderController {
         return Result.success(orderService.list(status));
     }
 
+    /** 卖家视角订单列表（我卖出的订单，寄卖工作台发货入口的数据源） */
+    @GetMapping("/sold")
+    public Result<List<OrderDTO>> sold(@RequestParam(required = false) String status) {
+        return Result.success(orderService.sold(status));
+    }
+
     /** 订单详情（仅本人；触发惰性关单） */
     @GetMapping("/{id}")
     public Result<OrderDTO> detail(@PathVariable Long id) {
@@ -49,6 +55,20 @@ public class OrderController {
     @PostMapping("/{id}/cancel")
     public Result<Void> cancel(@PathVariable Long id) {
         orderService.cancel(id);
+        return Result.success(null);
+    }
+
+    /** 发货（卖家发寄卖件 / admin 发自营件；PAID → SHIPPED） */
+    @PostMapping("/{id}/ship")
+    public Result<Void> ship(@PathVariable Long id) {
+        orderService.ship(id);
+        return Result.success(null);
+    }
+
+    /** 确认收货（SHIPPED → COMPLETED，同事务生成寄卖结算单 PENDING） */
+    @PostMapping("/{id}/confirm")
+    public Result<Void> confirm(@PathVariable Long id) {
+        orderService.confirm(id);
         return Result.success(null);
     }
 }

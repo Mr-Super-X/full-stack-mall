@@ -68,13 +68,18 @@ class OrderServiceImplTest {
     private PaymentMapper paymentMapper;
     @Mock
     private AddressMapper addressMapper;
+    @Mock
+    private com.fullstackmall.shop.payout.mapper.PayoutMapper payoutMapper;
+    @Mock
+    private com.fullstackmall.shop.consignment.mapper.ConsignmentListingMapper consignmentListingMapper;
 
     private OrderService orderService;
 
     @BeforeEach
     void setUp() {
         orderService = new OrderServiceImpl(orderMapper, orderItemMapper, cartItemMapper,
-                productItemMapper, productMapper, productImageMapper, paymentMapper, addressMapper);
+                productItemMapper, productMapper, productImageMapper, paymentMapper, addressMapper,
+                payoutMapper, consignmentListingMapper);
         UserContext.set(new LoginUser(3L, "buyer", "USER"));
     }
 
@@ -300,6 +305,198 @@ class OrderServiceImplTest {
         assertThatThrownBy(() -> orderService.detail(9L))
                 .isInstanceOf(BusinessException.class)
                 .extracting("resultCode").isEqualTo(ResultCode.ORDER_NOT_FOUND);
+    }
+
+    // ── Task 2（阶段 3）：卖家订单列表 ────────────────────────────
+
+    @Test
+    void 卖家订单列表应只含我卖的订单与我卖的明细行() {
+        // 我卖的寄卖明细（sellerId=3，寄卖 DIRECT 单）
+        com.fullstackmall.shop.order.entity.OrderItem myLine = orderLine(35L, 1);
+        myLine.setOrderId(2L);
+        myLine.setSellerId(3L);
+        myLine.setItemSnapshot("{\"title\":\"中古 Chanel CF\"}");
+        given(orderItemMapper.selectList(any())).willReturn(List.of(myLine));
+        Order myOrder = order(2L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10));
+        given(orderMapper.selectBatchIds(any())).willReturn(List.of(myOrder));
+        // 自营订单（sellerId 全 null）不在我卖查询结果——selectList(eq sellerId=3) 只返回我的行
+
+        List<OrderDTO> result = orderService.sold(null);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getId()).isEqualTo(2L);
+        assertThat(result.get(0).getItems()).hasSize(1);
+        assertThat(result.get(0).getItems().get(0).getSellerId()).isEqualTo(3L);
+        // 查询参数只含我卖订单 id（captor 断言 selectBatchIds 只查 [2]）
+        org.mockito.ArgumentCaptor<java.util.Collection<Long>> idsCaptor =
+                org.mockito.ArgumentCaptor.forClass(java.util.Collection.class);
+        verify(orderMapper).selectBatchIds(idsCaptor.capture());
+        assertThat(idsCaptor.getValue()).containsExactly(2L);
+    }
+
+    @Test
+    void 卖家订单按状态过滤() {
+        com.fullstackmall.shop.order.entity.OrderItem lineA = orderLine(35L, 1);
+        lineA.setOrderId(2L);
+        lineA.setSellerId(3L);
+        com.fullstackmall.shop.order.entity.OrderItem lineB = orderLine(36L, 1);
+        lineB.setOrderId(3L);
+        lineB.setSellerId(3L);
+        given(orderItemMapper.selectList(any())).willReturn(List.of(lineA, lineB));
+        Order paidOrder = order(2L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10));
+        Order pendingOrder = order(3L, OrderStatus.PENDING_PAYMENT, java.time.LocalDateTime.now().plusMinutes(10));
+        given(orderMapper.selectBatchIds(any())).willReturn(List.of(paidOrder, pendingOrder));
+
+        List<OrderDTO> result = orderService.sold("PAID");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getStatus()).isEqualTo("PAID");
+    }
+
+    @Test
+    void 我没有卖出记录时返回空列表() {
+        given(orderItemMapper.selectList(any())).willReturn(List.of());
+
+        List<OrderDTO> result = orderService.sold(null);
+
+        assertThat(result).isEmpty();
+    }
+
+    // ── Task 3（阶段 3）：发货（主体鉴权 + 状态迁移） ────────────
+
+    @Test
+    void 卖家发自己的寄卖件应成功迁移已发货() {
+        Order paid = order(1L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10));
+        given(orderMapper.selectById(1L)).willReturn(paid);
+        com.fullstackmall.shop.order.entity.OrderItem myConsignment = orderLine(35L, 1);
+        myConsignment.setSellerId(3L); // 当前用户(buyer id=3)即卖家
+        given(orderItemMapper.selectList(any())).willReturn(List.of(myConsignment));
+        given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+
+        orderService.ship(1L);
+
+        verify(orderMapper).update(org.mockito.ArgumentMatchers.isNull(), any());
+    }
+
+    @Test
+    void 非卖家发寄卖件应抛404不暴露存在性() {
+        // 寄卖件属于卖家 B（sellerId=2），当前用户是买家（id=3）或其他卖家 A
+        Order paid = order(1L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10));
+        given(orderMapper.selectById(1L)).willReturn(paid);
+        com.fullstackmall.shop.order.entity.OrderItem othersConsignment = orderLine(35L, 1);
+        othersConsignment.setSellerId(2L);
+        given(orderItemMapper.selectList(any())).willReturn(List.of(othersConsignment));
+
+        assertThatThrownBy(() -> orderService.ship(1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("resultCode").isEqualTo(ResultCode.ORDER_NOT_FOUND);
+    }
+
+    @Test
+    void 普通用户发自营件应抛403() {
+        Order paid = order(1L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10));
+        given(orderMapper.selectById(1L)).willReturn(paid);
+        com.fullstackmall.shop.order.entity.OrderItem platformLine = orderLine(1L, 1);
+        platformLine.setSellerId(null); // 自营件
+        given(orderItemMapper.selectList(any())).willReturn(List.of(platformLine));
+
+        assertThatThrownBy(() -> orderService.ship(1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("resultCode").isEqualTo(ResultCode.FORBIDDEN);
+    }
+
+    @Test
+    void 管理员发自营件应成功迁移已发货() {
+        UserContext.set(new LoginUser(1L, "admin", "ADMIN"));
+        Order paid = order(1L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10));
+        given(orderMapper.selectById(1L)).willReturn(paid);
+        com.fullstackmall.shop.order.entity.OrderItem platformLine = orderLine(1L, 1);
+        platformLine.setSellerId(null);
+        given(orderItemMapper.selectList(any())).willReturn(List.of(platformLine));
+        given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+
+        orderService.ship(1L);
+
+        verify(orderMapper).update(org.mockito.ArgumentMatchers.isNull(), any());
+    }
+
+    @Test
+    void 未支付订单发货应抛非法流转() {
+        // 并发/重复发货语义：条件迁移 WHERE status='PAID' 命中 0 行
+        Order pending = order(1L, OrderStatus.PENDING_PAYMENT, java.time.LocalDateTime.now().plusMinutes(10));
+        given(orderMapper.selectById(1L)).willReturn(pending);
+        com.fullstackmall.shop.order.entity.OrderItem line = orderLine(35L, 1);
+        line.setSellerId(3L);
+        given(orderItemMapper.selectList(any())).willReturn(List.of(line));
+        given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(0);
+
+        assertThatThrownBy(() -> orderService.ship(1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("resultCode").isEqualTo(ResultCode.ORDER_STATE_ILLEGAL);
+    }
+
+    // ── Task 4（阶段 3）：确认收货 + Payout 生成 ──────────────────
+
+    @Test
+    void 确认收货后应生成结算单且拆账恒等() {
+        Order shipped = order(1L, OrderStatus.SHIPPED, java.time.LocalDateTime.now().plusMinutes(10));
+        given(orderMapper.selectOne(any())).willReturn(shipped);
+        given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+        // 寄卖明细：卖家 2、成交价 12800、1 件、寄卖商品 14 的单件
+        com.fullstackmall.shop.order.entity.OrderItem consignmentLine = orderLine(35L, 1);
+        consignmentLine.setPrice(new BigDecimal("12800.00"));
+        consignmentLine.setSellerId(2L);
+        given(orderItemMapper.selectList(any())).willReturn(List.of(consignmentLine));
+        given(payoutMapper.selectCount(any())).willReturn(0L);
+        ProductItem consignmentItem = platformItem(35L, 1, "12800.00");
+        consignmentItem.setProductId(14L);
+        given(productItemMapper.selectById(35L)).willReturn(consignmentItem);
+        com.fullstackmall.shop.consignment.entity.ConsignmentListing listing =
+                new com.fullstackmall.shop.consignment.entity.ConsignmentListing();
+        listing.setCommissionRate(new BigDecimal("15.00"));
+        given(consignmentListingMapper.selectOne(any())).willReturn(listing);
+
+        orderService.confirm(1L);
+
+        org.mockito.ArgumentCaptor<com.fullstackmall.shop.payout.entity.Payout> captor =
+                org.mockito.ArgumentCaptor.forClass(com.fullstackmall.shop.payout.entity.Payout.class);
+        verify(payoutMapper).insert(captor.capture());
+        com.fullstackmall.shop.payout.entity.Payout payout = captor.getValue();
+        assertThat(payout.getSellerId()).isEqualTo(2L);
+        assertThat(payout.getCommission()).isEqualByComparingTo("1920.00");
+        assertThat(payout.getSellerAmount()).isEqualByComparingTo("10880.00");
+        // 拆账恒等：sellerAmount + commission == price × quantity
+        assertThat(payout.getSellerAmount().add(payout.getCommission()))
+                .isEqualByComparingTo("12800.00");
+        assertThat(payout.getStatus().name()).isEqualTo("PENDING");
+    }
+
+    @Test
+    void 已有结算单时重复确认不重复生成() {
+        Order shipped = order(1L, OrderStatus.SHIPPED, java.time.LocalDateTime.now().plusMinutes(10));
+        given(orderMapper.selectOne(any())).willReturn(shipped);
+        given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+        com.fullstackmall.shop.order.entity.OrderItem consignmentLine = orderLine(35L, 1);
+        consignmentLine.setSellerId(2L);
+        given(orderItemMapper.selectList(any())).willReturn(List.of(consignmentLine));
+        // uk(order_item_id) 已存在（并发 confirm 已生成过）
+        given(payoutMapper.selectCount(any())).willReturn(1L);
+
+        orderService.confirm(1L);
+
+        verify(payoutMapper, never()).insert(any(com.fullstackmall.shop.payout.entity.Payout.class));
+    }
+
+    @Test
+    void 未发货订单确认收货应抛非法流转() {
+        Order paid = order(1L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10));
+        given(orderMapper.selectOne(any())).willReturn(paid);
+        given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(0);
+
+        assertThatThrownBy(() -> orderService.confirm(1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("resultCode").isEqualTo(ResultCode.ORDER_STATE_ILLEGAL);
+        verify(payoutMapper, never()).insert(any(com.fullstackmall.shop.payout.entity.Payout.class));
     }
 
     // ── Task 4 桩 ───────────────────────────────────────────────

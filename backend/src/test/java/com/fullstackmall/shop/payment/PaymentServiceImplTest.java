@@ -56,6 +56,8 @@ class PaymentServiceImplTest {
     private ProductItemMapper productItemMapper;
     @Mock
     private ProductMapper productMapper;
+    @Mock
+    private com.fullstackmall.shop.consignment.mapper.ConsignmentListingMapper consignmentListingMapper;
 
     private PaymentService paymentService;
     private FakePaymentProvider fakeProvider;
@@ -64,7 +66,8 @@ class PaymentServiceImplTest {
     void setUp() {
         fakeProvider = new FakePaymentProvider(SECRET);
         paymentService = new PaymentServiceImpl(
-                paymentMapper, orderMapper, orderItemMapper, productItemMapper, productMapper, fakeProvider);
+                paymentMapper, orderMapper, orderItemMapper, productItemMapper, productMapper,
+                fakeProvider, consignmentListingMapper);
     }
 
     @Test
@@ -158,6 +161,61 @@ class PaymentServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("resultCode").isEqualTo(ResultCode.PAYMENT_STATE_ILLEGAL);
         verify(paymentMapper, never()).update(org.mockito.ArgumentMatchers.isNull(), any());
+    }
+
+    // ── Task 1（阶段 3）：售出联动（订单 PAID → 寄卖单 SOLD） ──────────
+
+    @Test
+    void 支付成功后寄卖明细应联动寄卖单转已售出() {
+        Payment created = payment(PaymentStatus.CREATED);
+        given(paymentMapper.selectOne(any())).willReturn(created);
+        given(orderMapper.selectById(created.getOrderId())).willReturn(order(OrderStatus.PENDING_PAYMENT));
+        given(paymentMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+        given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+        // 寄卖明细（sellerId 非空，寄卖商品 14 的单件）
+        OrderItem consignmentLine = new OrderItem();
+        consignmentLine.setProductItemId(35L);
+        consignmentLine.setSellerId(2L);
+        consignmentLine.setQuantity(1);
+        given(orderItemMapper.selectList(any())).willReturn(List.of(consignmentLine));
+        ProductItem consignmentItem = new ProductItem();
+        consignmentItem.setId(35L);
+        consignmentItem.setProductId(14L);
+        given(productItemMapper.selectById(35L)).willReturn(consignmentItem);
+        // 寄卖单迁移成功（LISTED→SOLD）
+        given(consignmentListingMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+
+        paymentService.notify(notifyReq(created));
+
+        // 寄卖单迁移被调用：set status=SOLD，条件 listed_product_id=14 AND status=LISTED
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<com.fullstackmall.shop.consignment.entity.ConsignmentListing>> captor =
+                org.mockito.ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper.class);
+        verify(consignmentListingMapper).update(org.mockito.ArgumentMatchers.isNull(), captor.capture());
+        assertThat(captor.getValue().getParamNameValuePairs().values()).contains("SOLD");
+    }
+
+    @Test
+    void 寄卖单迁移返回0时幂等容忍不影响订单支付主流程() {
+        Payment created = payment(PaymentStatus.CREATED);
+        given(paymentMapper.selectOne(any())).willReturn(created);
+        given(orderMapper.selectById(created.getOrderId())).willReturn(order(OrderStatus.PENDING_PAYMENT));
+        given(paymentMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+        given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+        OrderItem consignmentLine = new OrderItem();
+        consignmentLine.setProductItemId(35L);
+        consignmentLine.setSellerId(2L);
+        consignmentLine.setQuantity(1);
+        given(orderItemMapper.selectList(any())).willReturn(List.of(consignmentLine));
+        ProductItem consignmentItem = new ProductItem();
+        consignmentItem.setId(35L);
+        consignmentItem.setProductId(14L);
+        given(productItemMapper.selectById(35L)).willReturn(consignmentItem);
+        // 并发场景：寄卖单已被另一请求迁移（行数 0）——幂等容忍，不得炸主流程
+        given(consignmentListingMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(0);
+
+        Map<String, Object> result = paymentService.notify(notifyReq(created));
+
+        assertThat(result.get("success")).isEqualTo(true);
     }
 
     // ── 终审 fix pass ─────────────────────────────────────────
