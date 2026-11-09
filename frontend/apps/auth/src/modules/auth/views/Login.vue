@@ -34,7 +34,9 @@ const { t } = useI18n()
 const userStore = useUserStore()
 
 const formRef = ref()
-const form = reactive({ username: 'admin', password: '123456' })
+// 预填开发便利凭据——统一登录接线真后端（计划 07 v2）后用商城种子账号 admin/admin123
+// （原 mock 演示口令 admin/123456 只在 mock 模式有效；真后端 BCrypt 校验不匹配会报「用户名或密码错误」）
+const form = reactive({ username: 'admin', password: 'admin123' })
 const loading = ref(false)
 const showPassword = ref(false)
 const rememberMe = ref(false)
