@@ -1,5 +1,6 @@
 package com.fullstackmall.shop.config;
 
+import com.fullstackmall.shop.user.interceptor.AdminInterceptor;
 import com.fullstackmall.shop.user.interceptor.AuthInterceptor;
 import com.fullstackmall.shop.user.service.JwtService;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,7 +27,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // 注册顺序即语义：Auth 先解析身份写 UserContext，Admin 后读上下文校验角色
         registry.addInterceptor(new AuthInterceptor(jwtService, cookieName))
-                .addPathPatterns("/mall/auth/me");
+                .addPathPatterns("/mall/auth/me", "/mall/consignments/**", "/mall/addresses/**", "/mall/admin/**");
+        registry.addInterceptor(new AdminInterceptor())
+                .addPathPatterns("/mall/admin/**");
     }
 }

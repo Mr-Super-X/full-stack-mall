@@ -128,7 +128,7 @@ Address: id / userId / receiverName / phone / province / city / district / detai
 ### 4.2 ConsignmentListing 寄卖单 —— 本项目的灵魂
 
 ```
-id / sellerId / brand / title / size / conditionGrade(成色枚举)
+id / sellerId / categoryId(铸造 product 用，plan-04 补) / brand / title / size / conditionGrade(成色枚举)
 images(JSON 数组，图床 URL，多角度成色实拍) / description
 expectedPrice(卖家期望价) / platformPrice(平台核价) / commissionRate(抽佣%)
 status: SUBMITTED → REVIEWING → PRICED → LISTED → SOLD → SETTLED
@@ -213,6 +213,7 @@ stateDiagram-v2
 ```
 
 > 注：卖家不接受核价时寄卖单停留在「已定价」，MVP 不做"拒绝定价"流转（v2 可加退回/关闭）。
+> MVP 再简化（plan-04 落地）：无"开始审核"动作，**提交（SUBMITTED）即入审核池**，review 允许 SUBMITTED/REVIEWING 直接流转 PRICED/REJECTED；REVIEWING 枚举保留但不强制经过。
 
 ```mermaid
 stateDiagram-v2
@@ -370,6 +371,10 @@ slice1 已完成商品展示切片（13 条种子、4 个接口全绿），但�
 | 3 | slice1 处置 | 按新蓝图推翻重构（ProductItem 下沉 + init.sql 重写）|
 | 4 | 众筹/盲盒 | v2 实现，枚举现在占位 |
 | 5 | 技术栈 | 沿用 slice1（Java 17 / SB 3.5.9 / MyBatis-Plus / MySQL 8.4 / Vue3 monorepo）|
+| 6 | 购物车存储（阶段 2） | MySQL `cart_item` 表（Redis 留到阶段 4 秒杀再引） |
+| 7 | 订单号生成（阶段 2） | 时间戳+随机（`M+yyyyMMddHHmmss+4位随机`，uk 兜底重试） |
+| 8 | 寄卖下单路径（阶段 2） | 仅"立即购买"直购，不进购物车（库存恒 1） |
+| 9 | 模拟支付（阶段 2） | FakeProvider 本地闭环（PaymentProvider 接口留支付宝沙箱实现位） |
 
 ### 12.2 我的判断（你可以推翻）
 

@@ -46,10 +46,13 @@ CREATE TABLE address (
   district      VARCHAR(32)  NOT NULL,
   detail        VARCHAR(255) NOT NULL,
   is_default    TINYINT      NOT NULL DEFAULT 0,
+  -- 并发防双默认护栏：MySQL 无部分唯一索引，用生成列（is_default=1 时取 user_id，0 时 NULL 不占唯一约束）
+  default_guard BIGINT GENERATED ALWAYS AS (IF(is_default = 1, user_id, NULL)) COMMENT '默认地址唯一护栏（勿手写）',
   create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_user (user_id)
+  KEY idx_user (user_id),
+  UNIQUE KEY uk_default_guard (default_guard)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='收货地址';
 
 -- ========== 商品域 ==========
@@ -133,6 +136,7 @@ CREATE TABLE home_banner (
 CREATE TABLE consignment_listing (
   id                BIGINT        NOT NULL AUTO_INCREMENT,
   seller_id         BIGINT        NOT NULL COMMENT '卖家 user.id',
+  category_id       BIGINT        NOT NULL COMMENT '分类（铸造 product 用，product.category_id NOT NULL）',
   brand             VARCHAR(64)   NOT NULL,
   title             VARCHAR(128)  NOT NULL,
   size              VARCHAR(16)   DEFAULT NULL,
@@ -314,7 +318,7 @@ INSERT INTO home_banner (id, title, pic_url, link_url, sort) VALUES
   (3, '满 ¥299 顺丰包邮',   'https://picsum.photos/seed/mall-banner-3/750/320', '/h5-mall', 3);
 
 -- 寄卖演示商品对应的寄卖单（状态已走完：LISTED，listed_product_id 指回商品）
-INSERT INTO consignment_listing (seller_id, brand, title, condition_grade, images, expected_price, platform_price, commission_rate, status, listed_product_id) VALUES
-  (2, 'Chanel', '中古 Chanel CF 黑金牛皮', 'GOOD', JSON_ARRAY('https://picsum.photos/seed/mall-p14-1/750/750'), 15000.00, 12800.00, 15.00, 'LISTED', 14),
-  (2, 'Acne Studios', '95新 Acne Studios 羊毛围巾', 'LIKE_NEW', JSON_ARRAY('https://picsum.photos/seed/mall-p15-1/750/750'), 800.00, 680.00, 15.00, 'LISTED', 15);
+INSERT INTO consignment_listing (seller_id, category_id, brand, title, condition_grade, images, expected_price, platform_price, commission_rate, status, listed_product_id) VALUES
+  (2, 5, 'Chanel', '中古 Chanel CF 黑金牛皮', 'GOOD', JSON_ARRAY('https://picsum.photos/seed/mall-p14-1/750/750'), 15000.00, 12800.00, 15.00, 'LISTED', 14),
+  (2, 6, 'Acne Studios', '95新 Acne Studios 羊毛围巾', 'LIKE_NEW', JSON_ARRAY('https://picsum.photos/seed/mall-p15-1/750/750'), 800.00, 680.00, 15.00, 'LISTED', 15);
 
