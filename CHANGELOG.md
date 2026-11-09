@@ -20,6 +20,13 @@
 - **h5 登录切换**：`h5-mall` 删除自有 auth 端点，`useAuthForm` 改走 shared `userStore.login` / `authApi.register`（与 admin/auth 同一套会话与权限模型，不再平行登录态）
 - **mock 对齐**：`/mock/mall/auth/*` 处理器（dev `rawResponse` + prod 内联）返回商城 `UserInfoDTO` 形状（ADMIN 演示账号），`check:mock-wiring` 保持绿
 
+### Added（前端 · h5 买家端，计划 08）
+
+- **tabbar 常驻**（`h5-mall` 模块外壳 `views/shell.vue`）：MallTabbar + `useMallTabNav` + 新增 `useTabbarRouteSync`（route.name ↔ activeTab，浏览器前进/后退/刷新选中态跟随路由）上移至模块外壳——切 tab 页不消失；订单/工作台挂外壳下享常驻 tabbar，详情/登录/404 平级不渲染（模块边界裁决：AGENTS.md §1.2 禁 layouts 引用 modules/，常驻落模块外壳而非 `layouts/h5`）；首页移除局部 tabbar 与底部留白
+- **买家订单页**（`views/orders.vue`）：`GET /mall/orders` 卡片列表（订单号/商品快照/金额/状态标签），SHIPPED 订单「确认收货」（`useConfirm` 二次确认 + 防重点击），成功/400 均 reload 列表对齐真态（错误 toast 后端消息，不留幻觉成功）；`useMallTabNav` 补漏接线「我的」tab → 订单页
+- **卖家工作台**（`views/seller.vue`）：van-tabs 双列表——我的寄卖（`GET /mall/consignments/mine`，PRICED 单「接受定价」`useConfirm` 明示不可撤销 + 防重，驳回原因展示）+ 售出订单（`GET /mall/orders/sold`，PAID 单「发货」）；订单页顶部「我是卖家」入口分流（后端无 seller 角色字段，user tab 固定落订单页）
+- **页面级登录守卫**：订单/工作台路由 `beforeEnter requireMallLogin`（Session 'auth' 标记 → 模块内 H5MallLogin 带 redirect 回跳；h5 全局无登录守卫，拦截落路由级）
+
 ### Fixed（前端 · admin 后台）
 
 - 状态 Tab 切换不重取数据：ProTable 靠分页参数变化触发 `request-api` 重取，不因闭包里的 status 变化自动刷新——`:key=status` 强制重挂载触发 `onMounted` 重拉（浏览器实测修复）
