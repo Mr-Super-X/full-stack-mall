@@ -18,10 +18,23 @@
  * @group 业务模块：H5Mall
  */
 
-import type { RouteRecordRaw } from 'vue-router'
+import type { RouteLocationNormalized, RouteRecordRaw } from 'vue-router'
 // routeNames 提取收敛 @vv/shared 单源：collectRouteNames 递归拍平 children，
 // 新增子路由时白名单自动跟随，杜绝「路由已实现但白名单漏配」的漂移
-import { collectRouteNames } from '@vv/shared'
+import { collectRouteNames, Session } from '@vv/shared'
+
+/**
+ * 订单/工作台登录守卫（页面级 beforeEnter）。
+ *
+ * h5 全局无登录守卫（apps/h5/src/router/index.ts 头注「全站公开」），订单/工作台的
+ * 登录拦截落在路由级（ledger Task 1 Ruling 5）：查 Session 'auth' 标记（与模块内
+ * 登录页 login.vue 写入的标记同源），未登录跳模块内 H5MallLogin 并带 redirect
+ * 路由名——登录页按 redirect 回跳（views/login.vue）。
+ */
+function requireMallLogin(to: RouteLocationNormalized): true | { name: string; query: { redirect: string } } {
+  if (Session.get<boolean>('auth')) return true
+  return { name: 'H5MallLogin', query: { redirect: String(to.name) } }
+}
 
 const routes: RouteRecordRaw[] = [
   {
@@ -63,6 +76,7 @@ const routes: RouteRecordRaw[] = [
               requiresAuth: false,
               noTags: true,
             },
+            beforeEnter: requireMallLogin,
           },
           {
             path: 'seller',
@@ -73,6 +87,7 @@ const routes: RouteRecordRaw[] = [
               requiresAuth: false,
               noTags: true,
             },
+            beforeEnter: requireMallLogin,
           },
         ],
       },

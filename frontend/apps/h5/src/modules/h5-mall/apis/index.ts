@@ -139,3 +139,10 @@ export const h5MallApi = {
   /** 商品详情（含规格与图片列表） */
   getDetail: (id: number) => request<MallProductDetail>({ url: `/mall/product/${id}`, method: 'get' }),
 }
+
+// ────────────────────────────────────────────────────────────────────
+// 订单域（买家视角我的订单；卖家售出订单 Task 3 复用 MallOrder/ORDER_STATUS_TEXT）
+// 实现见 ./orders.ts——本文件作为模块 API 统一出口收敛导出
+// ────────────────────────────────────────────────────────────────────
+export { h5OrderApi, ORDER_STATUS_TEXT } from './orders'
+export type { MallOrder, MallOrderItem, MallOrderAddress } from './orders'
