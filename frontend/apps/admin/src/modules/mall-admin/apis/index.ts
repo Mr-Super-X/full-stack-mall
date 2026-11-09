@@ -4,3 +4,7 @@
 /** 寄卖审核端点（/mall/admin/consignments/*）与 ConsignmentDTO 对齐类型 */
 export { adminConsignmentApi } from './consignments'
 export type { AdminConsignmentItem, ReviewPayload } from './consignments'
+
+/** 结算审批端点（/mall/admin/payouts/*）与 PayoutDTO 对齐类型 */
+export { adminPayoutApi } from './payouts'
+export type { AdminPayoutItem } from './payouts'

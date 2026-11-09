@@ -25,6 +25,16 @@ const routes: RouteRecordRaw[] = [
           permissions: ['mall:admin'],
         },
       },
+      {
+        path: 'payouts',
+        name: 'MallAdminPayouts',
+        component: () => import('../views/Payouts.vue'),
+        meta: {
+          title: '结算审批',
+          requiresAuth: true,
+          permissions: ['mall:admin'],
+        },
+      },
     ],
   },
 ]

@@ -8,3 +8,7 @@
 /** 寄卖审核（状态筛选 + 通过定价/驳回原因） */
 export { useConsignmentReview } from './composables/useConsignmentReview'
 export type { AdminConsignmentItem, ReviewPayload } from './apis/consignments'
+
+/** 结算审批（PENDING→CONFIRMED→PAID 三步状态机） */
+export { usePayoutApproval } from './composables/usePayoutApproval'
+export type { AdminPayoutItem } from './apis/payouts'
