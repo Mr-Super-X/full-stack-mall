@@ -92,7 +92,8 @@ describe('Login.vue（apps/auth 统一登录页）', () => {
     const w = mount(Login, mountOptions)
     await w.find('form').trigger('submit.prevent')
     await flushPromises()
-    expect(mockLogin).toHaveBeenCalledWith({ username: 'admin', password: '123456' })
+    // 预填真后端种子账号 admin/admin123（统一登录接线真后端，Login.vue 默认 form）
+    expect(mockLogin).toHaveBeenCalledWith({ username: 'admin', password: 'admin123' })
     // 对齐 65b3c96 易用性修复：success toast 须存活到整页跳转，提示文案为「正在跳转…」
     expect(ElMessage.success).toHaveBeenCalledWith('登录成功，正在跳转…')
     // jsdom referrer 为空 → resolveDefaultFallback 走 /auth/ 兜底（env 未注入）

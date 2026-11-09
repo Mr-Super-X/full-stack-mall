@@ -222,12 +222,17 @@ export function createViteConfig({
       // 联调真实后端必须经 shell env：`VITE_USE_MOCK=false pnpm -C apps/<a> dev`。
       // （import.meta.env.VITE_USE_MOCK 的另一消费点是 prod-mock.ts 的 PROD 判定，
       // 只读 prod 构建态——与 dev 中间件开关互不干扰。）
+      // 共享默认层（2026-11-09 同 baseURL）：经 loadEnv 读 app > 仓库根 .env 的
+      // VITE_USE_MOCK——根 .env 一键切全 app mock/真后端开关，app/shell 仍可覆盖。
       // mockPath 为绝对路径（vite-plugin-mock 以 isAbsPath 判定，dist/index.mjs:224）
       ...(mockPath
         ? [
             viteMockServe({
               mockPath,
-              enable: process.env.VITE_USE_MOCK !== 'false',
+              enable:
+                (loadEnv(mode, appRoot, 'VITE_').VITE_USE_MOCK ??
+                  loadEnv(mode, path.join(appRoot, '../../'), 'VITE_').VITE_USE_MOCK ??
+                  process.env.VITE_USE_MOCK) !== 'false',
               watchFiles: true,
             }),
             // 清理 vite-plugin-mock 在 mock/ 生成的 _*.bundled_*.mjs 临时文件；
@@ -262,7 +267,7 @@ export function createViteConfig({
     ],
     define: {
       'import.meta.env.VITE_APP_ID': JSON.stringify(appName),
-      // 统一注入 API baseURL——优先级：shell env > .env 文件 > '/api' 保底。
+      // 统一注入 API baseURL——优先级：shell env > app .env > 仓库根 .env（共享默认）> '/api' 保底。
       // ⚠️ 机制事实（2026-10-26 mock 前缀统一实测踩坑）：esbuild define 对
       // `import.meta.env.X` 的精确键替换优先于 Vite 的 .env 注入——define 写死
       // 保底值时 .env 里的同键配置永远不会生效（浏览器实测 baseURL 仍为保底值，
@@ -273,9 +278,20 @@ export function createViteConfig({
       // 修复前固定 mode='development' 且注释错称「prod 不读该文件」——实际 loadEnv 按
       // 显式传入的 mode 读文件，致本地 pnpm build 产物把 /mock 打进生产包（构建不可复现）。
       // gh-pages 由 build-pages.ts 注入 shell env，优先级最高，不受影响。
-      // 联调真实后端：shell env 显式覆盖（README §环境变量），与既有机制一致。
+      // 统一环境配置（2026-11-09 改造，用户批准）：仓库根 .env 放公共默认，app 级只写覆盖项，
+      // 根治 per-app 错配漏配（auth 漏配 mock/真后端割裂致 Ctrl+F5 登录被踢回登录页的事故）。
+      // baseURL **由 VITE_USE_MOCK 开关推导**（开=mock=/mock，关=真后端=/api）——单一开关
+      // 一键切换，避免 VITE_USE_MOCK 与 VITE_API_BASE_URL 双变量矛盾；仅当 app 显式配
+      // VITE_API_BASE_URL（连非默认后端）时才覆盖推导值。优先级：shell > app > 根 > 推导。
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
-        process.env.VITE_API_BASE_URL ?? loadEnv(mode, appRoot, 'VITE_').VITE_API_BASE_URL ?? '/api'
+        process.env.VITE_API_BASE_URL ??
+          loadEnv(mode, appRoot, 'VITE_').VITE_API_BASE_URL ??
+          loadEnv(mode, path.join(appRoot, '../../'), 'VITE_').VITE_API_BASE_URL ??
+          ((loadEnv(mode, appRoot, 'VITE_').VITE_USE_MOCK ??
+            loadEnv(mode, path.join(appRoot, '../../'), 'VITE_').VITE_USE_MOCK ??
+            process.env.VITE_USE_MOCK) !== 'false'
+            ? '/mock'
+            : '/api')
       ),
     },
     // 浏览器消费的 @vv/* 源码链接包禁止预打包（2026-10-22 P4 实证）：
