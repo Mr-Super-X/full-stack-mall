@@ -3,8 +3,8 @@
 // 模块对外只暴露本文件（§1.2）；消费方必须只 import 本文件。
 //
 // 统一登录接线 shared 契约（计划 07 v2）：认证归 @vv/shared authApi / userStore，
-// 模块级「清商城 cookie」钩子与自建 useMallAuth 已随方案 A 撤销——shared userStore.logout
-// 原生指向 /mall/auth/logout（Task 1 Step 3），登出语义免费获得，无需额外挂接。
-// 本文件由 Task 2/3 追加业务 composable 导出（useConsignmentReview / usePayoutApproval）。
+// 模块导出业务 composable（寄卖审核 / 结算审批）。
 
-export {}
+/** 寄卖审核（状态筛选 + 通过定价/驳回原因） */
+export { useConsignmentReview } from './composables/useConsignmentReview'
+export type { AdminConsignmentItem, ReviewPayload } from './apis/consignments'
