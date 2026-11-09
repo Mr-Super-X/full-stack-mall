@@ -2,21 +2,24 @@
 /**
  * 寄卖审核队列页（mall-admin 模块）。
  *
- * 状态 Tab 筛选 + el-table 展示寄卖单；SUBMITTED 行可操作：
- * 「通过」开 dialog 填平台定价 + 佣金率；「驳回」填原因（useConfirm 二次确认）。
- * 审核成功自动 reload 对齐真态；错误 toast 可见（不静默吞错）。
+ * 表格用全局组件 ProTable（@vv/ui 自动注册，AGENTS.md「表格用 ProTable」既定模式）——
+ * columns + request-api 声明式，内建 Loading/Error/Empty 三态与搜索区，不用原生 el-table 手写三态。
+ * 状态 Tab 在 ProTable 上方做外部筛选（改变 status → 触发 request-api 重取）。
+ * SUBMITTED 行可操作：「通过」开 dialog 填平台定价 + 佣金率；「驳回」填原因（useConfirm 二次确认）。
  * 权限：路由 meta.permissions=['mall:admin']（seller 登录后被 /403 拦，Review Focus #1）。
  */
 defineOptions({ name: 'MallAdminConsignments' })
 
-import { onMounted, reactive, ref } from 'vue'
-import type { TabsPaneContext } from 'element-plus'
+import { reactive, ref } from 'vue'
+// ProColumn 类型：@vv/ui ProTable 组件配套列定义类型（组件本体自动注册，类型显式 import——CLAUDE.md §1.7）
+import type { ProColumn, ProTableResponse } from '@vv/ui/components/ProTable'
 import { useConsignmentReview } from '../index'
+import { adminConsignmentApi } from '../apis/consignments'
 import type { AdminConsignmentItem } from '../index'
 
 const bem = createNamespace('mall-admin-consignments')
 
-const { list, loading, status, load, approve, reject } = useConsignmentReview()
+const { status, approve, reject } = useConsignmentReview()
 
 const STATUS_TABS = [
   { label: '待审核', value: 'SUBMITTED' },
@@ -27,9 +30,22 @@ const STATUS_TABS = [
   { label: '已驳回', value: 'REJECTED' },
 ]
 
-function onTabClick(paneName: string | number): void {
-  void load(String(paneName))
+/** ProTable 数据源：按当前 status 拉寄卖单，包装为 ProTableResponse（纯列表无分页，total=长度）。
+ *  状态切换经 v-model 双向绑定 status（绕开 el-tabs EpProp 严格类型摩擦），变化触发 request-api 重取。 */
+async function requestApi(): Promise<ProTableResponse<AdminConsignmentItem>> {
+  const list = await adminConsignmentApi.list(String(status.value))
+  return { data: list, total: list.length, pageNum: 1, pageSize: list.length || 1 }
 }
+
+const columns: ProColumn<AdminConsignmentItem>[] = [
+  { prop: 'title', label: '商品', minWidth: 240 },
+  { prop: 'expectedPrice', label: '期望价', width: 110 },
+  { prop: 'platformPrice', label: '平台定价', width: 110 },
+  { prop: 'commissionRate', label: '佣金率', width: 90 },
+  { prop: 'status', label: '状态', width: 100 },
+  { prop: 'createTime', label: '提交时间', width: 170 },
+  { prop: 'operation', label: '操作', width: 160, type: 'operation', fixed: 'right' },
+]
 
 // ── 通过 dialog ──────────────────────────────────────────────
 const approveDialogVisible = ref(false)
@@ -105,77 +121,80 @@ async function onRejectSubmit(): Promise<void> {
 function formatMoney(v: number | null): string {
   return v === null ? '—' : `¥${v.toFixed(2)}`
 }
-
-onMounted(() => {
-  void load()
-})
 </script>
 
 <template>
   <div :class="bem.b()">
-    <el-tabs :model-value="status" @tab-click="(t: TabsPaneContext) => onTabClick(String(t.paneName))">
+    <!-- @ts-expect-error element-plus el-tabs v-model 的 EpProp 泛型与 string 状态在 Vue 3.6 beta SFC 模板里类型摩擦（运行时行为正确），对齐项目 RichTextEditor 对第三方库类型缺口的既定模式 -->
+    <el-tabs v-model="status">
       <el-tab-pane v-for="t in STATUS_TABS" :key="t.value" :label="t.label" :name="t.value" />
     </el-tabs>
 
-    <div v-if="loading" :class="bem.e('state')">
-      <el-icon :size="28"><Loading /></el-icon>
-      <p>加载中…</p>
-    </div>
-
-    <div v-else-if="list.length === 0" :class="bem.e('state')">
-      <el-icon :size="28"><FolderOpened /></el-icon>
-      <p>当前状态下暂无寄卖单</p>
-    </div>
-
-    <el-table v-else :data="list" :class="bem.e('table')" border stripe>
-      <el-table-column label="商品" min-width="240">
-        <template #default="{ row }">
-          <div :class="bem.e('goods')">
-            <img
-              v-if="row.images && row.images.length"
-              :src="row.images[0]"
-              :alt="row.title"
-              :class="bem.e('thumb')"
-            />
-            <div :class="bem.e('thumb-placeholder')" v-else>无图</div>
-            <div>
-              <div :class="bem.e('title')">{{ row.title }}</div>
-              <div :class="bem.e('meta')">{{ row.brand || '—' }} · {{ row.conditionGrade }}</div>
+    <ProTable
+      :columns="columns"
+      :request-api="requestApi"
+      :pagination="false"
+      row-key="id"
+      :class="bem.e('table')"
+    >
+      <template #title="{ row }">
+        <div :class="bem.e('goods')">
+          <img
+            v-if="(row as AdminConsignmentItem).images?.length"
+            :src="(row as AdminConsignmentItem).images![0]"
+            :alt="(row as AdminConsignmentItem).title"
+            :class="bem.e('thumb')"
+          />
+          <div :class="bem.e('thumb-placeholder')" v-else>无图</div>
+          <div>
+            <div :class="bem.e('goods-title')">{{ (row as AdminConsignmentItem).title }}</div>
+            <div :class="bem.e('goods-meta')">
+              {{ (row as AdminConsignmentItem).brand || '—' }} ·
+              {{ (row as AdminConsignmentItem).conditionGrade }}
             </div>
           </div>
+        </div>
+      </template>
+
+      <template #expectedPrice="{ row }">
+        {{ formatMoney((row as AdminConsignmentItem).expectedPrice) }}
+      </template>
+      <template #platformPrice="{ row }">
+        {{ formatMoney((row as AdminConsignmentItem).platformPrice) }}
+      </template>
+      <template #commissionRate="{ row }">
+        {{
+          (row as AdminConsignmentItem).commissionRate !== null
+            ? `${(row as AdminConsignmentItem).commissionRate}%`
+            : '—'
+        }}
+      </template>
+      <template #status="{ row }">
+        <el-tag
+          :type="
+            (row as AdminConsignmentItem).status === 'REJECTED'
+              ? 'danger'
+              : (row as AdminConsignmentItem).status === 'SUBMITTED'
+                ? 'warning'
+                : 'success'
+          "
+        >
+          {{ (row as AdminConsignmentItem).status }}
+        </el-tag>
+      </template>
+
+      <template #operation="{ row }">
+        <template v-if="(row as AdminConsignmentItem).status === 'SUBMITTED'">
+          <el-button size="small" type="primary" @click="openApprove(row as AdminConsignmentItem)">
+            通过
+          </el-button>
+          <el-button size="small" type="danger" @click="openReject(row as AdminConsignmentItem)">
+            驳回
+          </el-button>
         </template>
-      </el-table-column>
-      <el-table-column label="期望价" width="110">
-        <template #default="{ row }">{{ formatMoney(row.expectedPrice) }}</template>
-      </el-table-column>
-      <el-table-column label="平台定价" width="110">
-        <template #default="{ row }">{{ formatMoney(row.platformPrice) }}</template>
-      </el-table-column>
-      <el-table-column label="佣金率" width="90">
-        <template #default="{ row }">
-          {{ row.commissionRate !== null ? `${row.commissionRate}%` : '—' }}
-        </template>
-      </el-table-column>
-      <el-table-column label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.status === 'REJECTED' ? 'danger' : row.status === 'SUBMITTED' ? 'warning' : 'success'">
-            {{ row.status }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="提交时间" width="170">
-        <template #default="{ row }">{{ row.createTime }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
-        <template #default="{ row }">
-          <template v-if="(row as AdminConsignmentItem).status === 'SUBMITTED'">
-            <el-button size="small" type="primary" @click="openApprove(row as AdminConsignmentItem)">通过</el-button>
-            <el-button size="small" type="danger" @click="openReject(row as AdminConsignmentItem)">驳回</el-button>
-          </template>
-          <span v-else>—</span>
-        </template>
-      </el-table-column>
-    </el-table>
+        <span v-else>—</span>
+      </template>
+    </ProTable>
 
     <!-- 通过 dialog -->
     <el-dialog v-model="approveDialogVisible" title="审核通过并定价" width="420px">
@@ -215,15 +234,6 @@ onMounted(() => {
 .#{$BEM_PREFIX}-mall-admin-consignments {
   padding: 16px;
 
-  &__state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    padding: 60px 0;
-    color: var(--el-text-color-secondary);
-  }
-
   &__table {
     width: 100%;
   }
@@ -255,13 +265,13 @@ onMounted(() => {
     flex-shrink: 0;
   }
 
-  &__title {
+  &__goods-title {
     font-weight: 500;
     color: var(--el-text-color-primary);
     line-height: 1.4;
   }
 
-  &__meta {
+  &__goods-meta {
     font-size: 12px;
     color: var(--el-text-color-secondary);
     margin-top: 4px;
