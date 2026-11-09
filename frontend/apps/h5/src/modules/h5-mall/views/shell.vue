@@ -7,16 +7,19 @@
  * 路由接线见 ../routes/index.ts：layout 下再嵌套本 shell，detail/login/register/404
  * 与 shell 平级、不享常驻 tabbar。
  *
+ * 选中态单一事实源（ledger Task 4 Ruling）：activeTab 为 route.name 的 computed 派生
+ *（useTabbarRouteSync），点击 tab 只跳路由、路由变化自然派生选中态——
+ * 浏览器前进/后退/刷新选中态天然跟随，无双向同步竞态。
+ *
  * BEM 命名与首页同 `h5-mall`（而非 shell 独立命名空间）：--mall-* token 挂在
  * `.vv-h5-mall` 选择器（../styles/h5-mall-tokens.scss），tabbar 的陶土槽位
  * 消费这些变量，外壳根必须落在 token 作用域内。
  *
  * Toast 实例说明：本外壳的 MallToast 只接 tab 未实现提示（bag）；首页区块交互
- * （加购/收藏）保留首页自己的 useToast + MallToast 实例，两者独立互不干扰。
+ *（加购/收藏）保留首页自己的 useToast + MallToast 实例，两者独立互不干扰。
  */
 import MallTabbar from '../components/MallTabbar.vue'
 import MallToast from '../components/MallToast.vue'
-import { useMallTabNav } from '../composables/useMallTabNav'
 import { useTabbarRouteSync } from '../composables/useTabbarRouteSync'
 import { useToast } from '../composables/useToast'
 
@@ -24,22 +27,34 @@ const bem = createNamespace('h5-mall')
 
 const { visible, message, show } = useToast()
 
-/** Tabbar 选中 key（v-model 受控；路由同步见 useTabbarRouteSync，切 tab 跳路由见 useMallTabNav） */
-const activeTab = ref('home')
+const { pushByName } = useAppRouter()
 
-/** 路由变化 → activeTab 回写（含浏览器前进/后退、刷新恢复选中态） */
-useTabbarRouteSync(activeTab)
+/** Tabbar 选中态：route.name 派生（单一事实源，切 tab/前进后退/刷新均随路由） */
+const activeTab = useTabbarRouteSync()
 
-/** tab key → 路由接线（grid 跳列表、user 跳我的订单；bag 未实现走 toast 提示） */
-useMallTabNav(activeTab, {
-  onTodo: (tab) => show(tab === 'bag' ? '购物袋功能开发中' : '功能开发中'),
-})
+/** tab key → 路由接线：点击只负责跳路由，选中态由路由派生（取代原 useMallTabNav 的 watch 模型） */
+function onTabSelect(key: string): void {
+  if (key === 'home') {
+    void pushByName('H5Mall')
+    return
+  }
+  if (key === 'grid') {
+    void pushByName('H5MallList')
+    return
+  }
+  if (key === 'user') {
+    void pushByName('H5MallOrders')
+    return
+  }
+  // bag（购物袋）页未实现（非本计划目标），toast 提示
+  show('购物袋功能开发中')
+}
 </script>
 
 <template>
   <div :class="bem.b()">
     <RouterView />
-    <MallTabbar v-model="activeTab" :cart-count="0" />
+    <MallTabbar :model-value="activeTab" @update:model-value="onTabSelect" :cart-count="0" />
     <MallToast :visible="visible" :message="message" />
   </div>
 </template>

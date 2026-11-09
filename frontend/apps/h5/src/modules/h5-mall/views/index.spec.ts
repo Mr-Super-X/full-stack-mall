@@ -12,7 +12,7 @@ vi.mock('../apis/index', () => ({
   },
 }))
 
-// useMallTabNav 经 useAppRouter 跳转：测试环境无 registerAppRouter 注册的实例，
+// 首页区块组件树可能经 useAppRouter 跳转：测试环境无 registerAppRouter 注册的实例，
 // 覆盖该导出防"router 实例未注册"（importOriginal 保留 barrel 其余真实导出如 useRequest）
 vi.mock('@vv/shared', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@vv/shared')>()),

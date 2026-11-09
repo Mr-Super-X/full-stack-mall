@@ -1,3 +1,4 @@
+import type { ComputedRef } from 'vue'
 import { useAppRouter } from '@vv/shared'
 
 /**
@@ -25,21 +26,21 @@ export function routeToTab(routeName: string | null | undefined): string {
 }
 
 /**
- * activeTab ↔ 当前路由名 单向同步：路由变化驱动 tabbar 选中态。
+ * tabbar 选中态路由派生（单一事实源，计划 08 Task 4 浏览器实测修正）。
  *
- * 双向同步的另一半由宿主接线：activeTab 变化 → useMallTabNav 跳路由 → 路由变化 → 本 watch 回写。
- * 拆开单向 watch 而非双向绑定，避免「改 activeTab 触发跳转、跳转又触发 watch 回写」的环路。
- * immediate：刷新/直达深链时按当前路由恢复选中态。
+ * 背景裁决：早期实现为「activeTab ref + useMallTabNav 重置 + 本 watch 回写」双向同步，
+ * route 回写会被 useMallTabNav 误判为点击再重置，终态 activeTab 与 route 错位
+ *（浏览器前进/后退选中态不跟随，见 .superpowers/sdd/08 ledger Task 4 Ruling）。
+ * 改为 computed 派生后：点击 tab 只负责跳路由（shell onTabSelect），路由变化自然
+ * 派生 activeTab——无双向同步竞态，前进/后退/刷新天然对齐。
  *
- * @param activeTab MallTabbar 的 v-model 值（宿主持有）
+ * @returns activeTab computed；消费方（外壳）直接 :model-value 绑定 MallTabbar
  */
-export function useTabbarRouteSync(activeTab: Ref<string>): void {
+export function useTabbarRouteSync(): ComputedRef<string> {
   const { router } = useAppRouter()
-  watch(
-    () => router.currentRoute.value.name,
-    (name) => {
-      activeTab.value = routeToTab(typeof name === 'string' ? name : null)
-    },
-    { immediate: true },
+  return computed(() =>
+    routeToTab(
+      typeof router.currentRoute.value.name === 'string' ? router.currentRoute.value.name : null,
+    ),
   )
 }

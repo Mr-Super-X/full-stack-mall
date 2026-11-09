@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import { routeToTab, useTabbarRouteSync } from './useTabbarRouteSync'
@@ -31,27 +31,23 @@ describe('routeToTab（route.name → tab key 纯映射）', () => {
   })
 })
 
-describe('useTabbarRouteSync（activeTab ↔ route.name 同步）', () => {
-  beforeEach(() => {
+describe('useTabbarRouteSync（activeTab 路由派生，单一事实源）', () => {
+  it('按当前路由派生 activeTab（浏览器前进/后退/刷新随路由对齐）', () => {
     currentRoute.value = { name: 'H5Mall' }
-  })
-
-  it('immediate：挂载即按当前路由校准 activeTab', () => {
-    currentRoute.value = { name: 'H5MallList' }
-    const activeTab = ref('home')
-    useTabbarRouteSync(activeTab)
-    expect(activeTab.value).toBe('grid')
-  })
-
-  it('route.name 变化驱动 activeTab 跟随', async () => {
-    const activeTab = ref('home')
-    useTabbarRouteSync(activeTab)
+    const activeTab = useTabbarRouteSync()
     expect(activeTab.value).toBe('home')
 
-    currentRoute.value = { name: 'H5MallOrders' }
-    await vi.waitFor(() => expect(activeTab.value).toBe('user'))
+    currentRoute.value = { name: 'H5MallList' }
+    expect(activeTab.value).toBe('grid')
 
-    currentRoute.value = { name: 'H5Mall' }
-    await vi.waitFor(() => expect(activeTab.value).toBe('home'))
+    currentRoute.value = { name: 'H5MallOrders' }
+    expect(activeTab.value).toBe('user')
+
+    currentRoute.value = { name: 'H5MallSeller' }
+    expect(activeTab.value).toBe('user')
+
+    // 未登记路由（登录/404/详情）回退 home
+    currentRoute.value = { name: 'H5MallLogin' }
+    expect(activeTab.value).toBe('home')
   })
 })

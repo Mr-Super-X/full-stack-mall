@@ -19,12 +19,21 @@ import { useTrampolineTabbar } from '../composables/useTrampolineTabbar'
  */
 const bem = createNamespace('mall-tabbar')
 
-defineProps<{
+const props = defineProps<{
+  /** 选中 key（v-model 受控；宿主页面切换/路由在父级接 change 语义） */
+  modelValue: string
   cartCount: number
 }>()
 
-/** 选中 key（v-model 受控；宿主页面切换/路由在父级接 change 语义） */
-const model = defineModel<string>({ required: true })
+const emit = defineEmits<{
+  'update:modelValue': [value: string]
+}>()
+
+// 受控选中 key：外部（父组件 v-model）经 props 下行驱动引擎，点击选项经 emit 上行。
+// 刻意不用 defineModel——Vue 3.6.0-beta.17 下 defineModel 的父→子下行同步不触发
+// 子组件 watch/watchEffect（模板渲染正常），路由回写等外部变更无法驱动引擎
+//（2026-11-09 浏览器实测，计划 08 验证清单第 2/3 项踩中）；props + toRef 为标准响应式通道。
+const model = toRef(props, 'modelValue')
 
 // reduced-motion：媒体查询可动态变化，降级走引擎 instantSelect 瞬时切换（用户裁决通过）；
 // matchMedia 缺失环境（jsdom / 旧 WebView）降级为 null → 不降级动画
@@ -46,7 +55,7 @@ const popTick = ref(0)
 function onTap(i: number): void {
   const tab = MALL_TABS[i]
   if (tapIndex(i) === 'changed' && tab) {
-    model.value = tab.key
+    emit('update:modelValue', tab.key)
     popTick.value += 1
   }
 }
