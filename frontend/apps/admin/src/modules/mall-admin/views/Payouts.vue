@@ -26,6 +26,11 @@ const STATUS_TABS = [
   { label: '已打款', value: 'PAID' },
 ]
 
+/** 状态枚举 → 中文标签（后端返回英文枚举，表格渲染用中文；单一事实源 = STATUS_TABS） */
+function statusLabel(status: string): string {
+  return STATUS_TABS.find((t) => t.value === status)?.label ?? status
+}
+
 /** ProTable 数据源：按当前 status 拉结算单，包装为 ProTableResponse（纯列表无分页，total=长度）。
  *  状态切换经 v-model 双向绑定 status（绕开 el-tabs EpProp 严格类型摩擦），变化触发 request-api 重取。 */
 async function requestApi(): Promise<ProTableResponse<AdminPayoutItem>> {
@@ -116,7 +121,7 @@ async function onPay(row: AdminPayoutItem): Promise<void> {
                 : 'info'
           "
         >
-          {{ (row as AdminPayoutItem).status }}
+          {{ statusLabel((row as AdminPayoutItem).status) }}
         </el-tag>
       </template>
 
