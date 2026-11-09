@@ -2,7 +2,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { reactive } from 'vue'
 
 // 统一登录接线 shared 契约（计划 07 v2）：useAuthForm 消费 shared userStore.login / authApi.register。
-// mock 说明符与被测模块 import 说明符一致（'@vv/shared'）；importOriginal 展开其余导出（Session 等）。
+// mock 说明符与被测模块 import 说明符一致：userStore 走 '@vv/shared'，authApi 走 '@api/modules/auth'
+//（§1.6.2 既定例外路径）；importOriginal 展开其余导出（Session 等）。
 // vi.hoisted：vi.mock 工厂被提升到文件顶，内部引用变量须经 hoisted 声明避免暂时性死区。
 const { mockLogin, mockRegister } = vi.hoisted(() => ({
   mockLogin: vi.fn(),
@@ -17,12 +18,14 @@ vi.mock('@vv/shared', async (importOriginal) => {
       login: mockLogin,
       profile: { id: 2, name: '阿珍的衣柜', permissions: ['mall:user'] },
     }),
-    authApi: {
-      ...actual.authApi,
-      register: mockRegister,
-    },
   }
 })
+
+vi.mock('@api/modules/auth', () => ({
+  authApi: {
+    register: mockRegister,
+  },
+}))
 
 import { useAuthForm } from './useAuthForm'
 

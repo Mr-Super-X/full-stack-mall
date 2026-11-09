@@ -1,5 +1,8 @@
 import { computed } from 'vue'
-import { authApi, useUserStore } from '@vv/shared'
+import { useUserStore } from '@vv/shared'
+// @api 别名指 @vv/shared/src/api（§1.6.2 既定例外：shared barrel 刻意不聚合 api 值导出，
+// http.ts 模块加载即建 axios 实例有副作用）；authApi 值只能经别名路径消费
+import { authApi } from '@api/modules/auth'
 
 /**
  * 登录/注册表单 composable（统一登录接线 shared 契约，计划 07 v2）。
