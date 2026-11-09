@@ -83,7 +83,10 @@ async function onPay(row: AdminPayoutItem): Promise<void> {
       <el-tab-pane v-for="t in STATUS_TABS" :key="t.value" :label="t.label" :name="t.value" />
     </el-tabs>
 
+    <!-- :key=status：切 Tab 强制重挂载 ProTable，触发 onMounted 重新拉取当前状态的列表
+         （ProTable 靠分页参数变化触发重取，不会因 request-api 闭包里的 status 变化自动刷新） -->
     <ProTable
+      :key="status"
       :columns="columns"
       :request-api="requestApi"
       :pagination="false"
