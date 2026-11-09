@@ -6,6 +6,24 @@
 版本按项目的**阶段交付**组织（阶段 0 ~ 5，见 `docs/superpowers/specs/2026-11-06-resale-mall-design.md` 路线章节），
 每个阶段都有可运行产物。
 
+## [Unreleased]
+
+### Added（前端 · admin 后台 + 统一登录，计划 07）
+
+- **统一登录接线商城后端**：`@vv/shared` 认证契约四端点改指 `/mall/auth/*`（login/register/me/logout），`userProfileSchema.transform` 把商城 `UserInfoDTO` 映射为 shared `UserProfile`（`ROLE_PERMISSIONS`：ADMIN→`mall:admin`、USER→`mall:user`，未知 role 空数组不静默放行）——apps/auth 统一登录页 / apps/admin 守卫 / apps/h5 登录全 monorepo 一套商城账号会话
+- **admin 经网关同源接后端**：`packages/config/src/proxy.ts` 补 `/api → 18080` 代理（原空壳占位），admin `VITE_API_BASE_URL` 用相对 `/api` 经 `dev:gateway` 8080 同源代理，HttpOnly Cookie（path=/api）同源匹配，统一登录会话跨 app 漫游（P4 协议落地）
+- **apps/admin 商城管理后台**（`mall-admin` 模块，`pnpm new-module` 骨架）：
+  - 寄卖审核队列页：`GET /mall/admin/consignments` 状态 Tab 筛选 + ProTable，SUBMITTED 行「通过」（平台定价+佣金率 dialog）/「驳回」（原因 + useConfirm 二次确认）
+  - 结算审批页：`GET /mall/admin/payouts` 三步状态机（PENDING→CONFIRMED→PAID），`useConfirm` 拦截，金额列 hover 拆账恒等提示
+  - 两业务路由 `meta.permissions=['mall:admin']`（`checkPermission` 拦截，seller 登录后 403 无权限页；后端 AdminInterceptor 独立 403 双保险）
+- **表格迁移 ProTable**：业务页原生 `el-table` + 手写三态 → 全局组件 `ProTable`（columns + request-api 声明式，内建 Loading/Error/Empty 与工具栏），去掉手动 import element-plus icons
+- **h5 登录切换**：`h5-mall` 删除自有 auth 端点，`useAuthForm` 改走 shared `userStore.login` / `authApi.register`（与 admin/auth 同一套会话与权限模型，不再平行登录态）
+- **mock 对齐**：`/mock/mall/auth/*` 处理器（dev `rawResponse` + prod 内联）返回商城 `UserInfoDTO` 形状（ADMIN 演示账号），`check:mock-wiring` 保持绿
+
+### Fixed（前端 · admin 后台）
+
+- 状态 Tab 切换不重取数据：ProTable 靠分页参数变化触发 `request-api` 重取，不因闭包里的 status 变化自动刷新——`:key=status` 强制重挂载触发 `onMounted` 重拉（浏览器实测修复）
+
 ## [阶段 3] - 2026-11-09
 
 可运行产物：订单全生命周期流转 + 平台对卖家的三步结算闭环（后端；admin 页面见计划 07）。
@@ -92,6 +110,7 @@
 - 根目录 `.gitignore` 补全（`c80d38c`）
 - `README.md` 项目结构说明（`0605002`）
 
+[Unreleased]: https://github.com/Mr-Super-X/full-stack-mall/compare/9cd9862...HEAD
 [阶段 3]: https://github.com/Mr-Super-X/full-stack-mall/compare/312eb79...9cd9862
 [阶段 2]: https://github.com/Mr-Super-X/full-stack-mall/compare/2c361ce...312eb79
 [阶段 1]: https://github.com/Mr-Super-X/full-stack-mall/compare/0605002...2c361ce
