@@ -39,8 +39,10 @@ import NetworkBanner from '../components/common/NetworkBanner.vue'
 export const MANUAL_DISMISS_COOLDOWN_MS = 30_000
 
 /** 瞬时网络错误（模块热重载/vite 重启/刷新取消在途请求）的横幅自动消失时长（ms）——
- *  持续故障靠恢复信号/后续错误维持横幅；无后续信号则按时长兜底消失，避免一闪而过残留困扰 */
-const TRANSIENT_BANNER_TTL_MS = 4_000
+ *  持续故障靠恢复信号/后续错误维持横幅；无后续信号则按时长兜底消失。取 2s（短于典型页面
+ *  loading 时长）：刷新时即使漏网的瞬时网络错误弹了横幅，也在页面加载完之前消失，
+ *  不让用户在加载态看到「网络异常」困惑（2026-11-09 实测刷新 loading 时横幅残留根因 = TTL 偏长） */
+const TRANSIENT_BANNER_TTL_MS = 2_000
 
 /** 横幅单例状态（模块级响应式——全局横幅本就单例，组件直接渲染本状态） */
 export const networkBannerState = reactive({
@@ -54,6 +56,23 @@ let dismissedAt = 0
 
 /** 瞬时横幅自动消失计时器（故障持续期间靠新错误/恢复信号维持，无信号则 TTL 兜底消失） */
 let transientTimer: ReturnType<typeof setTimeout> | undefined
+
+/** 页面是否已加载完成（load 事件后置 true）——加载完成前的网络错误挂起横幅，不打扰用户 */
+let pageLoaded = typeof document === 'undefined' ? true : document.readyState === 'complete'
+
+/** 加载完成前收到网络错误 → 挂起待加载完再显示（若故障持续） */
+let pendingShow = false
+
+// load 完成后：若期间挂起了网络错误（故障持续），补显示横幅
+if (typeof window !== 'undefined') {
+  window.addEventListener('load', () => {
+    pageLoaded = true
+    if (pendingShow) {
+      pendingShow = false
+      showBanner()
+    }
+  })
+}
 
 /** 用户点关闭：立即隐藏 + 进入冷却期 */
 export function dismissNetworkBanner(): void {
@@ -81,9 +100,21 @@ function handleHttpError(event: HttpErrorEvent): void {
   if (dismissedAt !== 0 && Date.now() - dismissedAt < MANUAL_DISMISS_COOLDOWN_MS) {
     return
   }
+  // 页面加载完成前不显示横幅：页面刷新/跳转时进行中的请求被取消或超时是常态（非真实故障），
+  // 此时弹「网络连接异常」是纯干扰；挂起至 load 完成，若故障持续（加载完仍有新错误）才显示。
+  // 用 load 事件而非 readyState 时序判断——确定性的「加载完成」语义，不靠猜测时长。
+  if (typeof document !== 'undefined' && !pageLoaded) {
+    pendingShow = true
+    return
+  }
+  showBanner()
+}
+
+/** 真正显示横幅（加载完成后，或恢复后又出错的持续故障） */
+function showBanner(): void {
   dismissedAt = 0
   networkBannerState.visible = true
-  // 瞬时错误（刷新取消在途请求/模块热重载）无后续成功时，TTL 兜底消失——
+  // 瞬时错误（模块热重载/vite 重启）无后续成功时，TTL 兜底消失——
   // 持续故障期间新错误会重置计时器维持横幅，恢复信号立即清除
   clearTransientTimer()
   transientTimer = setTimeout(() => {
@@ -129,6 +160,7 @@ export function resetNetworkBanner(): void {
   networkBannerState.visible = false
   networkBannerState.count = 0
   dismissedAt = 0
+  pendingShow = false
   clearTransientTimer()
 }
 
