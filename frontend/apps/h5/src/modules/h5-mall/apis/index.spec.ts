@@ -37,40 +37,6 @@ describe('h5MallApi', () => {
     })
   })
 
-  it('login 走 POST /mall/auth/login', async () => {
-    await h5MallApi.login({ username: 'seller', password: 'seller123' })
-    expect(request).toHaveBeenCalledWith({
-      url: '/mall/auth/login',
-      method: 'post',
-      data: { username: 'seller', password: 'seller123' },
-    })
-  })
-
-  it('register 走 POST /mall/auth/register', async () => {
-    await h5MallApi.register({ username: 'newbie', password: '123456', nickname: '新人' })
-    expect(request).toHaveBeenCalledWith({
-      url: '/mall/auth/register',
-      method: 'post',
-      data: { username: 'newbie', password: '123456', nickname: '新人' },
-    })
-  })
-
-  it('me 走 GET /mall/auth/me', async () => {
-    await h5MallApi.me()
-    expect(request).toHaveBeenCalledWith({
-      url: '/mall/auth/me',
-      method: 'get',
-    })
-  })
-
-  it('logout 走 POST /mall/auth/logout', async () => {
-    await h5MallApi.logout()
-    expect(request).toHaveBeenCalledWith({
-      url: '/mall/auth/logout',
-      method: 'post',
-    })
-  })
-
   it('类型字段与后端契约一致（TS 编译即校验）', () => {
     const goods: MallGoodsItem = {
       id: 14,

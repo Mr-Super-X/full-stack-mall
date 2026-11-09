@@ -16,7 +16,12 @@ import { MOCK_PASSWORD, MOCK_USERNAME } from './credentials'
 // 延迟用 setTimeout 模拟（timeout 配置项对 rawResponse 不生效）。
 
 const TOKEN_COOKIE = 'token'
-const MOCK_PERMISSIONS = ['dashboard:view', 'user:view', 'user:edit', 'orders:view', 'reports:view']
+/** 演示账号角色：ADMIN（统一登录接线商城后端，/mall/auth/* 返回商城 UserInfoDTO 形状） */
+const MOCK_ROLE = 'ADMIN'
+/** 演示账号权限码：ADMIN 角色映射（与 packages/shared ROLE_PERMISSIONS['ADMIN'] 一致；
+ *  统一登录接线后 me 响应返回商城 UserInfoDTO（role 字段），权限码由前端 userProfileSchema
+ *  transform 据此映射——本变量保留仅为 check-mock-wiring 双形态一致性校验（extractPermissions 提取点） */
+const MOCK_PERMISSIONS = ['mall:admin']
 
 /** 写 Set-Cookie 头（HttpOnly；maxAge=0 表示删除） */
 function setTokenCookie(res: ServerResponse, value: string, maxAge?: number): void {
@@ -51,19 +56,25 @@ function withDelay(handler: () => void, _ms: number): void {
 
 export default [
   {
-    url: '/mock/auth/login',
+    url: '/mock/mall/auth/login',
     method: 'post',
     rawResponse: async (req: IncomingMessage, res: ServerResponse) => {
       const body = await readBody(req)
       withDelay(() => {
         if (body.username === MOCK_USERNAME && body.password === MOCK_PASSWORD) {
-          // 登录成功：凭证走 Set-Cookie（HttpOnly），响应体不再携带 token
+          // 登录成功：凭证走 Set-Cookie（HttpOnly），响应体返回商城 UserInfoDTO 形状
           setTokenCookie(res, `mock-jwt-${Date.now()}`)
           sendJson(res, {
             code: 200,
             message: 'ok',
-            // satisfies 挂钩 LoginResult：mock 响应契约与 api 层类型同源
-            data: { profile: { id: 1, name: 'Admin' } } satisfies LoginResult,
+            // satisfies 挂钩 LoginResult：mock 响应契约与 api 层类型同源（统一登录接线商城后端）
+            data: {
+              id: 1,
+              username: MOCK_USERNAME,
+              nickname: '演示管理员',
+              avatar: null,
+              role: MOCK_ROLE,
+            } satisfies LoginResult,
           })
         } else {
           sendJson(res, { code: 401, message: '账号或密码错误', data: null })
@@ -72,15 +83,22 @@ export default [
     },
   },
   {
-    url: '/mock/auth/profile',
+    url: '/mock/mall/auth/me',
     method: 'get',
     rawResponse: (req: IncomingMessage, res: ServerResponse) => {
       withDelay(() => {
         if (hasTokenCookie(req)) {
+          // 商城 UserInfoDTO 形状（统一登录接线；role 供 shared userProfileSchema transform 映射 permissions）
           sendJson(res, {
             code: 200,
             message: 'ok',
-            data: { id: 1, name: 'Admin', permissions: MOCK_PERMISSIONS } satisfies UserProfile,
+            data: {
+              id: 1,
+              username: MOCK_USERNAME,
+              nickname: '演示管理员',
+              avatar: null,
+              role: MOCK_ROLE,
+            } satisfies UserProfile,
           })
         } else {
           // 无凭证 cookie → 401，触发前端守卫清标记跳登录
@@ -90,7 +108,7 @@ export default [
     },
   },
   {
-    url: '/mock/auth/logout',
+    url: '/mock/mall/auth/logout',
     method: 'post',
     rawResponse: (req: IncomingMessage, res: ServerResponse) => {
       withDelay(() => {
@@ -101,7 +119,7 @@ export default [
     },
   },
   {
-    url: '/mock/auth/refresh',
+    url: '/mock/mall/auth/refresh',
     method: 'post',
     rawResponse: (req: IncomingMessage, res: ServerResponse) => {
       withDelay(() => {

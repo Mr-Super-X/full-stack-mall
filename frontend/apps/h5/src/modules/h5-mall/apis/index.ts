@@ -93,14 +93,6 @@ export interface MallHomeContent {
   recommend: MallGoodsItem[]
 }
 
-/** 用户信息（登录/注册/me 返回） */
-export interface UserInfo {
-  id: number
-  username: string
-  nickname?: string
-  role: string
-}
-
 // ────────────────────────────────────────────────────────────────────
 // API 函数（命名小驼峰，对象名 `${name}Api`）
 // ────────────────────────────────────────────────────────────────────
@@ -124,22 +116,12 @@ export interface MallListResponse {
   pageSize: number
 }
 
-/** 登录/注册入参 */
-export interface LoginPayload {
-  username: string
-  password: string
-}
-export interface RegisterPayload {
-  username: string
-  password: string
-  nickname?: string
-}
-
 /**
  * h5-mall API 命名空间。
  *
  * 全部走 `request<T>()`；列表接口传 `usePageAdapter: true`（http.ts 自动抽 page/pageSize 注入后端查询参数）。
- * 认证接口（login/register/logout）响应体不含 token——凭证由后端 Set-Cookie: HttpOnly 下发，前端 JS 不可读。
+ * 认证接口已迁移到 shared `authApi`（统一登录接线计划 07 v2）：login/register/me/logout
+ * 走 `@vv/shared` 的 /mall/auth/* 契约，h5 不再维护平行认证端点（useAuthForm 消费 userStore）。
  */
 export const h5MallApi = {
   /** 首页聚合内容（公告/banner/分类/限时甄选/新品/推荐） */
@@ -156,16 +138,4 @@ export const h5MallApi = {
 
   /** 商品详情（含规格与图片列表） */
   getDetail: (id: number) => request<MallProductDetail>({ url: `/mall/product/${id}`, method: 'get' }),
-
-  /** 登录：成功写入 HttpOnly Cookie + Session 'auth' 标记（调用方负责） */
-  login: (data: LoginPayload) => request<UserInfo>({ url: '/mall/auth/login', method: 'post', data }),
-
-  /** 注册：成功返回用户信息（不自动登录，调用方决定是否紧接着 login） */
-  register: (data: RegisterPayload) => request<UserInfo>({ url: '/mall/auth/register', method: 'post', data }),
-
-  /** 当前用户信息（携带 Cookie；无 Cookie 或失效时后端返回 401） */
-  me: () => request<UserInfo>({ url: '/mall/auth/me', method: 'get' }),
-
-  /** 登出：后端 Set-Cookie Max-Age=0 清除 HttpOnly Cookie */
-  logout: () => request<void>({ url: '/mall/auth/logout', method: 'post' }),
 }

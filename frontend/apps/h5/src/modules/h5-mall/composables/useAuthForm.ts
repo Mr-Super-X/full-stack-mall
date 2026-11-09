@@ -1,27 +1,35 @@
-import type { LoginPayload, RegisterPayload, UserInfo } from '../apis/index'
-import { h5MallApi } from '../apis/index'
-import { Session } from '@vv/shared'
+import { computed } from 'vue'
+import { authApi, useUserStore } from '@vv/shared'
 
 /**
- * 登录/注册表单 composable。
+ * 登录/注册表单 composable（统一登录接线 shared 契约，计划 07 v2）。
  *
- * 登录成功：写入 Session 'auth' 标记（shared http.ts 的 401 链依赖此标记守卫）。
- * 注册成功：不自动登录，由调用方决定是否紧接着 login（避免注册即登录的隐式副作用）。
+ * 登录成功：走 shared `userStore.login`（内部链 authApi.login → Session 标记 → fetchProfile
+ * 填充 shared profile + permissions → 字典预加载）——h5 不再维护平行登录态，与 apps/admin /
+ * apps/auth 共用同一套会话与权限模型。`result` 暴露登录后的 profile（computed 自 store）。
+ * 注册成功：走 shared `authApi.register`（不自动登录，由调用方决定是否紧接着 login）。
  */
-export function useAuthForm(mode: 'login' | 'register', form: LoginPayload | RegisterPayload) {
+export function useAuthForm(
+  mode: 'login' | 'register',
+  form: { username: string; password: string; nickname?: string }
+) {
   const loading = ref(false)
   const error = ref<Error | null>(null)
-  const result = ref<UserInfo | null>(null)
+  const userStore = useUserStore()
+  const result = computed(() => userStore.profile)
 
   async function submit(): Promise<void> {
     loading.value = true
     error.value = null
     try {
       if (mode === 'login') {
-        result.value = await h5MallApi.login(form as LoginPayload)
-        Session.set('auth', true)
+        await userStore.login({ username: form.username, password: form.password })
       } else {
-        result.value = await h5MallApi.register(form as RegisterPayload)
+        await authApi.register({
+          username: form.username,
+          password: form.password,
+          ...(form.nickname ? { nickname: form.nickname } : {}),
+        })
       }
     } catch (err) {
       error.value = err instanceof Error ? err : new Error(String(err))

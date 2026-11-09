@@ -42,36 +42,52 @@ import user from './user'
  * prod 版 auth mock（response 函数形态，无 cookie 语义）。
  * dev 版（mock/auth.ts）用 rawResponse 模拟 Set-Cookie 凭证流，浏览器端无法模拟，见文件头注。
  */
+/** 演示账号权限码：ADMIN 角色映射（与 mock/auth.ts MOCK_PERMISSIONS 逐字一致，check-mock-wiring 守护） */
+const MOCK_PERMISSIONS = ['mall:admin']
+
 const prodAuthMocks: MockMethod[] = [
   {
-    url: '/mock/auth/login',
+    url: '/mock/mall/auth/login',
     method: 'post',
     response: ({ body }: { body: { username?: string; password?: string } }) =>
       body.username === MOCK_USERNAME && body.password === MOCK_PASSWORD
-        ? { code: 200, message: 'ok', data: { profile: { id: 1, name: 'Admin' } } }
+        ? {
+            code: 200,
+            message: 'ok',
+            // 商城 UserInfoDTO 形状（统一登录接线；与 dev 版 mock/auth.ts 手工对齐）
+            data: {
+              id: 1,
+              username: MOCK_USERNAME,
+              nickname: '演示管理员',
+              avatar: null,
+              role: 'ADMIN',
+            },
+          }
         : { code: 401, message: '账号或密码错误', data: null },
   },
   {
-    url: '/mock/auth/profile',
+    url: '/mock/mall/auth/me',
     method: 'get',
     response: () => ({
       code: 200,
       message: 'ok',
+      // 商城 UserInfoDTO 形状（role 供 shared userProfileSchema transform 映射 permissions）
       data: {
         id: 1,
-        name: 'Admin',
-        // 与 mock/auth.ts MOCK_PERMISSIONS 保持同步（两处无运行时共享，手工对齐）
-        permissions: ['dashboard:view', 'user:view', 'user:edit', 'orders:view', 'reports:view'],
+        username: MOCK_USERNAME,
+        nickname: '演示管理员',
+        avatar: null,
+        role: 'ADMIN',
       },
     }),
   },
   {
-    url: '/mock/auth/logout',
+    url: '/mock/mall/auth/logout',
     method: 'post',
     response: () => ({ code: 200, message: 'ok', data: null }),
   },
   {
-    url: '/mock/auth/refresh',
+    url: '/mock/mall/auth/refresh',
     method: 'post',
     response: () => ({ code: 200, message: 'ok', data: null }),
   },

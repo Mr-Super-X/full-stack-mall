@@ -37,6 +37,7 @@ export const ROUTE_WHITE_LIST: ReadonlySet<string> = new Set<string>([
   'Forbidden', // 403 无权限
   'NotFound', // 404 页面
   'ServerError', // 500 页面
+  'MallAdminLogin', // 商城后台登录页（modules/mall-admin，方案 A 应用级接入）
 ])
 
 /**
