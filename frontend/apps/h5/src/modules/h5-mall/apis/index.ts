@@ -146,3 +146,10 @@ export const h5MallApi = {
 // ────────────────────────────────────────────────────────────────────
 export { h5OrderApi, ORDER_STATUS_TEXT } from './orders'
 export type { MallOrder, MallOrderItem, MallOrderAddress } from './orders'
+
+// ────────────────────────────────────────────────────────────────────
+// 卖家工作台域（我的寄卖 + 接受定价 + 售出订单发货）
+// 实现见 ./seller.ts——本文件作为模块 API 统一出口收敛导出
+// ────────────────────────────────────────────────────────────────────
+export { h5SellerApi, CONSIGNMENT_STATUS_TEXT } from './seller'
+export type { MallConsignment } from './seller'

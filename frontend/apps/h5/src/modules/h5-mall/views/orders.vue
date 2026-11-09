@@ -20,6 +20,8 @@ import { useToast } from '../composables/useToast'
 
 const bem = createNamespace('h5-mall-orders')
 
+const { pushByName } = useAppRouter()
+
 const { list, loading, error, isEmpty, load, confirmReceipt } = useMyOrders()
 const { visible, message, show } = useToast()
 
@@ -48,10 +50,20 @@ async function onConfirmReceipt(order: MallOrder): Promise<void> {
     confirmingId.value = null
   }
 }
+
+/** 卖家工作台入口（ledger Task 1 Ruling：user tab 固定落订单页，工作台经此入口分流） */
+function goSeller(): void {
+  void pushByName('H5MallSeller')
+}
 </script>
 
 <template>
   <div :class="bem.b()">
+    <!-- 卖家工作台入口：寄卖卖家（名下有寄卖件的用户）由此进工作台 -->
+    <button type="button" :class="bem.e('seller-entry')" @click="goSeller">
+      <span>我是卖家 · 管理寄卖与售出订单</span>
+      <span :class="bem.e('arrow')" aria-hidden="true">→</span>
+    </button>
     <!-- Loading 态：骨架屏（区分于空态） -->
     <div v-if="loading" :class="bem.e('loading')">
       <van-skeleton title :row="4" />
@@ -124,6 +136,28 @@ async function onConfirmReceipt(order: MallOrder): Promise<void> {
   &__error,
   &__empty {
     padding: 106px 53px;
+  }
+
+  &__seller-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 32px;
+    padding: 28px 32px;
+    font: inherit;
+    font-size: 28px;
+    color: var(--mall-brand-deep);
+    text-align: left;
+    background: var(--mall-brand-soft);
+    border: 1px solid var(--mall-line);
+    border-radius: var(--mall-r-md);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  &__arrow {
+    font-size: 32px;
   }
 
   &__card {
