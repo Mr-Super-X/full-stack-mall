@@ -52,11 +52,16 @@ export const menuApi = {
   /**
    * 获取当前用户的可见菜单树（按角色权限过滤后）。
    *
+   * 可降级探测：失败仅回退 local 菜单（remote.ts 已 catch + fallback），不打扰用户——
+   * 故标 silent，全局反馈层（toast/网络横幅）不感知。未标时连真后端（VITE_USE_MOCK=false
+   * 关 mock 中间件）守卫探测 /mock/menu 超时（5s）会误弹「网络连接异常」横幅（页面刷新瞬时，
+   * 恢复后消失，2026-11-09 实测）。
+   *
    * 支持的 config 字段：
    * - `timeout?`：单次请求超时（毫秒）
    *
    * @group 业务 API：菜单
    */
   getMenu: (config: { timeout?: number } = {}) =>
-    request<RemoteMenuItem[]>({ url: '/menu', method: 'get', ...config }),
+    request<RemoteMenuItem[]>({ url: '/menu', method: 'get', silent: true, ...config }),
 }
