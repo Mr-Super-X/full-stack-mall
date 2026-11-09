@@ -2,6 +2,7 @@
 // ref 由 unplugin-auto-import 注入（CLAUDE.md §1.6）
 import type { MallGoodsItem } from '../apis/index'
 import { useMallHome } from '../composables/useMallHome'
+import { useMallTabNav } from '../composables/useMallTabNav'
 import { useReveal } from '../composables/useReveal'
 import { useToast } from '../composables/useToast'
 import MallCats from '../components/MallCats.vue'
@@ -39,8 +40,13 @@ const { home, loading, error, isEmpty, refresh } = useMallHome()
 const cartCount = ref(0)
 /** 已收藏商品 id 集合 */
 const favs = ref<number[]>([])
-/** Tabbar 选中 key（v-model 受控；切 tab 联动点见 MallTabbar emit 语义） */
+/** Tabbar 选中 key（v-model 受控；切 tab 联动点见 useMallTabNav——grid 跳列表页，bag/user toast 提示） */
 const activeTab = ref('home')
+
+/** tab key → 路由接线（分类跳列表页并重置选中态；未实现 tab toast 提示） */
+useMallTabNav(activeTab, {
+  onTodo: (tab) => show(tab === 'bag' ? '购物袋功能开发中' : '个人中心开发中'),
+})
 
 /** 金刚区品类（后端 categories 映射到原型 MALL_CATS 形状；icon 字段直接透传） */
 const mallCats = computed(() => {
