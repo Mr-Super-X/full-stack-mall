@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { useSellerWorkbench } from './useSellerWorkbench'
+import { useSellerWorkbench, sellerGross } from './useSellerWorkbench'
 import { h5SellerApi } from '../apis/seller'
 
 // mock 模块 API 层（vi.mock 说明符与被测模块的 import 路径一致，§1.6.2）
@@ -79,6 +79,31 @@ describe('useSellerWorkbench（卖家工作台）', () => {
     await vi.waitFor(() => expect(loadingOrders.value).toBe(false))
     expect(consignments.value).toEqual(mockConsignments)
     expect(soldOrders.value).toEqual(mockSoldOrders)
+  })
+
+  it('空数组应判 Empty 态（后端空列表返回 [] 而非 null）', async () => {
+    vi.mocked(h5SellerApi.myConsignments).mockResolvedValue([])
+    vi.mocked(h5SellerApi.soldOrders).mockResolvedValue([])
+
+    const { isEmptyConsignments, isEmptyOrders, loadingConsignments, loadingOrders } =
+      useSellerWorkbench()
+
+    await vi.waitFor(() => expect(loadingConsignments.value).toBe(false))
+    await vi.waitFor(() => expect(loadingOrders.value).toBe(false))
+    expect(isEmptyConsignments.value).toBe(true)
+    expect(isEmptyOrders.value).toBe(true)
+  })
+
+  it('sellerGross：售出金额按卖家明细行合计（payAmount 为整单金额，跨卖家合并下单会夸大）', () => {
+    const order = {
+      ...mockSoldOrders[0],
+      payAmount: 999, // 整单金额（含其它卖家行）
+      items: [
+        { ...mockSoldOrders[0].items[0], price: 399, quantity: 2 }, // 本卖家 798
+        { ...mockSoldOrders[0].items[0], price: 100, quantity: 1 }, // 本卖家 100
+      ],
+    }
+    expect(sellerGross(order)).toBe(898)
   })
 
   it('acceptPricing 成功后 reload 寄卖列表', async () => {

@@ -19,9 +19,12 @@ export function useMyOrders() {
     data: list,
     loading,
     error,
-    isEmpty,
     refresh: load,
   } = useRequest<MallOrder[]>(() => h5OrderApi.list())
+
+  // Empty 判定按列表长度：useRequest 的 isEmpty 判 data===null，但后端空列表返回 []，
+  // 空数组时 data 非 null → 必须长度判定（新用户无订单时给出空态占位而非空白）
+  const isEmpty = computed(() => !loading.value && !error.value && (list.value?.length ?? 0) === 0)
 
   async function confirmReceipt(id: number): Promise<void> {
     try {

@@ -93,6 +93,8 @@ export function useTrampolineTabbar(
     return result
   }
 
+  // 外部 modelValue 变更（路由回写/编程式）→ 驱动引擎切换；
+  // modelValue 来自宿主 props（toRef），props 下行是标准响应式通道
   watch(options.modelValue, (key) => {
     const i = tabs.findIndex((t) => t.key === key)
     if (i >= 0 && i !== state.selected) tapIndex(i)

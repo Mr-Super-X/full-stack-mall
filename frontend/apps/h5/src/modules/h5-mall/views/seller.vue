@@ -15,7 +15,7 @@ import { formatDate } from '@vv/shared'
 import MallToast from '../components/MallToast.vue'
 import { CONSIGNMENT_STATUS_TEXT, ORDER_STATUS_TEXT } from '../apis/index'
 import type { MallConsignment, MallOrder } from '../apis/index'
-import { useSellerWorkbench } from '../composables/useSellerWorkbench'
+import { useSellerWorkbench, sellerGross } from '../composables/useSellerWorkbench'
 import { useToast } from '../composables/useToast'
 
 const bem = createNamespace('h5-mall-seller')
@@ -182,7 +182,7 @@ async function onShip(order: MallOrder): Promise<void> {
             </div>
             <footer :class="bem.e('foot')">
               <span :class="bem.e('time')">{{ formatTime(order.createTime) }}</span>
-              <span :class="bem.e('amount')">实收 ¥{{ order.payAmount }}</span>
+              <span :class="bem.e('amount')">实收 ¥{{ sellerGross(order) }}</span>
               <van-button
                 v-if="order.status === 'PAID'"
                 round

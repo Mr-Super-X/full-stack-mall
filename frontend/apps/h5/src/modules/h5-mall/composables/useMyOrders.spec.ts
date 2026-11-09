@@ -55,6 +55,16 @@ describe('useMyOrders（我的订单）', () => {
     expect(list.value).toEqual(mockOrders)
   })
 
+  it('空数组应判 Empty 态（后端空列表返回 [] 而非 null）', async () => {
+    vi.mocked(h5OrderApi.list).mockResolvedValue([])
+
+    const { isEmpty, loading } = useMyOrders()
+    expect(loading.value).toBe(true)
+
+    await vi.waitFor(() => expect(loading.value).toBe(false))
+    expect(isEmpty.value).toBe(true)
+  })
+
   it('confirmReceipt 成功后 reload 列表对齐真态', async () => {
     vi.mocked(h5OrderApi.list).mockResolvedValue(mockOrders)
     vi.mocked(h5OrderApi.confirm).mockResolvedValue(undefined)
