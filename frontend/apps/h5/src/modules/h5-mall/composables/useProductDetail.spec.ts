@@ -58,6 +58,47 @@ describe('useProductDetail', () => {
     expect(h5MallApi.getDetail).toHaveBeenCalledWith(14)
   })
 
+  it('activeSeckill 透出（秒杀插件出参）', async () => {
+    vi.mocked(h5MallApi.getDetail).mockResolvedValue({
+      id: 16,
+      name: '复古做旧牛仔夹克',
+      price: 499,
+      originPrice: null,
+      imageUrl: null,
+      sales: 0,
+      ownerType: 'PLATFORM',
+      saleMode: 'SECKILL',
+      conditionGrade: 'NEW',
+      categoryId: 3,
+      sellerId: null,
+      detailHtml: null,
+      createTime: '2026-11-10T10:00:00',
+      items: [],
+      images: [],
+      activeSeckill: {
+        activityId: 1,
+        productId: 16,
+        productItemId: 37,
+        productTitle: '复古做旧牛仔夹克 · 秒杀进行中',
+        imageUrl: null,
+        seckillPrice: 299.4,
+        originPrice: 499,
+        soldCount: 0,
+        seckillStock: 5,
+        startTime: '2026-11-09T12:00:00',
+        endTime: '2026-11-17T12:00:00',
+      },
+    })
+
+    const id = ref(16)
+    const { detail, loading } = useProductDetail(id)
+
+    await vi.waitFor(() => expect(loading.value).toBe(false))
+
+    expect(detail.value?.activeSeckill?.activityId).toBe(1)
+    expect(detail.value?.activeSeckill?.seckillPrice).toBe(299.4)
+  })
+
   it('id 变化时重新拉取', async () => {
     vi.mocked(h5MallApi.getDetail).mockResolvedValue({} as MallProductDetail)
 

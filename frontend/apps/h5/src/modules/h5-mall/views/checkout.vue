@@ -16,6 +16,7 @@ import { useCheckout } from '../composables/useCheckout'
 import { useToast } from '../composables/useToast'
 import { useCartBadgeStore } from '../store/cart'
 import { h5AddressApi } from '../apis/address'
+import { h5SeckillApi } from '../apis/seckill'
 
 const bem = createNamespace('h5-mall-checkout')
 
@@ -30,6 +31,10 @@ const directItem = computed(() => ({
   title: String(route.query.title ?? '寄卖商品'),
   price: Number(route.query.price ?? 0),
 }))
+/** 秒杀模式：detail 携 seckillActivityId 进入，提交改调秒杀下单接口（后端七步事务） */
+const seckillActivityId = computed(() =>
+  route.query.seckillActivityId ? Number(route.query.seckillActivityId) : null
+)
 
 const { addresses, loading, defaultAddress, loadAddresses, createOrder, startPay, pollPayStatus } =
   useCheckout()
@@ -99,11 +104,17 @@ async function submit(): Promise<void> {
   if (submitting.value) return
   submitting.value = true
   try {
-    const order = await createOrder(
-      mode.value === 'CART'
-        ? { addressId: addr.id, source: 'CART', cartItemIds: cartIds.value }
-        : { addressId: addr.id, source: 'DIRECT', productItemId: directItem.value.productItemId },
-    )
+    // 秒杀走独立下单接口（独立池扣减 + 四错误码）；其余走统一 createOrder
+    const order = seckillActivityId.value
+      ? await h5SeckillApi.placeOrder(seckillActivityId.value, {
+          addressId: addr.id,
+          productItemId: directItem.value.productItemId,
+        })
+      : await createOrder(
+          mode.value === 'CART'
+            ? { addressId: addr.id, source: 'CART', cartItemIds: cartIds.value }
+            : { addressId: addr.id, source: 'DIRECT', productItemId: directItem.value.productItemId },
+        )
     if (!order.paymentNo) {
       show('下单成功，但未生成支付单')
       return

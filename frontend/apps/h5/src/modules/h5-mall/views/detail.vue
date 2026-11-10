@@ -5,6 +5,7 @@ import { h5CartApi } from '../apis/cart'
 import { useToast } from '../composables/useToast'
 import { useCartBadgeStore } from '../store/cart'
 import MallPh from '../components/MallPh.vue'
+import MallSeckillBar from '../components/MallSeckillBar.vue'
 // detail 与常驻外壳 shell.vue 平级（不享其 sprite），自行渲染一份 symbol 定义源；
 // 与 shell 路由互斥、同一时刻全页仍只有一份
 import MallSprite from '../components/MallSprite.vue'
@@ -43,6 +44,9 @@ const selectedItem = computed(() => {
 /** 是否寄卖商品 */
 const isConsignment = computed(() => detail.value?.ownerType === 'CONSIGNMENT')
 
+/** 是否有生效中的秒杀活动（后端仅窗口内返回；操作栏/规格区/价格区随之变形） */
+const isSeckillLive = computed(() => detail.value?.activeSeckill != null)
+
 /** 成色报告文案（寄卖商品） */
 const conditionText = computed(() => {
   const grade = selectedItem.value?.conditionGrade
@@ -62,12 +66,27 @@ function phOf(id: number): 'a' | 'b' | 'c' {
 
 /**
  * 加购/立即购买分流（后端 CartServiceImpl 约束）：
- * - 自营件「加入购物袋」→ POST /mall/cart（productItemId=选中规格）+ 刷新 tabbar 角标
  * - 寄卖件「立即购买」→ 跳结算页 DIRECT 通道（寄卖不可入购物车，库存恒 1 直购）
+ * - 秒杀件「立即抢购」→ 跳结算页 DIRECT 通道携 seckillActivityId（结算页改调秒杀下单接口）
+ * - 自营件「加入购物袋」→ POST /mall/cart（productItemId=选中规格）+ 刷新 tabbar 角标
  */
 async function onAdd(): Promise<void> {
   const item = selectedItem.value
   if (!item || !detail.value) return
+  if (isSeckillLive.value && detail.value.activeSeckill) {
+    const seckill = detail.value.activeSeckill
+    void router.push({
+      name: 'H5MallCheckout',
+      query: {
+        mode: 'DIRECT',
+        itemId: String(item.id),
+        title: detail.value.name,
+        price: String(seckill.seckillPrice),
+        seckillActivityId: String(seckill.activityId),
+      },
+    })
+    return
+  }
   if (isConsignment.value) {
     // pushWithTitle 内含 useI18n（仅 setup 顶层可用），事件回调内改用 router 实例直跳
     void router.push({
@@ -123,10 +142,16 @@ async function onAdd(): Promise<void> {
       <!-- 价格与标题 -->
       <div :class="bem.e('head')">
         <div :class="bem.e('price')">
-          <b>¥{{ selectedItem?.price ?? detail.price }}</b>
-          <s v-if="selectedItem?.originPrice" :class="bem.e('origin')">
-            ¥{{ selectedItem.originPrice }}
-          </s>
+          <template v-if="isSeckillLive && detail.activeSeckill">
+            <b>¥{{ detail.activeSeckill.seckillPrice }}</b>
+            <s :class="bem.e('origin')">¥{{ detail.activeSeckill.originPrice }}</s>
+          </template>
+          <template v-else>
+            <b>¥{{ selectedItem?.price ?? detail.price }}</b>
+            <s v-if="selectedItem?.originPrice" :class="bem.e('origin')">
+              ¥{{ selectedItem.originPrice }}
+            </s>
+          </template>
         </div>
         <h1 :class="bem.e('title')">{{ detail.name }}</h1>
         <div :class="bem.e('meta')">
@@ -134,6 +159,8 @@ async function onAdd(): Promise<void> {
           <span v-if="detail.sellingPoint" :class="bem.e('point')">{{ detail.sellingPoint }}</span>
           <span :class="bem.e('sales')">已售{{ detail.sales ?? 0 }}</span>
         </div>
+        <!-- 秒杀信息条：倒计时 + 进度（活动结束/售罄由后端窗口与进度数据驱动） -->
+        <MallSeckillBar v-if="detail.activeSeckill" :item="detail.activeSeckill" :class="bem.e('seckill')" />
       </div>
 
       <!-- 成色报告（寄卖商品） -->
@@ -148,8 +175,8 @@ async function onAdd(): Promise<void> {
         <p :class="bem.e('seller-text')">卖家 ID：{{ detail.sellerId }}（卖家主页为阶段 2 功能）</p>
       </div>
 
-      <!-- 规格选择 -->
-      <div v-if="detail.items.length > 1" :class="bem.e('sku')">
+      <!-- 规格选择（秒杀单 SKU 由活动挂载，隐藏规格选择器） -->
+      <div v-if="detail.items.length > 1 && !isSeckillLive" :class="bem.e('sku')">
         <h2 :class="bem.e('subtitle')">选择规格</h2>
         <div :class="bem.e('sku-list')">
           <button
@@ -172,10 +199,10 @@ async function onAdd(): Promise<void> {
         <div :class="bem.e('html')" v-html="detail.detailHtml" />
       </div>
 
-      <!-- 底部操作栏：寄卖「立即购买」（DIRECT），自营「加入购物袋」 -->
+      <!-- 底部操作栏：秒杀「立即抢购」/ 寄卖「立即购买」（DIRECT）/ 自营「加入购物袋」 -->
       <div :class="bem.e('actionbar')">
         <van-button round type="primary" block :class="bem.e('addbtn')" @click="onAdd">
-          {{ isConsignment ? '立即购买' : '加入购物袋' }}
+          {{ isSeckillLive ? '立即抢购' : isConsignment ? '立即购买' : '加入购物袋' }}
         </van-button>
       </div>
     </template>

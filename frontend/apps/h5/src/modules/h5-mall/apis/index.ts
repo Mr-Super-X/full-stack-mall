@@ -58,6 +58,8 @@ export interface MallProductDetail extends MallGoodsItem {
   items: MallProductItem[]
   /** 图片 URL 列表，按 sort 升序（首图即主图） */
   images: string[]
+  /** 生效中的秒杀活动（仅秒杀商品窗口内非空）；详情页插件渲染倒计时/进度 */
+  activeSeckill?: import('./seckill').MallSeckillItem | null
 }
 
 /** 首页轮播 */
@@ -89,6 +91,12 @@ export interface MallHomeContent {
   banners: BannerItem[]
   categories: CategoryItem[]
   flash: FlashSection
+  /** 限时秒杀区块（live ≤2 场 + 预告计数） */
+  seckill?: {
+    title: string
+    live: import('./seckill').MallSeckillItem[]
+    upcomingCount: number
+  }
   news: MallGoodsItem[]
   recommend: MallGoodsItem[]
 }
