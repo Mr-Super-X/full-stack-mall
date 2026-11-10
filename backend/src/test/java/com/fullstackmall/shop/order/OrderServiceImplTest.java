@@ -72,6 +72,8 @@ class OrderServiceImplTest {
     private com.fullstackmall.shop.payout.mapper.PayoutMapper payoutMapper;
     @Mock
     private com.fullstackmall.shop.consignment.mapper.ConsignmentListingMapper consignmentListingMapper;
+    @Mock
+    private com.fullstackmall.shop.seckill.mapper.SeckillActivityMapper seckillActivityMapper;
 
     private OrderService orderService;
 
@@ -79,13 +81,56 @@ class OrderServiceImplTest {
     void setUp() {
         orderService = new OrderServiceImpl(orderMapper, orderItemMapper, cartItemMapper,
                 productItemMapper, productMapper, productImageMapper, paymentMapper, addressMapper,
-                payoutMapper, consignmentListingMapper);
+                payoutMapper, consignmentListingMapper, seckillActivityMapper);
         UserContext.set(new LoginUser(3L, "buyer", "USER"));
     }
 
     @AfterEach
     void tearDown() {
         UserContext.clear();
+    }
+
+    @Test
+    void 秒杀单超时关单_回补独立池且不碰常规库存() {
+        Order expired = new Order();
+        expired.setId(7L);
+        expired.setUserId(3L);
+        expired.setType(com.fullstackmall.shop.order.enums.OrderType.SECKILL);
+        expired.setSeckillActivityId(9L);
+        expired.setStatus(OrderStatus.PENDING_PAYMENT);
+        expired.setExpiredAt(java.time.LocalDateTime.now().minusMinutes(1));
+        given(orderMapper.selectList(any())).willReturn(List.of(expired));
+        given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+        given(seckillActivityMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+
+        orderService.list(null);
+
+        // 秒杀单回补独立池（sold_count - 1，条件 sold_count > 0 防负）
+        verify(seckillActivityMapper).update(org.mockito.ArgumentMatchers.isNull(), any());
+        // 常规库存不动
+        verify(productItemMapper, never()).update(org.mockito.ArgumentMatchers.isNull(), any());
+    }
+
+    @Test
+    void 普通单超时关单_回补常规库存且不碰秒杀池() {
+        Order expired = new Order();
+        expired.setId(8L);
+        expired.setUserId(3L);
+        expired.setType(com.fullstackmall.shop.order.enums.OrderType.NORMAL);
+        expired.setStatus(OrderStatus.PENDING_PAYMENT);
+        expired.setExpiredAt(java.time.LocalDateTime.now().minusMinutes(1));
+        given(orderMapper.selectList(any())).willReturn(List.of(expired));
+        given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+        com.fullstackmall.shop.order.entity.OrderItem line = new com.fullstackmall.shop.order.entity.OrderItem();
+        line.setProductItemId(36L);
+        line.setQuantity(2);
+        given(orderItemMapper.selectList(any())).willReturn(List.of(line));
+        given(productItemMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
+
+        orderService.list(null);
+
+        verify(productItemMapper).update(org.mockito.ArgumentMatchers.isNull(), any());
+        verify(seckillActivityMapper, never()).update(org.mockito.ArgumentMatchers.isNull(), any());
     }
 
     @Test

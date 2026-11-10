@@ -38,6 +38,8 @@ import com.fullstackmall.shop.product.enums.OwnerType;
 import com.fullstackmall.shop.product.mapper.ProductImageMapper;
 import com.fullstackmall.shop.product.mapper.ProductItemMapper;
 import com.fullstackmall.shop.product.mapper.ProductMapper;
+import com.fullstackmall.shop.seckill.entity.SeckillActivity;
+import com.fullstackmall.shop.seckill.mapper.SeckillActivityMapper;
 import com.fullstackmall.shop.user.context.UserContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -76,12 +78,14 @@ public class OrderServiceImpl implements OrderService {
     private final AddressMapper addressMapper;
     private final PayoutMapper payoutMapper;
     private final ConsignmentListingMapper consignmentListingMapper;
+    private final SeckillActivityMapper seckillActivityMapper;
 
     public OrderServiceImpl(OrderMapper orderMapper, OrderItemMapper orderItemMapper,
                             CartItemMapper cartItemMapper, ProductItemMapper productItemMapper,
                             ProductMapper productMapper, ProductImageMapper productImageMapper,
                             PaymentMapper paymentMapper, AddressMapper addressMapper,
-                            PayoutMapper payoutMapper, ConsignmentListingMapper consignmentListingMapper) {
+                            PayoutMapper payoutMapper, ConsignmentListingMapper consignmentListingMapper,
+                            SeckillActivityMapper seckillActivityMapper) {
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
         this.cartItemMapper = cartItemMapper;
@@ -92,6 +96,7 @@ public class OrderServiceImpl implements OrderService {
         this.addressMapper = addressMapper;
         this.payoutMapper = payoutMapper;
         this.consignmentListingMapper = consignmentListingMapper;
+        this.seckillActivityMapper = seckillActivityMapper;
     }
 
     @Override
@@ -434,7 +439,7 @@ public class OrderServiceImpl implements OrderService {
         }
         // 条件迁移（并发/重复取消兜底：已是 CANCELLED 时命中 0 行）
         migrateOrderStatus(order.getId(), OrderStatus.CANCELLED, OrderStatus.PENDING_PAYMENT);
-        restock(order.getId());
+        restock(order);
     }
 
     /** 单体惰性关单：PENDING_PAYMENT 且 expiredAt 已过 → CANCELLED + 回补库存 */
@@ -443,7 +448,7 @@ public class OrderServiceImpl implements OrderService {
                 && order.getExpiredAt() != null
                 && order.getExpiredAt().isBefore(LocalDateTime.now())) {
             migrateOrderStatus(order.getId(), OrderStatus.CANCELLED, OrderStatus.PENDING_PAYMENT);
-            restock(order.getId());
+            restock(order);
             order.setStatus(OrderStatus.CANCELLED);
         }
     }
@@ -459,9 +464,19 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    /** 回补库存：按明细逐行 stock+quantity（条件更新的逆操作，无需前置条件） */
-    private void restock(Long orderId) {
-        List<OrderItem> lines = loadLines(orderId);
+    /**
+     * 回补库存：秒杀单回补活动独立池（sold_count - 1，条件 sold_count > 0 防负——
+     * 负值会让后续抢购多放行）；普通单按明细逐行回补 product_item。
+     */
+    private void restock(Order order) {
+        if (order.getType() == OrderType.SECKILL && order.getSeckillActivityId() != null) {
+            seckillActivityMapper.update(null, Wrappers.<SeckillActivity>update()
+                    .setSql("sold_count = sold_count - 1")
+                    .eq("id", order.getSeckillActivityId())
+                    .gt("sold_count", 0));
+            return;
+        }
+        List<OrderItem> lines = loadLines(order.getId());
         for (OrderItem line : lines) {
             productItemMapper.update(null, Wrappers.<ProductItem>update()
                     .setSql("stock = stock + " + line.getQuantity() + ", version = version + 1")
