@@ -13,6 +13,13 @@ defineProps<{
   items: readonly MallGoodsItem[]
 }>()
 
+const emit = defineEmits<{
+  /** 点商品卡：父级跳商品详情页（H5MallDetail） */
+  open: [item: MallGoodsItem]
+  /** 点「全部」：父级跳商品列表页（H5MallList） */
+  goList: []
+}>()
+
 /** 色块档位按 id 派生（后端无此字段，前端占位图用） */
 function phOf(id: number): 'a' | 'b' | 'c' {
   return id % 3 === 0 ? 'a' : id % 3 === 1 ? 'b' : 'c'
@@ -24,13 +31,19 @@ function phOf(id: number): 'a' | 'b' | 'c' {
     <div :class="bem.e('head')">
       <h2 :class="bem.e('title')">新品上架</h2>
       <span :class="bem.e('en')">NEW ARRIVAL</span>
-      <a :class="bem.e('more')" href="#goods">
+      <a :class="bem.e('more')" href="javascript:;" @click.prevent="emit('goList')">
         全部
         <svg :class="bem.e('moreic')" aria-hidden="true"><use href="#mall-i-arrow" /></svg>
       </a>
     </div>
     <div :class="bem.e('scroll')">
-      <a v-for="item in items" :key="item.id" :class="bem.e('card')" href="#goods">
+      <a
+        v-for="item in items"
+        :key="item.id"
+        :class="bem.e('card')"
+        href="javascript:;"
+        @click.prevent="emit('open', item)"
+      >
         <!-- 有图渲染真实图，无图兜底占位色块 -->
         <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.name" :class="bem.e('img')" />
         <MallPh v-else :class="bem.e('ph')" :ph="phOf(item.id)" :garm="item.garm ?? 'tshirt'">

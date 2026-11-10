@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 编辑专题：单卡图文（kicker + 标题 + 简介 + 期号印章） */
+/** 编辑专题：单卡图文（kicker + 标题 + 简介 + 期号印章）。“阅读专题”点击跳商品列表页 */
 const bem = createNamespace('mall-topic')
 
 defineProps<{
@@ -10,6 +10,11 @@ defineProps<{
     readonly meta: string
     readonly artText: string
   }
+}>()
+
+const emit = defineEmits<{
+  /** 点「阅读专题」：父级跳商品列表页（H5MallList） */
+  goList: []
 }>()
 </script>
 
@@ -24,7 +29,7 @@ defineProps<{
         <h3 :class="bem.e('title')">{{ topic.title }}</h3>
         <p :class="bem.e('desc')">{{ topic.desc }}</p>
         <div :class="bem.e('meta')">{{ topic.meta }}</div>
-        <a :class="bem.e('more')" href="#goods">
+        <a :class="bem.e('more')" href="javascript:;" @click.prevent="emit('goList')">
           阅读专题
           <svg :class="bem.e('moreic')" aria-hidden="true"><use href="#mall-i-arrow" /></svg>
         </a>

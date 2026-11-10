@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 金刚区品类入口（6 宫格，点击为原型锚点跳转） */
+/** 金刚区品类入口（6 宫格，点击跳商品列表页） */
 interface Cat {
   label: string
   icon: string
@@ -10,12 +10,23 @@ const bem = createNamespace('mall-cats')
 defineProps<{
   cats: readonly Cat[]
 }>()
+
+const emit = defineEmits<{
+  /** 点品类：父级跳商品列表页（H5MallList） */
+  goList: []
+}>()
 </script>
 
 <template>
   <nav :class="bem.b()" :aria-label="`品类入口`">
     <div :class="bem.e('grid')">
-      <a v-for="cat in cats" :key="cat.label" :class="bem.e('cat')" href="#goods">
+      <a
+        v-for="cat in cats"
+        :key="cat.label"
+        :class="bem.e('cat')"
+        href="javascript:;"
+        @click.prevent="emit('goList')"
+      >
         <span :class="bem.e('ring')">
           <svg :class="bem.e('ic')" aria-hidden="true"><use :href="`#mall-i-${cat.icon}`" /></svg>
         </span>

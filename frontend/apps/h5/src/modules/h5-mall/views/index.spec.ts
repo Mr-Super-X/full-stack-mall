@@ -13,10 +13,13 @@ vi.mock('../apis/index', () => ({
 }))
 
 // 首页区块组件树可能经 useAppRouter 跳转：测试环境无 registerAppRouter 注册的实例，
-// 覆盖该导出防"router 实例未注册"（importOriginal 保留 barrel 其余真实导出如 useRequest）
+// 覆盖该导出防"router 实例未注册"（importOriginal 保留 barrel 其余真实导出如 useRequest）。
+// mockPushByName 为模块级单例：工厂每次返回新 vi.fn 会断言不到调用。
+const { mockPushByName } = vi.hoisted(() => ({ mockPushByName: vi.fn() }))
+
 vi.mock('@vv/shared', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@vv/shared')>()),
-  useAppRouter: () => ({ pushByName: vi.fn(), replaceByName: vi.fn(), back: vi.fn() }),
+  useAppRouter: () => ({ pushByName: mockPushByName, replaceByName: vi.fn(), back: vi.fn() }),
 }))
 
 import { h5MallApi } from '../apis/index'
@@ -111,6 +114,33 @@ describe('h5-mall 商城首页（API 驱动）', () => {
     expect(w.findComponent(MallToast).props('visible')).toBe(true)
     expect(w.findComponent(MallToast).props('message')).toBe('已加入购物袋')
     // 注：常驻 tabbar 已上移至 shell.vue（ledger Task 1 Ruling），角标断言随之移除
+  })
+
+  it('点商品卡：跳商品详情页 H5MallDetail（带商品 id）', async () => {
+    vi.mocked(h5MallApi.getHome).mockResolvedValue(mockHome)
+    mockPushByName.mockClear()
+
+    const w = mount(HomeIndex)
+    await vi.waitFor(() => expect(w.text()).toContain('限时甄选'))
+
+    // 限时甄选横滑卡（mock 首条 id=7）
+    const card = w.find('.vv-mall-flash__item')!
+    await card.trigger('click')
+
+    expect(mockPushByName).toHaveBeenCalledWith('H5MallDetail', { id: 7 })
+  })
+
+  it('点金刚区品类：跳商品列表页 H5MallList', async () => {
+    vi.mocked(h5MallApi.getHome).mockResolvedValue(mockHome)
+    mockPushByName.mockClear()
+
+    const w = mount(HomeIndex)
+    await vi.waitFor(() => expect(w.text()).toContain('限时甄选'))
+
+    const cat = w.find('.vv-mall-cats__cat')!
+    await cat.trigger('click')
+
+    expect(mockPushByName).toHaveBeenCalledWith('H5MallList')
   })
 
   it('收藏切换：aria-pressed 翻转 + Toast 文案跟随', async () => {

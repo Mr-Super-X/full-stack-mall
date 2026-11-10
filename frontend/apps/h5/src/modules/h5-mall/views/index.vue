@@ -65,8 +65,21 @@ const MALL_TOPIC = {
   artText: '拾贰',
 } as const
 
+// 项目 composable @vv/shared（vite 自动注入）——商品卡/金刚区跳详情与列表用
+const { pushByName } = useAppRouter()
+
 function onAdd(): void {
   show('已加入购物袋')
+}
+
+/** 点商品卡：跳商品详情页（限时甄选/新品/为你推荐三区块共用） */
+function openDetail(item: MallGoodsItem): void {
+  void pushByName('H5MallDetail', { id: item.id })
+}
+
+/** 金刚区/CTA/「全部」/专题：跳商品列表页 */
+function goList(): void {
+  void pushByName('H5MallList')
 }
 
 function onToggleFav(item: MallGoodsItem): void {
@@ -103,11 +116,11 @@ function onToggleFav(item: MallGoodsItem): void {
       </div>
       <!-- 正常态 -->
       <template v-else-if="home">
-        <MallHero class="rv" />
-        <MallCats class="rv" :cats="mallCats" />
-        <MallFlash class="rv" :items="mallFlash" />
-        <MallNew class="rv" :items="mallNews" />
-        <MallTopic class="rv" :topic="MALL_TOPIC" />
+        <MallHero class="rv" @go-list="goList" />
+        <MallCats class="rv" :cats="mallCats" @go-list="goList" />
+        <MallFlash class="rv" :items="mallFlash" @open="openDetail" />
+        <MallNew class="rv" :items="mallNews" @open="openDetail" @go-list="goList" />
+        <MallTopic class="rv" :topic="MALL_TOPIC" @go-list="goList" />
         <MallGoods
           class="rv"
           :goods="mallGoods"
@@ -115,6 +128,7 @@ function onToggleFav(item: MallGoodsItem): void {
           :favs="favs"
           @add="onAdd"
           @toggle-fav="onToggleFav"
+          @open="openDetail"
         />
       </template>
     </main>

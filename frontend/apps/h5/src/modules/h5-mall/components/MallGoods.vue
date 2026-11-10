@@ -20,6 +20,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   add: [item: MallGoodsItem]
   toggleFav: [item: MallGoodsItem]
+  /** 点商品卡：父级跳商品详情页（H5MallDetail） */
+  open: [item: MallGoodsItem]
 }>()
 
 const activeChip = ref(props.chips[0] ?? '推荐')
@@ -58,7 +60,7 @@ function phOf(id: number): 'a' | 'b' | 'c' {
       </button>
     </div>
     <div :class="bem.e('grid')">
-      <div v-for="item in goods" :key="item.id" :class="bem.e('gcard')">
+      <div v-for="item in goods" :key="item.id" :class="bem.e('gcard')" @click="emit('open', item)">
         <!-- 有图渲染真实图，无图兜底占位色块（Review Focus 4） -->
         <div :class="bem.e('phwrap')">
           <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.name" :class="bem.e('img')" />
@@ -68,7 +70,7 @@ function phOf(id: number): 'a' | 'b' | 'c' {
             :class="[bem.e('fav'), bem.is('on', isFav(item.id))]"
             :aria-label="`${isFav(item.id) ? '取消收藏' : '收藏'} ${item.name}`"
             :aria-pressed="isFav(item.id)"
-            @click="emit('toggleFav', item)"
+            @click.stop="emit('toggleFav', item)"
           >
             <svg :class="bem.e('favic')" aria-hidden="true"><use href="#mall-i-heart" /></svg>
           </button>
@@ -81,7 +83,7 @@ function phOf(id: number): 'a' | 'b' | 'c' {
             <b>¥{{ item.price }}</b>
             <s v-if="item.originPrice" :class="bem.e('origin')">¥{{ item.originPrice }}</s>
           </span>
-          <button type="button" :class="bem.e('addbtn')" @click="emit('add', item)">
+          <button type="button" :class="bem.e('addbtn')" @click.stop="emit('add', item)">
             加入购物袋
           </button>
         </div>

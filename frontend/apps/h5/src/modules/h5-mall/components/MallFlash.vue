@@ -14,6 +14,11 @@ defineProps<{
   items: readonly MallGoodsItem[]
 }>()
 
+const emit = defineEmits<{
+  /** 点商品卡：父级跳商品详情页（H5MallDetail） */
+  open: [item: MallGoodsItem]
+}>()
+
 const { remaining } = useCountdown(22)
 
 /** 色块档位按 id 派生（后端无此字段，前端占位图用） */
@@ -30,7 +35,13 @@ function phOf(id: number): 'a' | 'b' | 'c' {
       <span :class="bem.e('sub')">每日 10:00 – 22:00 · 两件再享 9 折</span>
     </div>
     <div :class="bem.e('grid')">
-      <a v-for="item in items" :key="item.id" :class="bem.e('item')" href="#goods">
+      <a
+        v-for="item in items"
+        :key="item.id"
+        :class="bem.e('item')"
+        href="javascript:;"
+        @click.prevent="emit('open', item)"
+      >
         <!-- 有图渲染真实图，无图兜底占位色块 -->
         <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.name" :class="bem.e('img')" />
         <MallPh v-else :ph="phOf(item.id)" :garm="item.garm ?? 'tshirt'" radius="sm">

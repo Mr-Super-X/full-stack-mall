@@ -2,8 +2,14 @@
 /**
  * 主推 Banner（陶土秋季主题）：眉题 + 主标题 + 副文案 + CTA，右侧为纯 SVG 装饰插画。
  * 入场渐显由父级 useReveal 统一挂 `.rv`（class 透传至本组件根元素）。
+ * CTA 原型的 `#new`/`#topic` 锚点在路由化后为死链——统一 emit goList 由父级跳列表页。
  */
 const bem = createNamespace('mall-hero')
+
+const emit = defineEmits<{
+  /** CTA 点击：父级跳商品列表页（H5MallList） */
+  goList: []
+}>()
 </script>
 
 <template>
@@ -16,8 +22,8 @@ const bem = createNamespace('mall-hero')
     </h1>
     <p :class="bem.e('desc')">手作质感棉麻，松弛有度的日常衣橱。</p>
     <div :class="bem.e('cta')">
-      <a :class="bem.e('btn')" href="#new">逛本季新品</a>
-      <a :class="bem.e('more')" href="#topic">
+      <a :class="bem.e('btn')" href="javascript:;" @click.prevent="emit('goList')">逛本季新品</a>
+      <a :class="bem.e('more')" href="javascript:;" @click.prevent="emit('goList')">
         搭配灵感
         <svg :class="bem.e('moreic')" aria-hidden="true"><use href="#mall-i-arrow" /></svg>
       </a>
