@@ -10,6 +10,7 @@ import MallGoods from '../components/MallGoods.vue'
 import MallHero from '../components/MallHero.vue'
 import MallNew from '../components/MallNew.vue'
 import MallNotice from '../components/MallNotice.vue'
+import MallSeckill from '../components/MallSeckill.vue'
 import MallServeFooter from '../components/MallServeFooter.vue'
 import MallToast from '../components/MallToast.vue'
 import MallTopbar from '../components/MallTopbar.vue'
@@ -47,6 +48,9 @@ const mallCats = computed(() => {
 /** 限时甄选（后端 flash.items） */
 const mallFlash = computed(() => home.value?.flash.items ?? [])
 
+/** 限时秒杀区块（后端 seckill；无进行中场时整块不渲染） */
+const mallSeckill = computed(() => home.value?.seckill ?? null)
+
 /** 新品横滑（后端 news） */
 const mallNews = computed(() => home.value?.news ?? [])
 
@@ -82,6 +86,11 @@ function openDetail(item: MallGoodsItem): void {
 /** 金刚区/CTA/「全部」/专题：跳商品列表页 */
 function goList(): void {
   void pushByName('H5MallList')
+}
+
+/** 秒杀区块「全部」：跳秒杀会场页 */
+function goSeckill(): void {
+  void pushByName('H5MallSeckill')
 }
 
 function onToggleFav(item: MallGoodsItem): void {
@@ -121,6 +130,12 @@ function onToggleFav(item: MallGoodsItem): void {
         <MallHero class="rv" @go-list="goList" />
         <MallCats class="rv" :cats="mallCats" @go-list="goList" />
         <MallFlash class="rv" :items="mallFlash" @open="openDetail" />
+        <MallSeckill
+          v-if="mallSeckill && mallSeckill.live.length > 0"
+          class="rv"
+          :section="mallSeckill"
+          @open="goSeckill"
+        />
         <MallNew class="rv" :items="mallNews" @open="openDetail" @go-list="goList" />
         <MallTopic class="rv" :topic="MALL_TOPIC" @go-list="goList" />
         <MallGoods
