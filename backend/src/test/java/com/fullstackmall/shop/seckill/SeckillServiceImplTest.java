@@ -58,7 +58,8 @@ class SeckillServiceImplTest {
     void setUp() {
         service = new SeckillServiceImpl(
                 seckillActivityMapper, productMapper, productItemMapper, productImageMapper,
-                addressMapper, orderMapper, orderItemMapper, paymentMapper);
+                addressMapper, orderMapper, orderItemMapper,
+                new com.fullstackmall.shop.seckill.service.SeckillOrderAssembler(orderMapper, paymentMapper));
     }
 
     @Test

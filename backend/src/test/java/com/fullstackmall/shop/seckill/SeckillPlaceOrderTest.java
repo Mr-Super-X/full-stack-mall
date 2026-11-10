@@ -76,7 +76,8 @@ class SeckillPlaceOrderTest {
     @BeforeEach
     void setUp() {
         service = new SeckillServiceImpl(seckillActivityMapper, productMapper, productItemMapper,
-                productImageMapper, addressMapper, orderMapper, orderItemMapper, paymentMapper);
+                productImageMapper, addressMapper, orderMapper, orderItemMapper,
+                new com.fullstackmall.shop.seckill.service.SeckillOrderAssembler(orderMapper, paymentMapper));
         UserContext.set(new LoginUser(3L, "buyer", "USER"));
     }
 

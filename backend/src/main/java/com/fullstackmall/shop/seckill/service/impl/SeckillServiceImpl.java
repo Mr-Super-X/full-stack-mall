@@ -1,7 +1,6 @@
 package com.fullstackmall.shop.seckill.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullstackmall.shop.address.entity.Address;
 import com.fullstackmall.shop.address.mapper.AddressMapper;
 import com.fullstackmall.shop.common.BusinessException;
@@ -14,9 +13,6 @@ import com.fullstackmall.shop.order.mapper.OrderItemMapper;
 import com.fullstackmall.shop.order.mapper.OrderMapper;
 import com.fullstackmall.shop.order.service.OrderNoGenerator;
 import com.fullstackmall.shop.payment.entity.Payment;
-import com.fullstackmall.shop.payment.enums.PayChannel;
-import com.fullstackmall.shop.payment.enums.PaymentStatus;
-import com.fullstackmall.shop.payment.mapper.PaymentMapper;
 import com.fullstackmall.shop.product.entity.Product;
 import com.fullstackmall.shop.product.entity.ProductImage;
 import com.fullstackmall.shop.product.entity.ProductItem;
@@ -29,17 +25,16 @@ import com.fullstackmall.shop.seckill.dto.SeckillOrderResultDTO;
 import com.fullstackmall.shop.seckill.entity.SeckillActivity;
 import com.fullstackmall.shop.seckill.enums.SeckillStatus;
 import com.fullstackmall.shop.seckill.mapper.SeckillActivityMapper;
+import com.fullstackmall.shop.seckill.service.SeckillOrderAssembler;
 import com.fullstackmall.shop.seckill.service.SeckillService;
 import com.fullstackmall.shop.user.context.UserContext;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -54,9 +49,6 @@ public class SeckillServiceImpl implements SeckillService {
 
     /** upcoming 展示上限（spec §3.3） */
     private static final int UPCOMING_LIMIT = 5;
-    /** 秒杀单超时关单分钟数（与常规单一致，惰性关单在 OrderServiceImpl 触发） */
-    private static final int ORDER_EXPIRE_MINUTES = 15;
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final SeckillActivityMapper seckillActivityMapper;
     private final ProductMapper productMapper;
@@ -65,7 +57,7 @@ public class SeckillServiceImpl implements SeckillService {
     private final AddressMapper addressMapper;
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
-    private final PaymentMapper paymentMapper;
+    private final SeckillOrderAssembler orderAssembler;
 
     public SeckillServiceImpl(SeckillActivityMapper seckillActivityMapper,
                               ProductMapper productMapper,
@@ -74,7 +66,7 @@ public class SeckillServiceImpl implements SeckillService {
                               AddressMapper addressMapper,
                               OrderMapper orderMapper,
                               OrderItemMapper orderItemMapper,
-                              PaymentMapper paymentMapper) {
+                              SeckillOrderAssembler orderAssembler) {
         this.seckillActivityMapper = seckillActivityMapper;
         this.productMapper = productMapper;
         this.productItemMapper = productItemMapper;
@@ -82,7 +74,7 @@ public class SeckillServiceImpl implements SeckillService {
         this.addressMapper = addressMapper;
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
-        this.paymentMapper = paymentMapper;
+        this.orderAssembler = orderAssembler;
     }
 
     @Override
@@ -257,15 +249,15 @@ public class SeckillServiceImpl implements SeckillService {
         }
         // 5. 扣独立池（条件更新行数守卫）
         deductStock(activityId);
-        // 6. 建单（快照定格秒杀价；撞 uk_user_activity → 40004）
+        // 6. 建单（快照定格秒杀价；撞 uk_user_activity → 40004）——三步委托 Assembler，与 MQ 异步路径共用
         try {
             Address address = requireAddress(userId, req.getAddressId());
-            Order order = insertSeckillOrder(userId, activity, address);
-            OrderItem line = buildSeckillLine(item, product,
+            Order order = insertOrderWithRetry(userId, activity, address);
+            OrderItem line = orderAssembler.buildLine(item, product,
                     activity.getSeckillPrice(), loadMainImage(product.getId()));
             line.setOrderId(order.getId());
             orderItemMapper.insert(line);
-            Payment payment = insertPayment(order.getId(), activity.getSeckillPrice());
+            Payment payment = orderAssembler.insertPayment(order.getId(), activity.getSeckillPrice());
             return new SeckillOrderResultDTO(order.getOrderNo(), payment.getPaymentNo());
         } catch (DuplicateKeyException e) {
             throw new BusinessException(ResultCode.DUPLICATE_ORDER);
@@ -308,21 +300,14 @@ public class SeckillServiceImpl implements SeckillService {
         return address;
     }
 
-    /** 订单写入：订单号 uk 冲突换号重试 ≤3 次；uk_user_activity 撞线由调用方转 40004 */
-    private Order insertSeckillOrder(Long userId, SeckillActivity activity, Address address) {
-        Order order = new Order();
-        order.setUserId(userId);
-        order.setType(OrderType.SECKILL);
-        order.setSeckillActivityId(activity.getId());
-        order.setStatus(OrderStatus.PENDING_PAYMENT);
-        order.setPayAmount(activity.getSeckillPrice());
-        order.setAddressSnapshot(addressJson(address));
-        order.setExpiredAt(LocalDateTime.now().plusMinutes(ORDER_EXPIRE_MINUTES));
+    /**
+     * 同步路径 orderNo uk 撞库换号重试 ≤3 次（异步路径 orderNo 预生成，不存在 uk 冲突问题，
+     * 直接走 Assembler 单发）。uk_user_activity 撞线由调用方转 40004。
+     */
+    private Order insertOrderWithRetry(Long userId, SeckillActivity activity, Address address) {
         for (int attempt = 0; attempt < 3; attempt++) {
-            order.setOrderNo(OrderNoGenerator.orderNo());
             try {
-                orderMapper.insert(order);
-                return order;
+                return orderAssembler.insertOrder(userId, activity, address, OrderNoGenerator.orderNo());
             } catch (DuplicateKeyException e) {
                 if (attempt == 2) {
                     throw e;
@@ -330,57 +315,6 @@ public class SeckillServiceImpl implements SeckillService {
             }
         }
         throw new BusinessException(ResultCode.INTERNAL_ERROR);
-    }
-
-    /** 快照行：成交价定格秒杀价（快照铁律，活动结束/改价不回联） */
-    private OrderItem buildSeckillLine(ProductItem item, Product product,
-                                       BigDecimal seckillPrice, String imageUrl) {
-        OrderItem line = new OrderItem();
-        line.setProductItemId(item.getId());
-        line.setPrice(seckillPrice);
-        line.setQuantity(1);
-        line.setSellerId(null);
-        Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("title", product.getName());
-        snapshot.put("imageUrl", imageUrl);
-        snapshot.put("conditionGrade", item.getConditionGrade() != null ? item.getConditionGrade().name() : null);
-        snapshot.put("size", item.getSize());
-        snapshot.put("color", item.getColor());
-        snapshot.put("brand", product.getBrand());
-        snapshot.put("ownerType", product.getOwnerType() != null ? product.getOwnerType().name() : null);
-        try {
-            line.setItemSnapshot(OBJECT_MAPPER.writeValueAsString(snapshot));
-        } catch (Exception e) {
-            throw new BusinessException(ResultCode.INTERNAL_ERROR);
-        }
-        return line;
-    }
-
-    /** 下单同事务建支付单（CREATED，前端据此发起 pay） */
-    private Payment insertPayment(Long orderId, BigDecimal amount) {
-        Payment payment = new Payment();
-        payment.setPaymentNo(OrderNoGenerator.paymentNo());
-        payment.setOrderId(orderId);
-        payment.setAmount(amount);
-        payment.setProvider(PayChannel.FAKE);
-        payment.setStatus(PaymentStatus.CREATED);
-        paymentMapper.insert(payment);
-        return payment;
-    }
-
-    private String addressJson(Address address) {
-        try {
-            Map<String, Object> snapshot = new LinkedHashMap<>();
-            snapshot.put("receiverName", address.getReceiverName());
-            snapshot.put("phone", address.getPhone());
-            snapshot.put("province", address.getProvince());
-            snapshot.put("city", address.getCity());
-            snapshot.put("district", address.getDistrict());
-            snapshot.put("detail", address.getDetail());
-            return OBJECT_MAPPER.writeValueAsString(snapshot);
-        } catch (Exception e) {
-            throw new BusinessException(ResultCode.INTERNAL_ERROR);
-        }
     }
 
     private String loadMainImage(Long productId) {
