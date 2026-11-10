@@ -59,7 +59,9 @@ const createForm = reactive({
   productId: null as number | null,
   seckillPrice: '',
   seckillStock: '',
-  timeRange: null as [Date, Date] | null,
+  // value-format 固定为本地 naive 字符串（YYYY-MM-DDTHH:mm:ss）——直接传后端 LocalDateTime，
+  // 禁用 toISOString：UTC 转换会让场次窗口偏移浏览器时区小时数（终审 IMPORTANT 修复）
+  timeRange: null as [string, string] | null,
 })
 const createSubmitting = ref(false)
 
@@ -101,8 +103,8 @@ async function onCreateSubmit(): Promise<void> {
       productId,
       seckillPrice: price,
       seckillStock: stock,
-      startTime: createForm.timeRange[0].toISOString(),
-      endTime: createForm.timeRange[1].toISOString(),
+      startTime: createForm.timeRange[0],
+      endTime: createForm.timeRange[1],
       limitPerUser: 1,
     })
     ElMessage.success('已创建（库存已划拨）')
@@ -218,6 +220,7 @@ async function onCancel(row: AdminSeckillActivity): Promise<void> {
           <el-date-picker
             v-model="createForm.timeRange"
             type="datetimerange"
+            value-format="YYYY-MM-DDTHH:mm:ss"
             range-separator="至"
             start-placeholder="开始时间"
             end-placeholder="结束时间"
