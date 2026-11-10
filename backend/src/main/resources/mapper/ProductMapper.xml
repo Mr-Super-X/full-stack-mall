@@ -17,7 +17,7 @@
     LEFT JOIN product_item i ON i.product_id = p.id
     WHERE p.status = 1
     <if test="q.keyword != null and q.keyword != ''">
-      AND p.name LIKE CONCAT('%', #{q.keyword}, '%')
+      AND MATCH(p.name, p.selling_point, p.tag) AGAINST (#{q.keyword} IN BOOLEAN MODE)
     </if>
     <if test="q.categoryId != null">
       AND p.category_id = #{q.categoryId}

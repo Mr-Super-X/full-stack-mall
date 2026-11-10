@@ -77,6 +77,17 @@ class ProductServiceImplSeckillTest {
         assertThat(detail.getActiveSeckill()).isNull();
     }
 
+    @Test
+    void keyword经sanitize后为空_按全量查询处理() {
+        var req = new com.fullstackmall.shop.product.dto.ProductListRequest();
+        req.setKeyword("+++");
+
+        productService.pageProducts(req);
+
+        // sanitize 返 null → XML 跳过 MATCH 条件，不会拼出 AGAINST('+++') 语法错误
+        org.assertj.core.api.Assertions.assertThat(req.getKeyword()).isNull();
+    }
+
     private Product product() {
         Product product = new Product();
         product.setId(16L);

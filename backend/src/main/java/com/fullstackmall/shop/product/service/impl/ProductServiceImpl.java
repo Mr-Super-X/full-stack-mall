@@ -16,6 +16,7 @@ import com.fullstackmall.shop.product.mapper.ProductImageMapper;
 import com.fullstackmall.shop.product.mapper.ProductItemMapper;
 import com.fullstackmall.shop.product.mapper.ProductMapper;
 import com.fullstackmall.shop.product.service.ProductService;
+import com.fullstackmall.shop.product.utils.SearchQuerySupport;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -48,9 +49,10 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public PageResult<ProductSummaryDTO> pageProducts(ProductListRequest request) {
-        // keyword trim 后为空视同未传，置 null 让 XML 跳过 LIKE 条件
+        // keyword trim + sanitize：BOOLEAN 操作符经 SearchQuerySupport 转义防 AGAINST 语法 500；
+        // sanitize 后为空视同未传，置 null 让 XML 跳过 MATCH 条件（全量）
         if (StringUtils.hasText(request.getKeyword())) {
-            request.setKeyword(request.getKeyword().trim());
+            request.setKeyword(SearchQuerySupport.sanitize(request.getKeyword().trim()));
         } else {
             request.setKeyword(null);
         }
