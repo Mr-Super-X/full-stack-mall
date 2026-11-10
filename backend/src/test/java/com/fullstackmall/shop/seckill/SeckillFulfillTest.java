@@ -67,6 +67,10 @@ class SeckillFulfillTest {
     private PaymentMapper paymentMapper;
     @Mock
     private SeckillOrderAcceptanceMapper acceptanceMapper;
+    @Mock
+    private com.fullstackmall.shop.seckill.service.RedisStockDeductor redisStockDeductor;
+    @Mock
+    private com.fullstackmall.shop.seckill.mq.SeckillOrderCreateProducer seckillOrderCreateProducer;
 
     private SeckillServiceImpl service;
 
@@ -77,7 +81,9 @@ class SeckillFulfillTest {
                 new SeckillOrderAssembler(orderMapper, paymentMapper),
                 new SeckillProperties(),
                 new DbPessimisticDeductor(seckillActivityMapper),
-                acceptanceMapper);
+                acceptanceMapper,
+                redisStockDeductor,
+                seckillOrderCreateProducer);
     }
 
     private SeckillOrderMessage message() {

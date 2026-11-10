@@ -25,15 +25,22 @@ import com.fullstackmall.shop.seckill.dto.SeckillOrderResultDTO;
 import com.fullstackmall.shop.seckill.entity.SeckillActivity;
 import com.fullstackmall.shop.seckill.enums.SeckillStatus;
 import com.fullstackmall.shop.seckill.mapper.SeckillActivityMapper;
+import com.fullstackmall.shop.seckill.mq.SeckillOrderCreateProducer;
+import com.fullstackmall.shop.seckill.mq.SeckillOrderMessage;
+import com.fullstackmall.shop.seckill.service.RedisStockDeductor;
 import com.fullstackmall.shop.seckill.service.SeckillDeductStrategy;
 import com.fullstackmall.shop.seckill.service.SeckillOrderAssembler;
 import com.fullstackmall.shop.seckill.service.SeckillProperties;
 import com.fullstackmall.shop.seckill.service.SeckillService;
 import com.fullstackmall.shop.seckill.service.DbPessimisticDeductor;
+import com.fullstackmall.shop.seckill.entity.SeckillOrderAcceptance;
 import com.fullstackmall.shop.user.context.UserContext;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -47,6 +54,7 @@ import java.util.stream.Collectors;
  * 秒杀 C 端读模型实现。过期场推进 ENDED + 归还必须与读路径同一事务（原子性：
  * 崩溃不能出现"已 ENDED 未归还"）；live 装配批量回填商品/主图/挂载 item，禁 N+1。
  */
+@Slf4j
 @Service
 public class SeckillServiceImpl implements SeckillService {
 
@@ -64,6 +72,8 @@ public class SeckillServiceImpl implements SeckillService {
     private final SeckillProperties seckillProperties;
     private final DbPessimisticDeductor pessimisticDeductor;
     private final com.fullstackmall.shop.seckill.mapper.SeckillOrderAcceptanceMapper seckillOrderAcceptanceMapper;
+    private final RedisStockDeductor redisStockDeductor;
+    private final SeckillOrderCreateProducer seckillOrderCreateProducer;
 
     public SeckillServiceImpl(SeckillActivityMapper seckillActivityMapper,
                               ProductMapper productMapper,
@@ -75,7 +85,9 @@ public class SeckillServiceImpl implements SeckillService {
                               SeckillOrderAssembler orderAssembler,
                               SeckillProperties seckillProperties,
                               DbPessimisticDeductor pessimisticDeductor,
-                              com.fullstackmall.shop.seckill.mapper.SeckillOrderAcceptanceMapper seckillOrderAcceptanceMapper) {
+                              com.fullstackmall.shop.seckill.mapper.SeckillOrderAcceptanceMapper seckillOrderAcceptanceMapper,
+                              RedisStockDeductor redisStockDeductor,
+                              SeckillOrderCreateProducer seckillOrderCreateProducer) {
         this.seckillActivityMapper = seckillActivityMapper;
         this.productMapper = productMapper;
         this.productItemMapper = productItemMapper;
@@ -87,6 +99,8 @@ public class SeckillServiceImpl implements SeckillService {
         this.seckillProperties = seckillProperties;
         this.pessimisticDeductor = pessimisticDeductor;
         this.seckillOrderAcceptanceMapper = seckillOrderAcceptanceMapper;
+        this.redisStockDeductor = redisStockDeductor;
+        this.seckillOrderCreateProducer = seckillOrderCreateProducer;
     }
 
     @Override
@@ -259,13 +273,16 @@ public class SeckillServiceImpl implements SeckillService {
         if (orderCount != null && orderCount >= 1) {
             throw new BusinessException(ResultCode.LIMIT_EXCEEDED);
         }
-        // 5. 扣独立池：按 seckill.strategy 分派三实现（对照实验公平性——前后置步骤完全一致）
+        // 5. redis 策略：Lua 预扣 + 受理落库 + 提交后发 MQ，受理即返（异步出单，spec §5.3b）
+        if (seckillProperties.getStrategy() == SeckillDeductStrategy.REDIS) {
+            return placeOrderRedis(userId, activity, item, req);
+        }
+        // 6. 扣独立池：optimistic 条件更新 / pessimistic FOR UPDATE（对照实验公平性——前后置步骤一致）
         switch (seckillProperties.getStrategy()) {
             case PESSIMISTIC -> pessimisticDeductor.deduct(activityId);
-            case REDIS -> throw new BusinessException(ResultCode.INTERNAL_ERROR); // Task 9 填充：Lua 预扣 + MQ 异步出单
             default -> deductStock(activityId);
         }
-        // 6. 建单（快照定格秒杀价；撞 uk_user_activity → 40004）——三步委托 Assembler，与 MQ 异步路径共用
+        // 7. 建单（快照定格秒杀价；撞 uk_user_activity → 40004）——三步委托 Assembler，与 MQ 异步路径共用
         try {
             Address address = requireAddress(userId, req.getAddressId());
             Order order = insertOrderWithRetry(userId, activity, address);
@@ -345,6 +362,61 @@ public class SeckillServiceImpl implements SeckillService {
             throw new BusinessException(ResultCode.ADDRESS_NOT_FOUND);
         }
         return address;
+    }
+
+    /**
+     * redis 策略受理时序（spec §5.3b）：Lua 预扣（DB 事务外先行）→ 地址校验 + 受理记录（同事务）
+     * → 事务提交后发 MQ（TransactionSynchronization.afterCommit，防"消息已发事务回滚"幽灵订单）
+     * → 受理即返。事务回滚或发送失败均补偿 Redis INCR（Review Focus #2：漏补偿即少卖）。
+     */
+    private SeckillOrderResultDTO placeOrderRedis(Long userId, SeckillActivity activity,
+                                                  ProductItem item, SeckillOrderRequest req) {
+        String orderNo = OrderNoGenerator.orderNo();
+        // 1. Lua 预扣（SOLD_OUT/LIMITED/UNAVAILABLE 直接抛，无补偿——未受理不欠库存）
+        redisStockDeductor.deduct(activity.getId(), userId, orderNo);
+        // 2. DB 事务段：地址校验 + 受理记录（任何异常回滚并补偿 Redis 关口）
+        try {
+            requireAddress(userId, req.getAddressId());
+            SeckillOrderAcceptance acceptance = new SeckillOrderAcceptance();
+            acceptance.setOrderNo(orderNo);
+            acceptance.setActivityId(activity.getId());
+            acceptance.setUserId(userId);
+            acceptance.setStatus("ACCEPTED");
+            seckillOrderAcceptanceMapper.insert(acceptance);
+        } catch (RuntimeException e) {
+            redisStockDeductor.restoreStock(activity.getId());
+            throw e;
+        }
+        // 3. 事务提交后发送 MQ（无事务上下文时直接发——单测/无代理场景路径）
+        SeckillOrderMessage mqMessage = new SeckillOrderMessage(orderNo, activity.getId(), userId,
+                item.getId(), req.getAddressId(), activity.getSeckillPrice(), LocalDateTime.now());
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            Long activityId = activity.getId();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sendAfterCommit(orderNo, activityId, mqMessage);
+                }
+            });
+        } else {
+            sendAfterCommit(orderNo, activity.getId(), mqMessage);
+        }
+        return new SeckillOrderResultDTO(orderNo, null);
+    }
+
+    /** MQ 发送 + 失败补偿（spec §5.3b：受理表置 FAILED + Redis 回补，告知轮询端点失败语义） */
+    private void sendAfterCommit(String orderNo, Long activityId, SeckillOrderMessage mqMessage) {
+        try {
+            seckillOrderCreateProducer.send(mqMessage);
+        } catch (Exception e) {
+            log.error("[seckill] 受理后发送 MQ 失败，补偿回补（受理 FAILED + 库存 INCR）orderNo={}", orderNo, e);
+            seckillOrderAcceptanceMapper.update(null, Wrappers.<SeckillOrderAcceptance>update()
+                    .set("status", "FAILED")
+                    .eq("order_no", orderNo)
+                    .eq("status", "ACCEPTED"));
+            redisStockDeductor.restoreStock(activityId);
+            throw new BusinessException(ResultCode.SECKILL_UNAVAILABLE);
+        }
     }
 
     /**

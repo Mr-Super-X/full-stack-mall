@@ -38,6 +38,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -69,6 +71,10 @@ class SeckillStrategySwitchTest {
     private DbPessimisticDeductor pessimisticDeductor;
     @Mock
     private com.fullstackmall.shop.seckill.mapper.SeckillOrderAcceptanceMapper seckillOrderAcceptanceMapper;
+    @Mock
+    private com.fullstackmall.shop.seckill.service.RedisStockDeductor redisStockDeductor;
+    @Mock
+    private com.fullstackmall.shop.seckill.mq.SeckillOrderCreateProducer seckillOrderCreateProducer;
 
     private final SeckillProperties properties = new SeckillProperties();
 
@@ -79,7 +85,8 @@ class SeckillStrategySwitchTest {
         service = new SeckillServiceImpl(seckillActivityMapper, productMapper, productItemMapper,
                 productImageMapper, addressMapper, orderMapper, orderItemMapper,
                 new SeckillOrderAssembler(orderMapper, paymentMapper),
-                properties, pessimisticDeductor, seckillOrderAcceptanceMapper);
+                properties, pessimisticDeductor, seckillOrderAcceptanceMapper,
+                redisStockDeductor, seckillOrderCreateProducer);
         UserContext.set(new LoginUser(3L, "buyer", "USER"));
     }
 
@@ -126,6 +133,13 @@ class SeckillStrategySwitchTest {
         given(productImageMapper.selectOne(any())).willReturn(image);
     }
 
+    /** redis 受理路径仅需地址（主图由异步消费者查，spec §5.3） */
+    private void stubAddressOnly() {
+        Address address = new Address();
+        address.setReceiverName("张三");
+        given(addressMapper.selectOne(any())).willReturn(address);
+    }
+
     /** optimistic 条件更新 stub（仅默认策略走到） */
     private void stubConditionUpdate() {
         given(seckillActivityMapper.update(any(), any())).willReturn(1);
@@ -165,13 +179,15 @@ class SeckillStrategySwitchTest {
     }
 
     @Test
-    @DisplayName("redis：本期占位抛 INTERNAL_ERROR（Task 9 填充真实实现）")
-    void redisStrategy_throwsPlaceholder() {
+    @DisplayName("redis：Lua 预扣 + 异步受理（返回 paymentNo=null 标识受理态，Task 9 真实实现）")
+    void redisStrategy_delegatesToRedisDeductor() {
         properties.setStrategy(SeckillDeductStrategy.REDIS);
         stubPrerequisites();
+        stubAddressOnly();
 
-        assertThatThrownBy(() -> service.placeOrder(1L, request()))
-                .isInstanceOf(BusinessException.class)
-                .extracting("resultCode").isEqualTo(ResultCode.INTERNAL_ERROR);
+        var result = service.placeOrder(1L, request());
+
+        verify(redisStockDeductor).deduct(eq(1L), eq(3L), anyString());
+        org.assertj.core.api.Assertions.assertThat(result.getPaymentNo()).isNull();
     }
 }
