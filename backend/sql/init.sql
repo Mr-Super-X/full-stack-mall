@@ -248,6 +248,17 @@ CREATE TABLE seckill_activity (
   KEY idx_product (product_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='秒杀场次';
 
+-- 4b 异步出单受理登记表（本地消息表简化形态，spec §5.4）：受理时落库，消费者成功后置 CREATED，DLX 登记置 FAILED
+CREATE TABLE seckill_order_acceptance (
+  order_no     VARCHAR(32) NOT NULL COMMENT '受理订单号（Controller 预生成，异步路径幂等键）',
+  activity_id  BIGINT      NOT NULL COMMENT '秒杀场次',
+  user_id      BIGINT      NOT NULL,
+  status       VARCHAR(16) NOT NULL DEFAULT 'ACCEPTED' COMMENT 'ACCEPTED/CREATED/FAILED',
+  create_time  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (order_no)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='秒杀受理登记（异步出单审计/少卖口径）';
+
 -- 秒杀种子：LIVE 场挂 id 16（划拨 5 件已反映在 item.stock=15）；UPCOMING 场挂 id 17（未划拨）。
 -- 时间用 NOW() 相对表达式——init.sql 幂等重跑后活动仍处对应状态（绝对日期会过期）。
 INSERT INTO seckill_activity (id, product_id, seckill_price, seckill_stock, sold_count, start_time, end_time, limit_per_user, status) VALUES
