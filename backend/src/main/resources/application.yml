@@ -19,6 +19,33 @@ mybatis-plus:
     banner: false
   mapper-locations: classpath*:mapper/*.xml
 
+  # 4b 秒杀演进：Redis（Lua 预扣/令牌桶）与 RabbitMQ（异步出单）
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USER:guest}
+    password: ${RABBIT_PASSWORD:guest}
+    listener:
+      simple:
+        # 消费者手动 ack（幂等/重试/DLX 语义由 SeckillOrderCreateConsumer 控制）
+        acknowledge-mode: manual
+        prefetch: 1
+
+seckill:
+  # 扣库存实现：optimistic（4a 默认）/ pessimistic（FOR UPDATE 对照组）/ redis（Lua+MQ 异步出单）
+  strategy: ${SECKILL_STRATEGY:optimistic}
+  rate-limit:
+    # 令牌桶初始值；按"DB 拐点并发 70%"压测校准后更新本注释（spec §6 证据链落字）
+    capacity: ${SECKILL_RATE_CAPACITY:200}
+    refill-per-second: ${SECKILL_RATE_REFILL:100}
+  mq:
+    # 故障注入：消费者落库失败率 0~1（仅压测/对照实验开启；>0 时启动 warn 日志）
+    consumer-simulated-failure-rate: ${SECKILL_MQ_FAILURE_RATE:0}
+
 app:
   cors:
     # 前端各 app dev server 端口 + dev-gateway；逗号分隔，环境变量可整体覆盖

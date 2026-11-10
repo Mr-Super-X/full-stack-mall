@@ -22,5 +22,32 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # 4b 秒杀演进引入：Lua 预扣 + 令牌桶限流
+  mall-redis:
+    image: redis:7
+    container_name: mall-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # 4b 秒杀演进引入：异步出单削峰；management 插件看队列/DLQ（作品集截图素材）
+  mall-rabbit:
+    image: rabbitmq:3.13-management
+    container_name: mall-rabbit
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
 volumes:
   mall-mysql-data:
