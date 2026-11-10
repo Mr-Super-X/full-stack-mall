@@ -35,6 +35,16 @@ const routes: RouteRecordRaw[] = [
           permissions: ['mall:admin'],
         },
       },
+      {
+        path: 'seckill-activities',
+        name: 'MallAdminSeckillActivities',
+        component: () => import('../views/SeckillActivities.vue'),
+        meta: {
+          title: '秒杀场次',
+          requiresAuth: true,
+          permissions: ['mall:admin'],
+        },
+      },
     ],
   },
 ]

@@ -139,6 +139,41 @@ class SeckillAdminServiceImplTest {
         return item;
     }
 
+    @Test
+    void 候选商品_仅保留单SKU自营且有库存() {
+        Product p1 = platformProduct();
+        p1.setId(16L);
+        Product p2 = platformProduct();
+        p2.setId(17L);
+        Product consign = platformProduct();
+        consign.setId(99L);
+        consign.setOwnerType(com.fullstackmall.shop.product.enums.OwnerType.CONSIGNMENT);
+        Product noStock = platformProduct();
+        noStock.setId(100L);
+        given(productMapper.selectList(any())).willReturn(List.of(p1, p2, consign, noStock));
+        // p1 单 SKU 有库存（入选）；p2 多 SKU（排除）；consign 单 SKU（寄卖排除）；
+        // p100 单 SKU 但库存 0（排除）
+        given(productItemMapper.selectList(any())).willReturn(List.of(
+                itemOf(36L, 16L, 15), itemOf(37L, 17L, 10), itemOf(38L, 17L, 10),
+                itemOf(39L, 99L, 1), itemOf(40L, 100L, 0)));
+
+        var result = service.candidates();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getProductId()).isEqualTo(16L);
+        assertThat(result.get(0).getItemId()).isEqualTo(36L);
+        assertThat(result.get(0).getStock()).isEqualTo(15);
+    }
+
+    private ProductItem itemOf(Long id, Long productId, int stock) {
+        ProductItem item = new ProductItem();
+        item.setId(id);
+        item.setProductId(productId);
+        item.setStock(stock);
+        item.setPrice(new BigDecimal("499.00"));
+        return item;
+    }
+
     private SeckillActivity activity(SeckillStatus status) {
         SeckillActivity activity = new SeckillActivity();
         activity.setId(1L);

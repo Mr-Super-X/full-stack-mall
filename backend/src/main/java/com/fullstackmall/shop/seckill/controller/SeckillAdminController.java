@@ -4,6 +4,7 @@ import com.fullstackmall.shop.common.PageResult;
 import com.fullstackmall.shop.common.Result;
 import com.fullstackmall.shop.seckill.dto.SeckillActivityAdminDTO;
 import com.fullstackmall.shop.seckill.dto.SeckillActivityCreateRequest;
+import com.fullstackmall.shop.seckill.dto.SeckillCandidateDTO;
 import com.fullstackmall.shop.seckill.service.SeckillAdminService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 秒杀场次管理端接口：/mall/admin/** 挂 AdminInterceptor（USER 角色 403）。
@@ -41,6 +44,12 @@ public class SeckillAdminController {
     @PostMapping
     public Result<SeckillActivityAdminDTO> create(@RequestBody @Valid SeckillActivityCreateRequest request) {
         return Result.success(seckillAdminService.create(request));
+    }
+
+    /** 新建 dialog 候选商品（单 SKU 自营有库存） */
+    @GetMapping("/products")
+    public Result<List<SeckillCandidateDTO>> candidates() {
+        return Result.success(seckillAdminService.candidates());
     }
 
     /** 取消：仅 PENDING，归还划拨库存 */

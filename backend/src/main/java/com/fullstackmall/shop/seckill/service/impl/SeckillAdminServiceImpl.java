@@ -13,6 +13,7 @@ import com.fullstackmall.shop.product.mapper.ProductItemMapper;
 import com.fullstackmall.shop.product.mapper.ProductMapper;
 import com.fullstackmall.shop.seckill.dto.SeckillActivityAdminDTO;
 import com.fullstackmall.shop.seckill.dto.SeckillActivityCreateRequest;
+import com.fullstackmall.shop.seckill.dto.SeckillCandidateDTO;
 import com.fullstackmall.shop.seckill.entity.SeckillActivity;
 import com.fullstackmall.shop.seckill.enums.SeckillStatus;
 import com.fullstackmall.shop.seckill.mapper.SeckillActivityMapper;
@@ -131,6 +132,39 @@ public class SeckillAdminServiceImpl implements SeckillAdminService {
         dto.setPage(result.getCurrent());
         dto.setPageSize(result.getSize());
         return dto;
+    }
+
+    /** 候选商品：上架中的自营商品，且 product_item 恰好一条（单 SKU）且有库存（挂载约束） */
+    @Override
+    public List<SeckillCandidateDTO> candidates() {
+        List<Product> products = productMapper.selectList(Wrappers.<Product>lambdaQuery()
+                .eq(Product::getOwnerType, OwnerType.PLATFORM)
+                .eq(Product::getStatus, 1));
+        if (products.isEmpty()) {
+            return List.of();
+        }
+        List<Long> productIds = products.stream().map(Product::getId).toList();
+        Map<Long, List<ProductItem>> grouped = productItemMapper.selectList(Wrappers.<ProductItem>lambdaQuery()
+                        .in(ProductItem::getProductId, productIds)).stream()
+                .collect(Collectors.groupingBy(ProductItem::getProductId));
+        return products.stream()
+                // 内存侧再校验货源（DB 已过滤 PLATFORM，双保险防调用方绕过查询条件）
+                .filter(p -> p.getOwnerType() == OwnerType.PLATFORM)
+                .filter(p -> {
+                    List<ProductItem> items = grouped.getOrDefault(p.getId(), List.of());
+                    return items.size() == 1 && items.get(0).getStock() != null && items.get(0).getStock() > 0;
+                })
+                .map(p -> {
+                    ProductItem item = grouped.get(p.getId()).get(0);
+                    SeckillCandidateDTO dto = new SeckillCandidateDTO();
+                    dto.setProductId(p.getId());
+                    dto.setTitle(p.getName());
+                    dto.setItemId(item.getId());
+                    dto.setStock(item.getStock());
+                    dto.setPrice(item.getPrice());
+                    return dto;
+                })
+                .toList();
     }
 
     private ProductItem soleItem(Long productId) {

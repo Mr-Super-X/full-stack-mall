@@ -3,6 +3,7 @@ package com.fullstackmall.shop.seckill.service;
 import com.fullstackmall.shop.common.PageResult;
 import com.fullstackmall.shop.seckill.dto.SeckillActivityAdminDTO;
 import com.fullstackmall.shop.seckill.dto.SeckillActivityCreateRequest;
+import com.fullstackmall.shop.seckill.dto.SeckillCandidateDTO;
 
 /**
  * 秒杀场次管理（admin）：创建（划拨事务）/取消（归还）/分页。
@@ -27,4 +28,7 @@ public interface SeckillAdminService {
 
     /** 分页列表（status 可空=全部），含商品标题回填 */
     PageResult<SeckillActivityAdminDTO> page(String status, int page, int pageSize);
+
+    /** 新建 dialog 候选商品：单 SKU 自营且有库存（挂载约束 spec §3.1） */
+    java.util.List<SeckillCandidateDTO> candidates();
 }
