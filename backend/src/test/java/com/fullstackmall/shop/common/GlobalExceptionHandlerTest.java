@@ -44,12 +44,36 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.message").value("page 必须大于等于 1"));
     }
 
+    @Test
+    void 秒杀服务不可用应返回503且业务码40005() throws Exception {
+        mockMvc.perform(get("/test/unavailable"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value(40005));
+    }
+
+    @Test
+    void 限流应返回429且业务码40006() throws Exception {
+        mockMvc.perform(get("/test/rate-limited"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value(40006));
+    }
+
     @RestController
     static class StubController {
 
         @GetMapping("/test/biz")
         Result<Void> biz() {
             throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
+        }
+
+        @GetMapping("/test/unavailable")
+        Result<Void> unavailable() {
+            throw new BusinessException(ResultCode.SECKILL_UNAVAILABLE);
+        }
+
+        @GetMapping("/test/rate-limited")
+        Result<Void> rateLimited() {
+            throw new BusinessException(ResultCode.RATE_LIMITED);
         }
 
         @GetMapping("/test/valid")
