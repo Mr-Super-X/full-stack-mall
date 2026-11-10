@@ -31,6 +31,8 @@
 
 ### Fixed（前端 · h5 买家端）
 
+- **tabbar 购物袋角标位置偏移**：角标节点从 tab 命中区子级移入 `__ic`（24px 图标）内部，定位参照由 73×146px 按钮改为图标自身（top -4px / right -8px 设计稿坐标）——贴合图标右上角，且跟随抛球动画位移（旧实现钉死在按钮顶部，动画时脱离图标）
+- **tabbar 按钮命中区超出可见面板易误触**：命中区 y∈[-4,142] 收进面板轮廓 y∈[36,134]（顶=凹槽底上方 6px、底=面板底），向上不再覆盖 tabbar 上方页面内容、向下不戳出面板；图标/标签视觉位置不变（几何常量同步折算）
 - **切离首页后 tabbar/商品线稿 icon 全丢**：MallSprite（SVG symbol 唯一定义源）随常驻外壳上移 shell.vue，detail.vue 与 shell 平级自带一份（路由互斥，同一时刻全页仍唯一）
 - **加购接口 500**：购物车端点契约为 `POST /mall/cart/items` / `PATCH /mall/cart/items/{id}` / `DELETE /mall/cart/items/{id}`（方法级 `/items` 子路径曾按 REST 惯例误写为 `POST /mall/cart` + PUT，405 被全局兜底为「系统繁忙」）；并以当前源码起 18081 诊断实例拿真实堆栈定位
 - **useAuthForm 运行时白屏**：shared barrel 刻意不导出 authApi 值（http.ts 值加载副作用），改经 `@api/modules/auth`（§1.6.2 既定例外路径）；h5 type-check 由 1 错归零

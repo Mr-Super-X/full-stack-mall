@@ -69,14 +69,18 @@ const BALL_BOX_SHADOW = '0 4px 10px rgba(60, 63, 60, 0.16), 0 1px 3px rgba(60, 6
 const ICON_WRAP_GEO = {
   left: '50%',
   marginLeft: '-12px',
-  top: '70px',
+  // 命中区顶收到凹槽底上方 6px 后，图标视觉 y=66 不变（66 - TAB_HIT_TOP 36）
+  top: '30px',
   width: '24px',
   height: '24px',
 } as const
-const LABEL_GEO = { top: '97px', fontSize: '12.5px' } as const
+// 标签视觉 y=93 同理随命中区顶偏移折算（93 - 36）
+const LABEL_GEO = { top: '57px', fontSize: '12.5px' } as const
+// 角标几何参照 __ic（24px 图标）而非 tab 命中区：角标是 __ic 子节点，
+// 相对图标定位才贴合右上角，且跟随抛球动画 translateY（钉在按钮上会脱离图标）
 const BADGE_GEO = {
-  top: '6px',
-  right: '9px',
+  top: '-4px',
+  right: '-8px',
   minWidth: '16px',
   height: '16px',
   padding: '0 5px',
@@ -85,8 +89,10 @@ const BADGE_GEO = {
   borderRadius: '8px',
 } as const
 const TAB_HIT_W = 73
-const TAB_HIT_TOP = PANEL.e - 46
-const TAB_HIT_H = PANEL.h + 58
+// 命中区收进面板轮廓（y∈[36,134]）：顶=凹槽底上方 6px 不侵凹槽空白，底=面板底；
+// 旧值 y∈[-4,142] 向上覆盖 tabbar 上方页面内容，向下戳出面板，易误触
+const TAB_HIT_TOP = PANEL.e - 6
+const TAB_HIT_H = PANEL.h + 10
 
 function tabStyle(i: number): Record<string, string> {
   return {
@@ -146,15 +152,15 @@ onUnmounted(() => mql?.removeEventListener('change', syncReduced))
             <svg :class="bem.e('tic')" :width="24" :height="24" aria-hidden="true">
               <use :href="`#mall-i-${tab.icon}`" />
             </svg>
+            <span
+              v-if="tab.key === 'bag' && cartCount > 0"
+              :class="bem.e('cartn')"
+              :style="BADGE_GEO"
+            >
+              {{ badgeText(cartCount) }}
+            </span>
           </span>
           <span :key="popTick" :class="bem.e('label')" :style="LABEL_GEO">{{ tab.label }}</span>
-          <span
-            v-if="tab.key === 'bag' && cartCount > 0"
-            :class="bem.e('cartn')"
-            :style="BADGE_GEO"
-          >
-            {{ badgeText(cartCount) }}
-          </span>
         </button>
       </div>
     </div>
