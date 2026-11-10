@@ -15,33 +15,33 @@
 
 ## 常用命令
 
-| 任务                                                                                    | 命令                                                                                   |
-| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 安装依赖                                                                                | `pnpm install`                                                                         |
+| 任务                                                                                   | 命令                                                                                   |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 安装依赖                                                                               | `pnpm install`                                                                         |
 | 启动 dev（⚠️ turbo 并行 6 app 有 mock 共享竞态，见 docs/43 §9.3；日常首推 dev:gateway） | `pnpm dev`                                                                             |
-| 启动单 app dev                                                                          | `pnpm -C apps/<a> dev`（或 `dev:local` 本地菜单模式）                                  |
-| 同域网关 dev（网关 :8080 + 6 app 带 base 单命令）                                       | `pnpm dev:gateway`                                                                     |
-| 跑全部单测（turbo 拓扑序 6 app + 4 包）                                                 | `pnpm test`                                                                            |
-| 跑单 app / 单文件单测                                                                   | `pnpm -C apps/<a> test [path]`（如 `pnpm -C apps/admin test src/utils/dayjs.spec.ts`） |
-| 单测覆盖率 / UI 模式（admin 口径）                                                      | `pnpm test:coverage` / `pnpm test:ui`                                                  |
-| 跑基准测试（vitest bench，admin）                                                       | `pnpm bench`                                                                           |
-| 类型校验                                                                                | `pnpm type-check`（单 app 增量）/ `pnpm -C apps/<a> type-check:full`（全量）           |
-| 构建生产包（turbo 拓扑序；含 type-check:full 门禁）                                     | `pnpm build`                                                                           |
-| 单 app 仅构建（不门禁类型）                                                             | `pnpm -C apps/<a> build-only`                                                          |
-| 预览单 app 生产包                                                                       | `pnpm -C apps/<a> preview`                                                             |
-| gh-pages 六应用聚合构建（自动发现 apps/*）                                              | `pnpm build:pages`                                                                     |
-| 包体积分析（admin，输出 dist/stats.html）                                               | `pnpm analyze`                                                                         |
-| Lint 检查 / 自动修复                                                                    | `pnpm lint` / `pnpm lint:fix`                                                          |
-| Prettier 格式化                                                                         | `pnpm format` / `pnpm format:check`                                                    |
-| 路由一致性校验（CI 强制；含端口双写锁死 + 注册表反向校验）                              | `pnpm check:routes`                                                                    |
-| alias 单一来源一致性校验（CI 阻断）                                                     | `pnpm check:aliases`                                                                   |
-| mock 双接线一致性校验（CI 阻断）                                                        | `pnpm check:mock-wiring`                                                               |
-| 文档与代码硬数据一致性校验（CI 阻断）                                                   | `pnpm check:doc-currency`                                                              |
-| 从 app-aliases.ts 同步 tsconfig paths                                                   | `pnpm generate:tsconfig-paths`                                                         |
-| 新建业务模块（自动生成骨架文件）                                                        | `pnpm new-module <kebab-name>`                                                         |
-| 移除业务模块（默认 dry-run + 确认）                                                     | `pnpm remove-module <kebab-name>`                                                      |
-| 提交并推送（add + cz + push 一站式）                                                    | `pnpm push`                                                                            |
-| 发布版本（bump + CHANGELOG + tag + push）/ 预览（dry-run，0 副作用）                    | `pnpm release` / `pnpm release:dry`                                                    |
+| 启动单 app dev                                                                         | `pnpm -C apps/<a> dev`（或 `dev:local` 本地菜单模式）                                  |
+| 同域网关 dev（网关 :8080 + 6 app 带 base 单命令）                                      | `pnpm dev:gateway`                                                                     |
+| 跑全部单测（turbo 拓扑序 6 app + 4 包）                                                | `pnpm test`                                                                            |
+| 跑单 app / 单文件单测                                                                  | `pnpm -C apps/<a> test [path]`（如 `pnpm -C apps/admin test src/utils/dayjs.spec.ts`） |
+| 单测覆盖率 / UI 模式（admin 口径）                                                     | `pnpm test:coverage` / `pnpm test:ui`                                                  |
+| 跑基准测试（vitest bench，admin）                                                      | `pnpm bench`                                                                           |
+| 类型校验                                                                               | `pnpm type-check`（单 app 增量）/ `pnpm -C apps/<a> type-check:full`（全量）           |
+| 构建生产包（turbo 拓扑序；含 type-check:full 门禁）                                    | `pnpm build`                                                                           |
+| 单 app 仅构建（不门禁类型）                                                            | `pnpm -C apps/<a> build-only`                                                          |
+| 预览单 app 生产包                                                                      | `pnpm -C apps/<a> preview`                                                             |
+| gh-pages 六应用聚合构建（自动发现 apps/*）                                             | `pnpm build:pages`                                                                     |
+| 包体积分析（admin，输出 dist/stats.html）                                              | `pnpm analyze`                                                                         |
+| Lint 检查 / 自动修复                                                                   | `pnpm lint` / `pnpm lint:fix`                                                          |
+| Prettier 格式化                                                                        | `pnpm format` / `pnpm format:check`                                                    |
+| 路由一致性校验（CI 强制；含端口双写锁死 + 注册表反向校验）                             | `pnpm check:routes`                                                                    |
+| alias 单一来源一致性校验（CI 阻断）                                                    | `pnpm check:aliases`                                                                   |
+| mock 双接线一致性校验（CI 阻断）                                                       | `pnpm check:mock-wiring`                                                               |
+| 文档与代码硬数据一致性校验（CI 阻断）                                                  | `pnpm check:doc-currency`                                                              |
+| 从 app-aliases.ts 同步 tsconfig paths                                                  | `pnpm generate:tsconfig-paths`                                                         |
+| 新建业务模块（自动生成骨架文件）                                                       | `pnpm new-module <kebab-name>`                                                         |
+| 移除业务模块（默认 dry-run + 确认）                                                    | `pnpm remove-module <kebab-name>`                                                      |
+| 提交并推送（add + cz + push 一站式）                                                   | `pnpm push`                                                                            |
+| 发布版本（bump + CHANGELOG + tag + push）/ 预览（dry-run，0 副作用）                   | `pnpm release` / `pnpm release:dry`                                                    |
 
 ## 架构不变量
 
@@ -66,6 +66,23 @@
 - 跨包消费走 `@vv/shared` / `@vv/ui` 包名 barrel；别名深层路径（`@utils/*` / `@store/*` / `@components/*` 等直达包内部）是过渡态遗留——新代码禁止新增，存量渐进收敛；`@api` / `@locales` / `@directives` / `@mock` 别名消费为既定例外。
 - 不要显式 import 自动注册目录（@vv/ui 包 components/common + components/ProTable + components/form-schema 三目录与各 app `src/components/`）下的全局组件——模板中直接使用；唯一例外：`<script setup>` 中需要 `InstanceType<typeof Xxx>` 作 ref 类型声明时。
 - 让 `vi.mock()` 说明符与被测模块的 import 说明符保持一致（语义路径同步，否则 mock 失去拦截）。
+
+## 测试与验收规则（强制）
+
+- 测试预期必须独立于实现代码——禁止「先写实现、再看着实现写测试、以测试全绿作为正确性证据」；绿灯只证明实现与测试一致，不证明实现与需求一致。
+- 实现 Agent 只写代码：可看验收标准，但不得读取、修改、弱化测试用例文件。
+- 测试 Agent 在独立会话中仅凭验收标准生成测试：不得读取 `src/` 下的实现代码，不得参考实现 Agent 的对话历史。
+- 人类负责人确认验收标准，并裁决测试失败时「改测试还是改实现」。
+- 验收标准是测试断言的唯一来源：只接受人工确认的验收标准、Given/When/Then 条件、输入-输出对照表、契约定义；验收标准存放在独立位置（如 `specs/acceptance/`），实现开始前即存在，实现 Agent 无权修改；验收标准缺失或模糊时测试 Agent 必须停止并报告，禁止自行猜测后生成断言。
+- 只测功能边界与外部行为，不测内部方法、私有函数、实现细节。
+- 黑盒测试从外部接口模拟用户真实行为，断言可观察的输出与副作用。
+- 契约测试验证服务 / 模块间接口语义符合消费者期望，独立于提供者实现。
+- 流量回放优先于 AI 生成用例：可用时回放真实请求对比响应差异，输入与预期均来自真实世界、不经过 AI 生成。
+- 故障注入场景必须来自验收标准写明的异常条件（依赖超时、空返回、部分失败），验证鲁棒性。
+- 用变异测试（Stryker 等）验证测试有效性：关键路径注入人为缺陷后测试仍全绿，判定该测试无效并打回重写；禁止实现 Agent 自行认证自己的测试，变异测试结果由独立验证者或人类审查。
+- 测试失败先判断是否偏离验收标准：偏离则修正测试并记录原因；测试与验收标准一致而实现失败则修改实现；严禁为让测试变绿而删除断言、放宽断言、跳过测试或修改验收标准迁就代码。
+- 禁止实现 Agent 读取或编辑测试文件；禁止在实现完成后依据实现逻辑反推测试断言。
+- 禁止把 AI 自生成的测试全绿作为交付证据——交付证据必须包含验收标准来源、独立测试会话记录、变异测试结果。
 
 ## 工作区架构锁定（最高优先级）
 
