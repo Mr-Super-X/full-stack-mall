@@ -39,6 +39,9 @@ public class Order {
     /** 超时关单时间（createTime + 15 分钟；惰性关单触发点） */
     private LocalDateTime expiredAt;
 
+    /** 秒杀场次 id（type=SECKILL 时非空；uk_user_activity 一人一场兜底限购） */
+    private Long seckillActivityId;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

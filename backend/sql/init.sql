@@ -179,10 +179,12 @@ CREATE TABLE orders (
   pay_amount       DECIMAL(10,2) NOT NULL COMMENT '应付总额（快照）',
   address_snapshot JSON          DEFAULT NULL COMMENT '下单时地址快照',
   expired_at       DATETIME      DEFAULT NULL COMMENT '超时关单时间（惰性关单）',
+  seckill_activity_id BIGINT     DEFAULT NULL COMMENT '秒杀场次，普通单为 NULL',
   create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_order_no (order_no),
+  UNIQUE KEY uk_user_activity (user_id, seckill_activity_id),
   KEY idx_user_status (user_id, status)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='订单';
 
@@ -245,6 +247,12 @@ CREATE TABLE seckill_activity (
   KEY idx_product (product_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='秒杀场次';
 
+-- 秒杀种子：LIVE 场挂 id 16（划拨 5 件已反映在 item.stock=15）；UPCOMING 场挂 id 17（未划拨）。
+-- 时间用 NOW() 相对表达式——init.sql 幂等重跑后活动仍处对应状态（绝对日期会过期）。
+INSERT INTO seckill_activity (id, product_id, seckill_price, seckill_stock, sold_count, start_time, end_time, limit_per_user, status) VALUES
+  (1, 16, 299.40, 5, 0, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 7 DAY), 1, 'ACTIVE'),
+  (2, 17, 179.40, 10, 0, DATE_ADD(NOW(), INTERVAL 3 HOUR), DATE_ADD(NOW(), INTERVAL 10 HOUR), 1, 'PENDING');
+
 -- ========== 种子数据 ==========
 
 -- 用户：admin（平台管理员）/ seller（演示卖家「阿珍的衣柜」）/ buyer（演示买家）
@@ -285,7 +293,9 @@ INSERT INTO product (id, category_id, owner_type, sale_mode, seller_id, brand, n
   (12, 2, 'PLATFORM', 'NORMAL', NULL, '拙衣', '月白法式衬衫',                 NULL,   '免烫',     'shirt',  650,  1, '<p>月白法式衬衫。</p>'),
   (13, 2, 'PLATFORM', 'NORMAL', NULL, '拙衣', '雾蓝伞形半身裙',               NULL,   '显瘦',     'skirt',  800,  1, '<p>雾蓝伞形半身裙。</p>'),
   (14, 5, 'CONSIGNMENT', 'NORMAL', 2, 'Chanel',  '中古 Chanel CF 黑金牛皮',       '寄卖', '成色 GOOD',   'bag', 12, 1, '<p>经典 CF 中号，黑金牛皮，正常使用痕迹。</p>'),
-  (15, 6, 'CONSIGNMENT', 'NORMAL', 2, 'Acne Studios', '95新 Acne Studios 羊毛围巾', '寄卖', '成色 LIKE_NEW', 'scarf', 27, 1, '<p>羊毛围巾，仅试戴，无起球。</p>');
+  (15, 6, 'CONSIGNMENT', 'NORMAL', 2, 'Acne Studios', '95新 Acne Studios 羊毛围巾', '寄卖', '成色 LIKE_NEW', 'scarf', 27, 1, '<p>羊毛围巾，仅试戴，无起球。</p>'),
+  (16, 3, 'PLATFORM', 'SECKILL', NULL, '拙衣', '复古做旧牛仔夹克 · 秒杀进行中', '秒杀',   '限时 6 折',  'jacket', 0, 1, '<p>复古水洗做旧牛仔夹克，独立库存池限时秒杀。</p>'),
+  (17, 3, 'PLATFORM', 'SECKILL', NULL, '拙衣', '轻量化防风皮肤衣 · 秒杀预告',   '预告',   '即将开抢',  'trench', 0, 1, '<p>轻量化防风皮肤衣，限时秒杀场预告。</p>');
 
 -- 规格/单件：自营多规格（condition_grade=NEW），寄卖单件（stock=1）
 INSERT INTO product_item (product_id, size, color, condition_grade, price, origin_price, stock) VALUES
@@ -303,7 +313,9 @@ INSERT INTO product_item (product_id, size, color, condition_grade, price, origi
   (12, 'S', '月白', 'NEW', 149.00, NULL, 210), (12, 'M', '月白', 'NEW', 149.00, NULL, 210),
   (13, 'S', '雾蓝', 'NEW', 179.00, NULL, 230), (13, 'M', '雾蓝', 'NEW', 179.00, NULL, 230),
   (14, NULL, '黑金', 'GOOD',     12800.00, NULL, 1),
-  (15, NULL, '燕麦色', 'LIKE_NEW', 680.00,  NULL, 1);
+  (15, NULL, '燕麦色', 'LIKE_NEW', 680.00,  NULL, 1),
+  (16, 'M', '牛仔蓝', 'NEW', 499.00, NULL, 15),
+  (17, 'L', '云白',   'NEW', 299.00, NULL, 30);
 
 -- 商品图片：picsum 占位图，sort=0 为主图；每商品 2 张（详情页轮播演示）
 INSERT INTO product_image (product_id, url, sort)
