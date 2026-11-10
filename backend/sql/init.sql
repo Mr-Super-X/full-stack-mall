@@ -90,7 +90,8 @@ CREATE TABLE product (
   PRIMARY KEY (id),
   KEY idx_category (category_id),
   KEY idx_status_sales (status, sales),
-  KEY idx_seller (seller_id)
+  KEY idx_seller (seller_id),
+  FULLTEXT KEY ft_search (name, selling_point, tag) WITH PARSER ngram
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='商品';
 
 CREATE TABLE product_item (
