@@ -21,6 +21,7 @@
         <java.version>17</java.version>
         <mybatis-plus.version>3.5.18.1</mybatis-plus.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <testcontainers.version>1.20.4</testcontainers.version>
     </properties>
 
     <dependencies>
@@ -88,6 +89,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 4b：Redis Lua 原子语义的容器化测试（Testcontainers，Docker 环境本地可用） -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
