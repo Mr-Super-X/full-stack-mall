@@ -21,7 +21,9 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
                 .allowedOriginPatterns(splitOrigins())
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                // PATCH 不可缺：浏览器对非 GET 请求携带 Origin 头，购物车改量等 PATCH 端点
+                // 不在此列表会被 CorsFilter 整包拒为 403「Invalid CORS request」
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
                 .maxAge(3600);
