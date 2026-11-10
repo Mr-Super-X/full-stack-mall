@@ -24,6 +24,7 @@ import com.fullstackmall.shop.seckill.dto.SeckillOrderResultDTO;
 import com.fullstackmall.shop.seckill.entity.SeckillActivity;
 import com.fullstackmall.shop.seckill.enums.SeckillStatus;
 import com.fullstackmall.shop.seckill.mapper.SeckillActivityMapper;
+import com.fullstackmall.shop.seckill.mapper.SeckillOrderAcceptanceMapper;
 import com.fullstackmall.shop.seckill.service.impl.SeckillServiceImpl;
 import com.fullstackmall.shop.user.context.LoginUser;
 import com.fullstackmall.shop.user.context.UserContext;
@@ -70,6 +71,8 @@ class SeckillPlaceOrderTest {
     private OrderItemMapper orderItemMapper;
     @Mock
     private PaymentMapper paymentMapper;
+    @Mock
+    private SeckillOrderAcceptanceMapper seckillOrderAcceptanceMapper;
 
     private SeckillServiceImpl service;
 
@@ -79,7 +82,8 @@ class SeckillPlaceOrderTest {
                 productImageMapper, addressMapper, orderMapper, orderItemMapper,
                 new com.fullstackmall.shop.seckill.service.SeckillOrderAssembler(orderMapper, paymentMapper),
                 new com.fullstackmall.shop.seckill.service.SeckillProperties(),
-                new com.fullstackmall.shop.seckill.service.DbPessimisticDeductor(seckillActivityMapper));
+                new com.fullstackmall.shop.seckill.service.DbPessimisticDeductor(seckillActivityMapper),
+                seckillOrderAcceptanceMapper);
         UserContext.set(new LoginUser(3L, "buyer", "USER"));
     }
 

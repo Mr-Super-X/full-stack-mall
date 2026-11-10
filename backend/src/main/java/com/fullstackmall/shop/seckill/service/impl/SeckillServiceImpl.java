@@ -63,6 +63,7 @@ public class SeckillServiceImpl implements SeckillService {
     private final SeckillOrderAssembler orderAssembler;
     private final SeckillProperties seckillProperties;
     private final DbPessimisticDeductor pessimisticDeductor;
+    private final com.fullstackmall.shop.seckill.mapper.SeckillOrderAcceptanceMapper seckillOrderAcceptanceMapper;
 
     public SeckillServiceImpl(SeckillActivityMapper seckillActivityMapper,
                               ProductMapper productMapper,
@@ -73,7 +74,8 @@ public class SeckillServiceImpl implements SeckillService {
                               OrderItemMapper orderItemMapper,
                               SeckillOrderAssembler orderAssembler,
                               SeckillProperties seckillProperties,
-                              DbPessimisticDeductor pessimisticDeductor) {
+                              DbPessimisticDeductor pessimisticDeductor,
+                              com.fullstackmall.shop.seckill.mapper.SeckillOrderAcceptanceMapper seckillOrderAcceptanceMapper) {
         this.seckillActivityMapper = seckillActivityMapper;
         this.productMapper = productMapper;
         this.productItemMapper = productItemMapper;
@@ -84,6 +86,7 @@ public class SeckillServiceImpl implements SeckillService {
         this.orderAssembler = orderAssembler;
         this.seckillProperties = seckillProperties;
         this.pessimisticDeductor = pessimisticDeductor;
+        this.seckillOrderAcceptanceMapper = seckillOrderAcceptanceMapper;
     }
 
     @Override
@@ -287,6 +290,37 @@ public class SeckillServiceImpl implements SeckillService {
         if (rows == 0) {
             throw new BusinessException(ResultCode.SOLD_OUT);
         }
+    }
+
+    @Override
+    @Transactional
+    public void fulfillSeckillOrder(com.fullstackmall.shop.seckill.mq.SeckillOrderMessage message) {
+        // 幂等查重：消息重投/重复消费直返（orderNo 即幂等键）
+        Long exists = orderMapper.selectCount(Wrappers.<Order>lambdaQuery()
+                .eq(Order::getOrderNo, message.orderNo()));
+        if (exists != null && exists > 0) {
+            return;
+        }
+        // 重查快照源（DB 是真相，消息不带冗余快照）
+        SeckillActivity activity = seckillActivityMapper.selectById(message.activityId());
+        if (activity == null) {
+            throw new BusinessException(ResultCode.SECKILL_NOT_FOUND);
+        }
+        Product product = productMapper.selectById(activity.getProductId());
+        ProductItem item = productItemMapper.selectById(message.productItemId());
+        Address address = requireAddress(message.userId(), message.addressId());
+        // 建单三步与同步路径完全同一套代码（对照实验公平性前提，spec §13#10）
+        Order order = orderAssembler.insertOrder(message.userId(), activity, address, message.orderNo());
+        OrderItem line = orderAssembler.buildLine(item, product, message.seckillPrice(),
+                loadMainImage(product.getId()));
+        line.setOrderId(order.getId());
+        orderItemMapper.insert(line);
+        orderAssembler.insertPayment(order.getId(), message.seckillPrice());
+        // 受理表推进 CREATED（条件更新防并发双推）
+        seckillOrderAcceptanceMapper.update(null, Wrappers.<com.fullstackmall.shop.seckill.entity.SeckillOrderAcceptance>update()
+                .set("status", "CREATED")
+                .eq("order_no", message.orderNo())
+                .eq("status", "ACCEPTED"));
     }
 
     /** PENDING 到点激活（条件迁移行数守卫；并发激活只放行一个） */

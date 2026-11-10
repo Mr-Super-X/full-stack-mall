@@ -51,6 +51,8 @@ class SeckillServiceImplTest {
     private com.fullstackmall.shop.order.mapper.OrderItemMapper orderItemMapper;
     @Mock
     private com.fullstackmall.shop.payment.mapper.PaymentMapper paymentMapper;
+    @Mock
+    private com.fullstackmall.shop.seckill.mapper.SeckillOrderAcceptanceMapper seckillOrderAcceptanceMapper;
 
     private SeckillServiceImpl service;
 
@@ -61,7 +63,8 @@ class SeckillServiceImplTest {
                 addressMapper, orderMapper, orderItemMapper,
                 new com.fullstackmall.shop.seckill.service.SeckillOrderAssembler(orderMapper, paymentMapper),
                 new com.fullstackmall.shop.seckill.service.SeckillProperties(),
-                new com.fullstackmall.shop.seckill.service.DbPessimisticDeductor(seckillActivityMapper));
+                new com.fullstackmall.shop.seckill.service.DbPessimisticDeductor(seckillActivityMapper),
+                seckillOrderAcceptanceMapper);
     }
 
     @Test

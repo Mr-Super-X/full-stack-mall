@@ -38,4 +38,13 @@ public interface SeckillService {
      * @throws com.fullstackmall.shop.common.BusinessException SOLD_OUT（条件更新行数 0）
      */
     void deductStock(Long activityId);
+
+    /**
+     * 异步出单消费事务（spec §5.3）：幂等查重 → 重查快照源 → 建单三步（Assembler 与同步路径共用）
+     * → 受理表推进 CREATED。事务边界=本方法（经代理），消费者只管 ack/nack。
+     *
+     * @throws org.springframework.dao.DuplicateKeyException 撞 uk_user_activity
+     *         （并发重复消费语义）——由调用方转 ack 不回流
+     */
+    void fulfillSeckillOrder(com.fullstackmall.shop.seckill.mq.SeckillOrderMessage message);
 }

@@ -67,6 +67,8 @@ class SeckillStrategySwitchTest {
     private PaymentMapper paymentMapper;
     @Mock
     private DbPessimisticDeductor pessimisticDeductor;
+    @Mock
+    private com.fullstackmall.shop.seckill.mapper.SeckillOrderAcceptanceMapper seckillOrderAcceptanceMapper;
 
     private final SeckillProperties properties = new SeckillProperties();
 
@@ -77,7 +79,7 @@ class SeckillStrategySwitchTest {
         service = new SeckillServiceImpl(seckillActivityMapper, productMapper, productItemMapper,
                 productImageMapper, addressMapper, orderMapper, orderItemMapper,
                 new SeckillOrderAssembler(orderMapper, paymentMapper),
-                properties, pessimisticDeductor);
+                properties, pessimisticDeductor, seckillOrderAcceptanceMapper);
         UserContext.set(new LoginUser(3L, "buyer", "USER"));
     }
 
