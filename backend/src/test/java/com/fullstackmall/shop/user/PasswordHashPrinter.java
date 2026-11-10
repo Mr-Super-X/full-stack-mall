@@ -21,4 +21,15 @@ class PasswordHashPrinter {
             assertThat(encoder.matches(p, hash)).isTrue();
         }
     }
+
+    /**
+     * 4b 压测资产回归：init.sql 压测账号（perf001~perf500）复用 admin 行同款哈希，
+     * 本用例锁定该哈希的明文（JMeter users.csv 依赖）。哈希若被重新生成而明文未同步会在此变红。
+     */
+    @Test
+    void 校验压测账号哈希明文配对() {
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+        String initSqlHash = "$2a$10$qtzByZqa1qq3FHRjdkkyUuBn1seDmzzsD368wAuKJ9hqUwLp8HOC2";
+        assertThat(encoder.matches("admin123", initSqlHash)).isTrue();
+    }
 }

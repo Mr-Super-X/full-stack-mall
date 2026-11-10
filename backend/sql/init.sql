@@ -265,6 +265,37 @@ INSERT INTO seckill_activity (id, product_id, seckill_price, seckill_stock, sold
   (1, 16, 299.40, 5, 0, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 7 DAY), 1, 'ACTIVE'),
   (2, 17, 179.40, 10, 0, DATE_ADD(NOW(), INTERVAL 3 HOUR), DATE_ADD(NOW(), INTERVAL 10 HOUR), 1, 'PENDING');
 
+-- 4b 压测：活动 id 18 挂 id 18 商品（下方插入）+ 500 个压测账号（同一密码哈希批量，PasswordHashPrinter 生成）
+-- 口径沿用 4a 基线"200 线程抢 10 件"：账号数 ≥ 最大并发档（500）防 40003 污染口径
+INSERT INTO product (id, category_id, owner_type, sale_mode, seller_id, brand, name, tag, selling_point, garm, sales, status, detail_html) VALUES
+  (18, 1, 'PLATFORM', 'NORMAL', NULL, '拙衣', '压测专用防风夹克', NULL, '压测', 'trench', 0, 1, '<p>4b 压测商品，不参与演示。</p>');
+
+INSERT INTO product_item (id, product_id, size, color, condition_grade, price, stock, version) VALUES
+  (1801, 18, 'M', '陶土', 'NEW', 399.00, 10, 0);
+
+INSERT INTO product_image (product_id, url, sort) VALUES
+  (18, 'https://picsum.photos/seed/mall-p18-1/750/750', 0);
+
+INSERT INTO seckill_activity (id, product_id, seckill_price, seckill_stock, sold_count, start_time, end_time, limit_per_user, status) VALUES
+  (18, 18, 199.00, 10, 0, DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_ADD(NOW(), INTERVAL 23 HOUR), 1, 'ACTIVE');
+
+-- 压测账号 perf001~perf500（演示密码同一 BCrypt 哈希；递归 CTE 批量生成 500 行）
+INSERT INTO user (id, username, password, nickname, role)
+WITH RECURSIVE seq AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM seq WHERE n < 500)
+SELECT 1000 + n,
+       CONCAT('perf', LPAD(n, 3, '0')),
+       '$2a$10$qtzByZqa1qq3FHRjdkkyUuBn1seDmzzsD368wAuKJ9hqUwLp8HOC2',
+       CONCAT('压测', LPAD(n, 3, '0')),
+       'USER'
+FROM seq;
+
+-- 压测账号各配一条默认地址（default_guard 生成列自动护栏，不写它；幂等依赖 user_id uk——重跑种子时
+-- 若账号已存在则地址重复插入失败，压测前按"删卷重建"流程执行即可）
+INSERT INTO address (user_id, receiver_name, phone, province, city, district, detail, is_default)
+WITH RECURSIVE seq AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM seq WHERE n < 500)
+SELECT 1000 + n, '压测员', '13800000000', '浙江省', '杭州市', '西湖区', '压测地址 1 号', 1
+FROM seq;
+
 -- ========== 种子数据 ==========
 
 -- 用户：admin（平台管理员）/ seller（演示卖家「阿珍的衣柜」）/ buyer（演示买家）
