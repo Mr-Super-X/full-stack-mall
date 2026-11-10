@@ -17,6 +17,7 @@ import { useToast } from '../composables/useToast'
 import { useCartBadgeStore } from '../store/cart'
 import { h5AddressApi } from '../apis/address'
 import { h5SeckillApi } from '../apis/seckill'
+import { useSeckillOrderPolling } from '../composables/useSeckillOrderPolling'
 
 const bem = createNamespace('h5-mall-checkout')
 
@@ -115,6 +116,17 @@ async function submit(): Promise<void> {
             ? { addressId: addr.id, source: 'CART', cartItemIds: cartIds.value }
             : { addressId: addr.id, source: 'DIRECT', productItemId: directItem.value.productItemId },
         )
+    // 4b：秒杀异步受理（paymentNo 为 null=受理态）→ 轮询出单拿到 paymentNo 再走下方收银台闭环
+    if (seckillActivityId.value && !order.paymentNo) {
+      show('排队出单中…')
+      const polled = await useSeckillOrderPolling(order.orderNo).start()
+      if (polled.status === 'CREATED' && polled.paymentNo) {
+        order.paymentNo = polled.paymentNo
+      } else {
+        show(polled.status === 'FAILED' ? '抢购失败，库存已回补' : '出单超时，请至订单页查看')
+        return
+      }
+    }
     if (!order.paymentNo) {
       show('下单成功，但未生成支付单')
       return
@@ -146,7 +158,15 @@ async function submit(): Promise<void> {
       }
     }, 2000)
   } catch (err: unknown) {
-    show(err instanceof Error ? err.message : '下单失败，请重试')
+    // 4b：40005/40006 走 HTTP 503/429（shared 层状态文案不含业务语义，此处局部特判）
+    const code = (err as { code?: number }).code
+    if (code === 503) {
+      show('秒杀服务暂不可用，请稍后重试')
+    } else if (code === 429) {
+      show('操作太频繁，请稍后重试')
+    } else {
+      show(err instanceof Error ? err.message : '下单失败，请重试')
+    }
   } finally {
     submitting.value = false
   }

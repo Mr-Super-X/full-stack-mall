@@ -34,10 +34,16 @@ export interface MallSeckillActive {
   upcoming: MallSeckillItem[]
 }
 
-/** 秒杀下单出参（orderNo + paymentNo，前端直跳 FakeProvider 收银台） */
+/** 秒杀下单出参：同步策略 orderNo+paymentNo 齐；redis 异步策略 paymentNo=null（受理态，前端轮询出单） */
 export interface MallSeckillOrderResult {
   orderNo: string
-  paymentNo: string
+  paymentNo: string | null
+}
+
+/** 出单状态轮询出参（4b 异步受理：ACCEPTED 受理中 / CREATED 携 paymentNo / FAILED 已回补） */
+export interface MallSeckillOrderStatus {
+  status: 'ACCEPTED' | 'CREATED' | 'FAILED'
+  paymentNo: string | null
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -53,11 +59,15 @@ export const h5SeckillApi = {
   /** 进行中 + 预告场（匿名可访问） */
   active: () => request<MallSeckillActive>({ url: '/mall/seckill/active', method: 'get' }),
 
-  /** 秒杀直购下单（登录态；四业务码 40001~40004 上抛由视图 toast） */
+  /** 秒杀直购下单（登录态；四业务码 40001~40004 上抛由视图 toast；40005/40006 为 HTTP 503/429） */
   placeOrder: (activityId: number, data: { addressId: number, productItemId: number }) =>
     request<MallSeckillOrderResult>({
       url: `/mall/seckill/${activityId}/orders`,
       method: 'post',
       data,
     }),
+
+  /** 出单状态轮询（4b 异步受理；登录态，Auth 拦截已登记 /mall/seckill/orders/**） */
+  orderStatus: (orderNo: string) =>
+    request<MallSeckillOrderStatus>({ url: `/mall/seckill/orders/${orderNo}`, method: 'get' }),
 }
