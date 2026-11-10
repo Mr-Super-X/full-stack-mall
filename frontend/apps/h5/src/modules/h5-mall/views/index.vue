@@ -11,7 +11,6 @@ import MallHero from '../components/MallHero.vue'
 import MallNew from '../components/MallNew.vue'
 import MallNotice from '../components/MallNotice.vue'
 import MallServeFooter from '../components/MallServeFooter.vue'
-import MallSprite from '../components/MallSprite.vue'
 import MallToast from '../components/MallToast.vue'
 import MallTopbar from '../components/MallTopbar.vue'
 import MallTopic from '../components/MallTopic.vue'
@@ -84,7 +83,7 @@ function onToggleFav(item: MallGoodsItem): void {
 
 <template>
   <div ref="rootRef" :class="bem.b()">
-    <MallSprite />
+    <!-- sprite 定义源已上移至常驻外壳 shell.vue（tabbar 常驻后切走首页 symbol 会丢） -->
     <MallNotice :text="home?.notice ?? ''" />
     <MallTopbar />
     <main>

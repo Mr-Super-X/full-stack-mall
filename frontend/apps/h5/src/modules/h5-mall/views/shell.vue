@@ -18,6 +18,7 @@
  * Toast 实例说明：本外壳的 MallToast 只接 tab 未实现提示（bag）；首页区块交互
  *（加购/收藏）保留首页自己的 useToast + MallToast 实例，两者独立互不干扰。
  */
+import MallSprite from '../components/MallSprite.vue'
 import MallTabbar from '../components/MallTabbar.vue'
 import MallToast from '../components/MallToast.vue'
 import { useTabbarRouteSync } from '../composables/useTabbarRouteSync'
@@ -53,6 +54,9 @@ function onTabSelect(key: string): void {
 
 <template>
   <div :class="bem.b()">
+    <!-- MallSprite 为全页唯一 SVG symbol 定义源：tabbar/首页区块/商品占位线稿都经 <use href="#mall-*"> 引用。
+         必须挂常驻外壳——tabbar 常驻后切走首页即卸载，symbol 丢失致 icon 全空（2026-11-10 浏览器实证） -->
+    <MallSprite />
     <RouterView />
     <MallTabbar :model-value="activeTab" @update:model-value="onTabSelect" :cart-count="0" />
     <MallToast :visible="visible" :message="message" />

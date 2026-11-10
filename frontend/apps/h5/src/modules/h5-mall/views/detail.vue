@@ -2,6 +2,9 @@
 // ref 由 unplugin-auto-import 注入（CLAUDE.md §1.6）
 import { useProductDetail } from '../composables/useProductDetail'
 import MallPh from '../components/MallPh.vue'
+// detail 与常驻外壳 shell.vue 平级（不享其 sprite），自行渲染一份 symbol 定义源；
+// 与 shell 路由互斥、同一时刻全页仍只有一份
+import MallSprite from '../components/MallSprite.vue'
 
 /**
  * 商品详情页：图片轮播 + 规格选择 + 成色报告（寄卖）+ 卖家卡片（寄卖）+ 详情富文本。
@@ -60,6 +63,8 @@ function onAdd(): void {
 
 <template>
   <div :class="bem.b()">
+    <!-- MallPh 商品线稿占位引用 #mall-g-* symbol，本页自带 sprite（见 script 头注） -->
+    <MallSprite />
     <!-- Loading 态 -->
     <div v-if="loading" :class="bem.e('loading')">
       <van-skeleton title avatar :row="4" />

@@ -41,3 +41,6 @@ desktop.ini
 
 # ---- Claude Code 本地私有配置（共享配置仍入库） ----
 .claude/settings.local.json
+
+# ---- playwright-mcp ----
+.playwright-mcp/

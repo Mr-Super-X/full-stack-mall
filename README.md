@@ -55,8 +55,26 @@ mvn spring-boot:run          # Spring Boot，端口 18080，context-path /api
 # 前端（pnpm monorepo，Node >=22.18，pnpm >=11）
 cd frontend
 pnpm install
-pnpm -C apps/h5 dev          # h5 买家端（Vant）
+pnpm -C apps/h5 dev          # h5 买家端单 app 开发（Vant，端口 5177，纯前端走 mock）
+pnpm dev:gateway h5          # 推荐：网关 8080 + h5 同源代理后端 18080——登录/订单/卖家工作台依赖真实后端会话
 ```
+
+## 演示账号（init.sql 种子数据，BCrypt 哈希）
+
+| 账号 | 密码 | 角色 | 用途 |
+|------|------|------|------|
+| `admin` | `admin123` | ADMIN | 管理后台（apps/admin，经网关 8080 `/admin/`） |
+| `seller` | `seller123` | USER | 演示卖家「阿珍的衣柜」：h5 卖家工作台（寄卖接受定价 / 售出订单发货） |
+| `buyer` | `buyer123` | USER | 演示买家：h5 下单链路（我的订单 / 确认收货） |
+
+首次访问（后端 + 网关按上面命令启动后）：
+
+1. 浏览器开 `http://localhost:8080/h5/h5-mall`（F12 设备模式 375 宽）
+2. 点底部「我的」tab——未登录会被守卫自动跳到模块内登录页
+3. 输演示账号登录：`buyer / buyer123`（买家）或 `seller / seller123`（卖家），登录后自动回跳订单页
+4. 卖家视角：订单页顶部点「我是卖家 · 管理寄卖与售出订单」进工作台（寄卖接受定价 / 售出订单发货）
+
+> h5 为「全站公开」设计（浏览商品免登录），登录只发生在点「我的」或直达订单/工作台时；账号即上方种子数据。
 
 ## 目录结构
 
