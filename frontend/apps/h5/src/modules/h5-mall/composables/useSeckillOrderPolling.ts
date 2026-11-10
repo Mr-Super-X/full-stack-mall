@@ -23,22 +23,34 @@ export function useSeckillOrderPolling(
   const status = ref<SeckillOrderPollState>('POLLING')
   const paymentNo = ref<string | null>(null)
   let timer: ReturnType<typeof setInterval> | undefined
+  /** 挂起的 start Promise resolve（stop 时须以终态收尾，否则页面卸载后 Promise 泄漏——终审 Important-4） */
+  let pendingResolve: ((r: SeckillOrderPollResult) => void) | undefined
 
   const stop = (): void => {
     if (timer) {
       clearInterval(timer)
       timer = undefined
     }
+    if (pendingResolve) {
+      const r = pendingResolve
+      pendingResolve = undefined
+      r({ status: 'TIMEOUT', paymentNo: null })
+    }
   }
 
   /** 轮询到终态；Promise 终态快照与 ref 状态同步更新 */
   const start = (): Promise<SeckillOrderPollResult> =>
     new Promise<SeckillOrderPollResult>((resolve) => {
+      pendingResolve = resolve
       const deadline = Date.now() + timeoutMs
       const finish = (result: SeckillOrderPollResult): void => {
+        pendingResolve = undefined
         status.value = result.status
         paymentNo.value = result.paymentNo
-        stop()
+        if (timer) {
+          clearInterval(timer)
+          timer = undefined
+        }
         resolve(result)
       }
       const tick = async (): Promise<void> => {

@@ -330,6 +330,15 @@ public class SeckillServiceImpl implements SeckillService {
         Product product = productMapper.selectById(activity.getProductId());
         ProductItem item = productItemMapper.selectById(message.productItemId());
         Address address = requireAddress(message.userId(), message.addressId());
+        // redis 路径 sold_count 与订单同事务 +1（终审 Critical-2：缺这步则 key 自愈重建恒满血 → 超卖；
+        // 条件守卫防预扣后活动库存被并发改小，行数 0 视为抢完——预扣与落库出现裂口时宁可少卖）
+        int rows = seckillActivityMapper.update(null, Wrappers.<SeckillActivity>update()
+                .setSql("sold_count = sold_count + 1")
+                .eq("id", activity.getId())
+                .ltSql("sold_count", "seckill_stock"));
+        if (rows == 0) {
+            throw new BusinessException(ResultCode.SOLD_OUT);
+        }
         // 建单三步与同步路径完全同一套代码（对照实验公平性前提，spec §13#10）
         Order order = orderAssembler.insertOrder(message.userId(), activity, address, message.orderNo());
         OrderItem line = orderAssembler.buildLine(item, product, message.seckillPrice(),

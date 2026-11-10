@@ -110,6 +110,7 @@ class SeckillFulfillTest {
         ProductImage image = new ProductImage();
         image.setUrl("https://img/p16.jpg");
         given(productImageMapper.selectOne(any())).willReturn(image);
+        given(seckillActivityMapper.update(any(), any())).willReturn(1); // sold_count+1 行数守卫
         given(orderMapper.insert(any(Order.class))).willAnswer(inv -> {
             Order o = inv.getArgument(0);
             o.setId(9001L);
@@ -118,12 +119,13 @@ class SeckillFulfillTest {
     }
 
     @Test
-    @DisplayName("正常消费：订单/明细/支付落库 + 受理表推进 CREATED（orderNo 用消息值不重新生成）")
+    @DisplayName("正常消费：订单/明细/支付落库 + sold_count+1（终审 Critical-2：缺这步自愈重建满血超卖）+ 受理表 CREATED")
     void fulfill_createsOrderLinePaymentAndMarksCreated() {
         stubSnapshotSources();
 
         service.fulfillSeckillOrder(message());
 
+        verify(seckillActivityMapper).update(org.mockito.ArgumentMatchers.isNull(), any());
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderMapper).insert(orderCaptor.capture());
         assertThat(orderCaptor.getValue().getOrderNo()).isEqualTo("M-FUL-001");
@@ -165,6 +167,7 @@ class SeckillFulfillTest {
         Address address = new Address();
         address.setReceiverName("张三");
         given(addressMapper.selectOne(any())).willReturn(address);
+        given(seckillActivityMapper.update(any(), any())).willReturn(1); // sold_count+1 守卫，让流程走到 insert
         org.mockito.Mockito.doThrow(new DuplicateKeyException("uk_user_activity"))
                 .when(orderMapper).insert(any(Order.class));
 

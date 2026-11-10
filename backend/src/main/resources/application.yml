@@ -11,14 +11,6 @@ spring:
     url: ${DB_URL:jdbc:mysql://localhost:13306/mall?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
     username: ${DB_USER:root}
     password: ${DB_PASSWORD:mall-root}
-
-mybatis-plus:
-  configuration:
-    map-underscore-to-camel-case: true
-  global-config:
-    banner: false
-  mapper-locations: classpath*:mapper/*.xml
-
   # 4b 秒杀演进：Redis（Lua 预扣/令牌桶）与 RabbitMQ（异步出单）
   data:
     redis:
@@ -34,6 +26,13 @@ mybatis-plus:
         # 消费者手动 ack（幂等/重试/DLX 语义由 SeckillOrderCreateConsumer 控制）
         acknowledge-mode: manual
         prefetch: 1
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+  mapper-locations: classpath*:mapper/*.xml
 
 seckill:
   # 扣库存实现：optimistic（4a 默认）/ pessimistic（FOR UPDATE 对照组）/ redis（Lua+MQ 异步出单）

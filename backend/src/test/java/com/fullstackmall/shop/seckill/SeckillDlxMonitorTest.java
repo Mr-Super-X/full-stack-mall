@@ -47,7 +47,7 @@ class SeckillDlxMonitorTest {
 
     @BeforeEach
     void setUp() {
-        monitor = new SeckillDlxMonitor(seckillActivityMapper, redisStockDeductor, acceptanceMapper);
+        monitor = new SeckillDlxMonitor(redisStockDeductor, acceptanceMapper);
     }
 
     private Message dlqMessage(SeckillOrderMessage payload) {
@@ -63,11 +63,11 @@ class SeckillDlxMonitorTest {
     }
 
     @Test
-    @DisplayName("死信消费：DB sold_count-1 条件更新 + Redis 回补 + 受理表 FAILED + ack")
+    @DisplayName("死信消费：不再动 DB sold_count（消费端未 +1，-1 会误减他人售出——终审 Critical-2）；Redis 回补 + FAILED + ack")
     void onDlqMessage_restocksAndMarksFailed() throws Exception {
         monitor.onMessage(dlqMessage(payload()), channel);
 
-        verify(seckillActivityMapper).update(org.mockito.ArgumentMatchers.isNull(), any());
+        verify(seckillActivityMapper, never()).update(any(), any());
         verify(redisStockDeductor).restoreStock(16L);
         verify(acceptanceMapper).update(org.mockito.ArgumentMatchers.isNull(), any());
         verify(channel).basicAck(anyLong(), eq(false));

@@ -12,6 +12,9 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      # 4b 悲观锁对照组拐点可见性（spec §7/§13#18）：锁等待 5s 让 500 线程内爆掉；
+      # 教学库常态生效——README 已声明"压测环境配置，生产含义另述"
+      - --innodb-lock-wait-timeout=5
     volumes:
       - mall-mysql-data:/var/lib/mysql
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro

@@ -30,14 +30,11 @@ public class SeckillDlxMonitor implements ChannelAwareMessageListener {
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-    private final SeckillActivityMapper seckillActivityMapper;
     private final RedisStockDeductor redisStockDeductor;
     private final SeckillOrderAcceptanceMapper acceptanceMapper;
 
-    public SeckillDlxMonitor(SeckillActivityMapper seckillActivityMapper,
-                             RedisStockDeductor redisStockDeductor,
+    public SeckillDlxMonitor(RedisStockDeductor redisStockDeductor,
                              SeckillOrderAcceptanceMapper acceptanceMapper) {
-        this.seckillActivityMapper = seckillActivityMapper;
         this.redisStockDeductor = redisStockDeductor;
         this.acceptanceMapper = acceptanceMapper;
     }
@@ -55,13 +52,8 @@ public class SeckillDlxMonitor implements ChannelAwareMessageListener {
             return;
         }
         try {
-            // ① DB 回补：sold_count-1（条件防负——并发关单/取消可能已回补过）
-            int rows = seckillActivityMapper.update(null, Wrappers.<SeckillActivity>update()
-                    .setSql("sold_count = sold_count - 1")
-                    .eq("id", payload.activityId())
-                    .gt("sold_count", 0));
-            log.info("[seckill] 死信回补 sold_count-1：activityId={} orderNo={} rows={}",
-                    payload.activityId(), payload.orderNo(), rows);
+            // ① DB 不动：消费失败的消息从未成功 sold_count+1（事务原子性），-1 会误减他人售出
+            //    （终审 Critical-2——旧实现的 gt>0 守卫只是侥幸 no-op，已删除）
             // ② Redis 关口回补（内部已 catch Redis 不可用，warn 不阻断）
             redisStockDeductor.restoreStock(payload.activityId());
             // ③ 受理表置 FAILED（轮询端点据此告知前端"抢购失败，库存已回补"）

@@ -65,16 +65,17 @@ describe('useSeckillOrderPolling', () => {
     expect(status.value).toBe('TIMEOUT')
   })
 
-  it('stop 清理定时器（onUnmounted 接线 = 这一行调用，框架保证；此处验证 stop 语义）', async () => {
+  it('stop 清理定时器并让挂起的 start Promise 以 TIMEOUT 收尾（终审 Important-4：不 resolve 会泄漏）', async () => {
     orderStatusMock.mockResolvedValue({ status: 'ACCEPTED', paymentNo: null })
     const clearSpy = vi.spyOn(globalThis, 'clearInterval')
 
-    const polling = useSeckillOrderPolling('M-4', { intervalMs: 1000 })
-    void polling.start()
+    const polling = useSeckillOrderPolling('M-4', { intervalMs: 1000, timeoutMs: 60000 })
+    const promise = polling.start()
     await vi.advanceTimersByTimeAsync(0)
     polling.stop()
 
     expect(clearSpy).toHaveBeenCalled()
+    await expect(promise).resolves.toEqual({ status: 'TIMEOUT', paymentNo: null })
     // 停表后不再发请求
     const calls = orderStatusMock.mock.calls.length
     await vi.advanceTimersByTimeAsync(5000)
