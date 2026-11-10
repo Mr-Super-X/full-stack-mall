@@ -84,7 +84,9 @@ public class PaymentController {
                         const data = await resp.json();
                         if (data.code === 200) {
                           document.getElementById('tip').innerText = '支付成功，正在返回商城…';
-                          setTimeout(() => location.href = 'http://localhost:5177/h5-mall', 800);
+                          // 同源相对路径：收银台经同域网关打开，/h5/h5-mall 在任何部署形态下都正确；
+                          // 原硬编码 http://localhost:5177/h5-mall 错在 vite base 为 /h5/（404）且非生产地址
+                          setTimeout(() => location.href = '/h5/h5-mall', 800);
                         } else {
                           document.getElementById('tip').innerText = '支付失败：' + data.message;
                         }
