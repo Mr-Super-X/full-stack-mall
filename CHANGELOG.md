@@ -8,6 +8,17 @@
 
 ## [Unreleased]
 
+### Added（后端 · 阶段 4c：列表搜索优化）
+
+- **ngram 全文索引**：product 表 `FULLTEXT KEY ft_search (name, selling_point, tag) WITH PARSER ngram`；`selectSummaryPage` 的 keyword 条件由 `LIKE '%kw%'`（前导模糊不走索引）改 `MATCH ... AGAINST (? IN BOOLEAN MODE)`
+- **SearchQuerySupport.sanitize**：BOOLEAN 操作符（`+-~*><()"@`）替换空格防 AGAINST 语法 500、连续空白压缩、空词返 null 回退全量
+- **热搜词接口** `GET /mall/search/hot-words`（匿名）：运营位常量 8 词（接入配置中心是 v2 事）
+- 分词实测记录：二字词「条纹」命中；单字「恤」经预编译参数返回空（ngram 短查询前缀行为差异，不报错即达标——验收口径）；「T恤」vs 商品名「T 恤」空格差异不跨匹配（ngram 固有边界，v2 可查询归一化）
+
+### Added（前端 · h5 买家端 · 阶段 4c）
+
+- **列表页搜索增强**：输入态（keyword 为空）渲染「搜索历史」（localStorage 去重置顶/上限 10/可清空，隐私模式降级不抛错）+「热门搜索」（后端常量 8 词）chips；点击词或回车提交记录历史并触发查询；结果态既有列表整体替换（列表不空载）
+
 ### Added（后端 · 阶段 4a：秒杀业务闭环）
 
 - **秒杀场次域**（`com.fullstackmall.shop.seckill` 新包，表阶段 0 已建零迁移）：`seckill_activity` 实体/Mapper/`SeckillStatus`（PENDING/ACTIVE/ENDED/CANCELLED），`orders` 加 `seckill_activity_id` + `uk_user_activity` 唯一键（一人一场并发兜底）
