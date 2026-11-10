@@ -39,6 +39,8 @@
 
 ### Fixed（前端 · h5 买家端）
 
+- **列表页输入态误吞浏览态（4c 回归）**：4c 以「keyword 为空」判定输入态，tabbar「分类」入口进列表页（keyword 恒空）只见历史/热搜面板、商品列表不可见——改为搜索框 focus 判定（focusin/focusout 冒泡监听），失焦 + keyword 空回全量列表，回车提交主动 blur 出结果态
+
 - **切离首页后 tabbar/商品线稿 icon 全丢**
 
 - **统一登录接线商城后端**：`@vv/shared` 认证契约四端点改指 `/mall/auth/*`（login/register/me/logout），`userProfileSchema.transform` 把商城 `UserInfoDTO` 映射为 shared `UserProfile`（`ROLE_PERMISSIONS`：ADMIN→`mall:admin`、USER→`mall:user`，未知 role 空数组不静默放行）——apps/auth 统一登录页 / apps/admin 守卫 / apps/h5 登录全 monorepo 一套商城账号会话

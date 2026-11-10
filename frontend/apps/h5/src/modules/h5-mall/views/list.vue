@@ -8,8 +8,9 @@ import MallPh from '../components/MallPh.vue'
 
 /**
  * 商品列表页：搜索 + 筛选 + 分页加载。
- * 输入态（keyword 为空）：搜索历史（localStorage）+ 热搜词（后端常量）chips；
- * 结果态：既有列表。数据来源：useProductList() 拉取 /mall/product/list。
+ * 三态：搜索框聚焦（输入态）→ 历史/热搜辅助面板；失焦 + keyword 空 → 全量列表
+ * （tabbar「分类」入口进本页 keyword 恒为空，输入态必须按 focus 判定，否则商品列表不可见）；
+ * 失焦 + keyword 非空 → 搜索结果。数据来源：useProductList() 拉取 /mall/product/list。
  */
 const bem = createNamespace('mall-list')
 
@@ -17,6 +18,8 @@ const bem = createNamespace('mall-list')
 const keyword = ref('')
 /** 排序（newest 默认 / price_asc / price_desc / sales_desc） */
 const sort = ref<'newest' | 'price_asc' | 'price_desc' | 'sales_desc'>('newest')
+/** 搜索框聚焦态（输入态判定；focus/blur 不冒泡，focusin/focusout 冒泡，容器上监听即可捕获内部 input） */
+const searchFocused = ref(false)
 
 const { list, total, loading, error, isEmpty, loadMore, page } = useProductList({ keyword, sort })
 
@@ -28,6 +31,9 @@ const { data: hotWords } = useRequest(() => h5SearchApi.hotWords())
 function onSearch(): void {
   // keyword 变化已由 watch 触发重新拉取并重置 page，此处仅记录历史 + 收起键盘
   addHistory(keyword.value)
+  // 回车后退出输入态显示结果（桌面端回车不触发 blur，需手动失焦；移动端键盘收起自然失焦）
+  const active = document.activeElement
+  if (active instanceof HTMLElement) active.blur()
 }
 
 /** 点击历史/热搜词：记录并触发查询 */
@@ -52,7 +58,8 @@ function showConditionTag(item: MallGoodsItem): boolean {
 </script>
 
 <template>
-  <div :class="bem.b()">
+  <!-- focusin/focusout 冒泡，容器上监听即可捕获 van-search 内部 input 的焦点变化 -->
+  <div :class="bem.b()" @focusin="searchFocused = true" @focusout="searchFocused = false">
     <!-- 搜索栏 -->
     <van-search
       v-model="keyword"
@@ -63,8 +70,8 @@ function showConditionTag(item: MallGoodsItem): boolean {
       @cancel="keyword = ''"
     />
 
-    <!-- 输入态：搜索历史 + 热搜词（keyword 为空时结果区整体替换，列表不加载） -->
-    <div v-if="!keyword" :class="bem.e('assist')">
+    <!-- 输入态：搜索历史 + 热搜词（搜索框聚焦时显示；失焦回列表态，避免分类 tab 入口看不到商品） -->
+    <div v-if="searchFocused" :class="bem.e('assist')">
       <div v-if="history.length > 0" :class="bem.e('assist-block')">
         <div :class="bem.e('assist-head')">
           <span>搜索历史</span>
@@ -98,7 +105,7 @@ function showConditionTag(item: MallGoodsItem): boolean {
       </div>
     </div>
 
-    <!-- 结果态：排序 + 列表 -->
+    <!-- 列表态：排序 + 列表（失焦后展示；keyword 空 = 全量，非空 = 搜索结果，由 useProductList 自动处理） -->
     <template v-else>
     <!-- 排序栏 -->
     <div :class="bem.e('sortbar')">
