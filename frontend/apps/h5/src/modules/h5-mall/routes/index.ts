@@ -101,6 +101,16 @@ const routes: RouteRecordRaw[] = [
             beforeEnter: requireMallLogin,
           },
           {
+            path: 'seckill',
+            name: 'H5MallSeckill',
+            component: () => import('../views/seckill.vue'),
+            meta: {
+              title: '限时秒杀',
+              requiresAuth: false,
+              noTags: true,
+            },
+          },
+          {
             path: 'checkout',
             name: 'H5MallCheckout',
             component: () => import('../views/checkout.vue'),
