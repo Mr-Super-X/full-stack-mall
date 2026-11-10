@@ -28,6 +28,7 @@ public enum ResultCode {
     PAYMENT_NOT_FOUND(404, "支付单不存在"),
     CART_ITEM_NOT_FOUND(404, "购物车条目不存在"),
     PAYOUT_NOT_FOUND(404, "结算单不存在"),
+    SECKILL_NOT_FOUND(404, "秒杀活动不存在"),
     SECKILL_NOT_STARTED(40001, "秒杀尚未开始或已结束"),
     SOLD_OUT(40002, "已抢完"),
     LIMIT_EXCEEDED(40003, "已达限购上限"),

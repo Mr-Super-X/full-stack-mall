@@ -15,4 +15,10 @@ public class BusinessException extends RuntimeException {
         super(resultCode.getMessage());
         this.resultCode = resultCode;
     }
+
+    /** 携带场景化文案的业务异常（同一 ResultCode 在不同校验点的具体原因） */
+    public BusinessException(ResultCode resultCode, String message) {
+        super(message);
+        this.resultCode = resultCode;
+    }
 }
