@@ -1,5 +1,6 @@
 package com.fullstackmall.shop.seckill.controller;
 
+import com.fullstackmall.shop.common.RateLimit;
 import com.fullstackmall.shop.common.Result;
 import com.fullstackmall.shop.seckill.dto.SeckillActiveDTO;
 import com.fullstackmall.shop.seckill.dto.SeckillOrderRequest;
@@ -35,6 +36,7 @@ public class SeckillController {
     }
 
     /** 秒杀直购：成功返回订单号 + 支付单号，前端直跳收银台 */
+    @RateLimit(key = "seckill-order")
     @PostMapping("/{activityId}/orders")
     public Result<SeckillOrderResultDTO> placeOrder(
             @PathVariable Long activityId, @RequestBody @Valid SeckillOrderRequest request) {
