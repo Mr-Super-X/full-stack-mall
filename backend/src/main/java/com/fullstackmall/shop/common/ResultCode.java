@@ -33,6 +33,8 @@ public enum ResultCode {
     SOLD_OUT(40002, "已抢完"),
     LIMIT_EXCEEDED(40003, "已达限购上限"),
     DUPLICATE_ORDER(40004, "您已参与过本场秒杀"),
+    SECKILL_UNAVAILABLE(40005, "秒杀服务暂不可用，请稍后重试"),
+    RATE_LIMITED(40006, "操作太频繁，请稍后重试"),
     INTERNAL_ERROR(500, "系统繁忙，请稍后重试");
 
     private final int code;
