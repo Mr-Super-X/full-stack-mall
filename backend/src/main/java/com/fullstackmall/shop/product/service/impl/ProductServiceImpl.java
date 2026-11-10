@@ -34,13 +34,16 @@ public class ProductServiceImpl implements ProductService {
     private final ProductMapper productMapper;
     private final ProductItemMapper productItemMapper;
     private final ProductImageMapper productImageMapper;
+    private final com.fullstackmall.shop.seckill.service.SeckillService seckillService;
 
     public ProductServiceImpl(ProductMapper productMapper,
                               ProductItemMapper productItemMapper,
-                              ProductImageMapper productImageMapper) {
+                              ProductImageMapper productImageMapper,
+                              com.fullstackmall.shop.seckill.service.SeckillService seckillService) {
         this.productMapper = productMapper;
         this.productItemMapper = productItemMapper;
         this.productImageMapper = productImageMapper;
+        this.seckillService = seckillService;
     }
 
     @Override
@@ -87,6 +90,8 @@ public class ProductServiceImpl implements ProductService {
         detail.setImageUrl(images.isEmpty() ? null : images.get(0));
         detail.setItems(items.stream().map(this::toItemDTO).toList());
         detail.setImages(images);
+        // 秒杀插件出参：生效中活动才非空（由 SeckillService 判定时间窗）
+        detail.setActiveSeckill(seckillService.findActiveItemByProductId(id));
         return detail;
     }
 

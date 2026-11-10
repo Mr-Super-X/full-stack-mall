@@ -20,6 +20,9 @@ public interface SeckillService {
     /** 商品当前生效中的秒杀活动（ACTIVE 且时间窗内），无则 null——详情页插件出参用 */
     SeckillActivity findActiveByProductId(Long productId);
 
+    /** 详情页插件出参：装配好的生效活动（含商品摘要），无则 null */
+    com.fullstackmall.shop.seckill.dto.SeckillActiveDTO.SeckillActivityDTO findActiveItemByProductId(Long productId);
+
     /**
      * 秒杀直购（spec §3.4 七步事务：查活动→惰性推进→挂载校验→限购→扣池→建单→返回）。
      *

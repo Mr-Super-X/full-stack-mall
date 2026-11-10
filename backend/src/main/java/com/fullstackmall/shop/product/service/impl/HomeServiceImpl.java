@@ -28,13 +28,16 @@ public class HomeServiceImpl implements HomeService {
     private final HomeBannerMapper homeBannerMapper;
     private final ProductService productService;
     private final CategoryService categoryService;
+    private final com.fullstackmall.shop.seckill.service.SeckillService seckillService;
 
     public HomeServiceImpl(HomeBannerMapper homeBannerMapper,
                            ProductService productService,
-                           CategoryService categoryService) {
+                           CategoryService categoryService,
+                           com.fullstackmall.shop.seckill.service.SeckillService seckillService) {
         this.homeBannerMapper = homeBannerMapper;
         this.productService = productService;
         this.categoryService = categoryService;
+        this.seckillService = seckillService;
     }
 
     @Override
@@ -44,9 +47,21 @@ public class HomeServiceImpl implements HomeService {
         content.setBanners(loadBanners());
         content.setCategories(categoryService.levelOne());
         content.setFlash(loadFlash());
+        content.setSeckill(loadSeckill());
         content.setNews(queryCards(null, null, NEWS_LIMIT));
         content.setRecommend(queryCards("sales_desc", null, RECOMMEND_LIMIT));
         return content;
+    }
+
+    /** 限时秒杀区块：live 最多 2 场（首页空间约束），upcoming 只给计数 */
+    private HomeContentDTO.SeckillSection loadSeckill() {
+        com.fullstackmall.shop.seckill.dto.SeckillActiveDTO active = seckillService.active();
+        HomeContentDTO.SeckillSection section = new HomeContentDTO.SeckillSection();
+        section.setTitle("限时秒杀");
+        section.setLive(active.getLive() == null ? List.of()
+                : active.getLive().stream().limit(2).toList());
+        section.setUpcomingCount(active.getUpcoming() == null ? 0 : active.getUpcoming().size());
+        return section;
     }
 
     private List<HomeContentDTO.BannerItem> loadBanners() {

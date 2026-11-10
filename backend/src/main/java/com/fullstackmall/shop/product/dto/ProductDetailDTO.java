@@ -28,4 +28,7 @@ public class ProductDetailDTO extends ProductSummaryDTO {
 
     /** 图片 URL 列表，按 sort 升序（首图即主图） */
     private List<String> images;
+
+    /** 生效中的秒杀活动（saleMode=SECKILL 且窗口内才非空）；详情页插件渲染倒计时/进度用 */
+    private com.fullstackmall.shop.seckill.dto.SeckillActiveDTO.SeckillActivityDTO activeSeckill;
 }

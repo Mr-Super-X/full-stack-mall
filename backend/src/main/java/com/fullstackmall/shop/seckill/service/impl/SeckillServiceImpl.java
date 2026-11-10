@@ -138,6 +138,16 @@ public class SeckillServiceImpl implements SeckillService {
                 .last("LIMIT 1"));
     }
 
+    @Override
+    public SeckillActiveDTO.SeckillActivityDTO findActiveItemByProductId(Long productId) {
+        SeckillActivity activity = findActiveByProductId(productId);
+        if (activity == null) {
+            return null;
+        }
+        return toLiveDTO(activity, productMapper.selectById(productId),
+                soleItem(productId), loadMainImage(productId));
+    }
+
     /** 推进 ENDED（条件迁移行数守卫）+ 归还 product_item 未售库存 */
     private void settleEnded(SeckillActivity activity) {
         int rows = seckillActivityMapper.update(null, Wrappers.<SeckillActivity>update()
@@ -174,23 +184,26 @@ public class SeckillServiceImpl implements SeckillService {
                 .sorted(Comparator.comparingInt(p -> p.getSort() == null ? 0 : p.getSort()))
                 .collect(Collectors.toMap(ProductImage::getProductId, ProductImage::getUrl, (a, b) -> a));
 
-        return lives.stream().map(a -> {
-            SeckillActiveDTO.SeckillActivityDTO dto = new SeckillActiveDTO.SeckillActivityDTO();
-            dto.setActivityId(a.getId());
-            dto.setProductId(a.getProductId());
-            Product product = products.get(a.getProductId());
-            dto.setProductTitle(product != null ? product.getName() : null);
-            ProductItem item = items.get(a.getProductId());
-            dto.setProductItemId(item != null ? item.getId() : null);
-            dto.setOriginPrice(item != null ? item.getPrice() : null);
-            dto.setImageUrl(mainImages.get(a.getProductId()));
-            dto.setSeckillPrice(a.getSeckillPrice());
-            dto.setSoldCount(a.getSoldCount());
-            dto.setSeckillStock(a.getSeckillStock());
-            dto.setStartTime(a.getStartTime());
-            dto.setEndTime(a.getEndTime());
-            return dto;
-        }).toList();
+        return lives.stream().map(a -> toLiveDTO(a, products.get(a.getProductId()),
+                items.get(a.getProductId()), mainImages.get(a.getProductId()))).toList();
+    }
+
+    /** 单活动装配（assembleLive 批量回填与 findActiveItemByProductId 单查共用） */
+    private SeckillActiveDTO.SeckillActivityDTO toLiveDTO(
+            SeckillActivity a, Product product, ProductItem item, String imageUrl) {
+        SeckillActiveDTO.SeckillActivityDTO dto = new SeckillActiveDTO.SeckillActivityDTO();
+        dto.setActivityId(a.getId());
+        dto.setProductId(a.getProductId());
+        dto.setProductTitle(product != null ? product.getName() : null);
+        dto.setProductItemId(item != null ? item.getId() : null);
+        dto.setOriginPrice(item != null ? item.getPrice() : null);
+        dto.setImageUrl(imageUrl);
+        dto.setSeckillPrice(a.getSeckillPrice());
+        dto.setSoldCount(a.getSoldCount());
+        dto.setSeckillStock(a.getSeckillStock());
+        dto.setStartTime(a.getStartTime());
+        dto.setEndTime(a.getEndTime());
+        return dto;
     }
 
     private SeckillActiveDTO.SeckillActivityDTO toUpcomingDTO(SeckillActivity a) {
