@@ -76,10 +76,12 @@ function goCheckout(): void {
 
 <template>
   <div :class="bem.b()">
-    <div v-if="loading" :class="bem.e('state')">
+    <!-- 三态仅首屏：步进器/删除触发的 reload 不再切骨架（整页闪动根因）；
+         刷新失败的错误反馈由各操作 catch 里的 toast 承担 -->
+    <div v-if="loading && !list" :class="bem.e('state')">
       <van-skeleton title :row="4" />
     </div>
-    <div v-else-if="error" :class="bem.e('state')">
+    <div v-else-if="error && !list" :class="bem.e('state')">
       <van-empty description="加载失败，请检查网络">
         <van-button round type="primary" @click="load">重试</van-button>
       </van-empty>
@@ -121,7 +123,7 @@ function goCheckout(): void {
       </article>
     </template>
 
-    <footer v-if="!loading && !error && !isEmpty" :class="bem.e('bar')">
+    <footer v-if="!isEmpty && (list?.length ?? 0) > 0" :class="bem.e('bar')">
       <van-checkbox :model-value="allChecked" @update:model-value="toggleAll">全选</van-checkbox>
       <span :class="bem.e('total')">合计 <b>¥{{ checkedTotal }}</b></span>
       <van-button round type="primary" :disabled="checkedIds.size === 0" @click="goCheckout">

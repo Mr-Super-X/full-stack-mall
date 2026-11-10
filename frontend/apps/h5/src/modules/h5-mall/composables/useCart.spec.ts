@@ -107,4 +107,30 @@ describe('useCart（购物车）', () => {
     toggleCheck(3)
     expect(checkedIds.value.has(3)).toBe(false) // 失效条目不可勾选
   })
+
+  it('reload 后保留用户的勾选操作（数量步进触发 reload 不重置勾选态）', async () => {
+    vi.mocked(h5CartApi.list).mockResolvedValue([
+      { ...mockItem, id: 1, quantity: 1, invalid: false },
+      { ...mockItem, id: 2, quantity: 1, invalid: false },
+    ])
+
+    const { list, toggleCheck, checkedIds, updateQty } = useCart()
+    await vi.waitFor(() => expect(list.value?.length).toBe(2))
+
+    // 用户取消勾选 id=2
+    toggleCheck(2)
+    expect(checkedIds.value.has(2)).toBe(false)
+
+    // 步进器改量触发 reload；mock 改返回新数组实例（模拟真实接口返回新数据），
+    // 若 mock 复用同一引用，ref 值无变化不会触发 watch，断言会假阳性
+    vi.mocked(h5CartApi.list).mockResolvedValue([
+      { ...mockItem, id: 1, quantity: 5, invalid: false },
+      { ...mockItem, id: 2, quantity: 1, invalid: false },
+    ])
+    await updateQty(1, 5)
+
+    // 勾选态保留用户操作：id=2 仍被取消，不随 reload 重置
+    expect(checkedIds.value.has(1)).toBe(true)
+    expect(checkedIds.value.has(2)).toBe(false)
+  })
 })

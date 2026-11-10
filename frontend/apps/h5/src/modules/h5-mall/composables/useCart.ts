@@ -18,14 +18,33 @@ export function useCart() {
 
   const isEmpty = computed(() => !loading.value && !error.value && (list.value?.length ?? 0) === 0)
 
-  /** 本地勾选的条目 id 集（数据到达后初始化为「后端 checked 且未失效」） */
+  /**
+   * 本地勾选的条目 id 集。
+   * merge 语义（非重置）：数量步进/删除触发 reload 后保留用户的勾选操作——
+   * 已见过的行以用户勾选为准，新出现的行按后端 checked 初始化；否则每次
+   * reload 勾选态闪变（体验缺陷）。
+   */
   const checkedIds = ref<Set<number>>(new Set<number>())
+  /** 已加载过的行 id（区分「新行按后端初始化」与「旧行尊重用户操作」） */
+  const seenIds = ref<Set<number>>(new Set<number>())
 
   watch(
     list,
     (rows) => {
       if (!rows) return
-      checkedIds.value = new Set(rows.filter((r) => r.checked && !r.invalid).map((r) => r.id))
+      const prev = checkedIds.value
+      const seen = seenIds.value
+      const next = new Set<number>()
+      for (const r of rows) {
+        if (r.invalid) continue
+        if (seen.has(r.id)) {
+          if (prev.has(r.id)) next.add(r.id)
+        } else if (r.checked) {
+          next.add(r.id)
+        }
+      }
+      seenIds.value = new Set(rows.map((r) => r.id))
+      checkedIds.value = next
     },
     { immediate: true },
   )
