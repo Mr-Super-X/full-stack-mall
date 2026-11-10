@@ -89,6 +89,28 @@ const routes: RouteRecordRaw[] = [
             },
             beforeEnter: requireMallLogin,
           },
+          {
+            path: 'cart',
+            name: 'H5MallCart',
+            component: () => import('../views/cart.vue'),
+            meta: {
+              title: '购物袋',
+              requiresAuth: false,
+              noTags: true,
+            },
+            beforeEnter: requireMallLogin,
+          },
+          {
+            path: 'checkout',
+            name: 'H5MallCheckout',
+            component: () => import('../views/checkout.vue'),
+            meta: {
+              title: '确认订单',
+              requiresAuth: false,
+              noTags: true,
+            },
+            beforeEnter: requireMallLogin,
+          },
         ],
       },
       {

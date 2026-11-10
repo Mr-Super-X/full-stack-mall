@@ -153,3 +153,12 @@ export type { MallOrder, MallOrderItem, MallOrderAddress } from './orders'
 // ────────────────────────────────────────────────────────────────────
 export { h5SellerApi, CONSIGNMENT_STATUS_TEXT } from './seller'
 export type { MallConsignment } from './seller'
+
+// ────────────────────────────────────────────────────────────────────
+// 购物车与结算域（购物袋 + 地址；下单/支付在 orders.ts）
+// 实现见 ./cart.ts / ./address.ts
+// ────────────────────────────────────────────────────────────────────
+export { h5CartApi } from './cart'
+export type { MallCartItem } from './cart'
+export { h5AddressApi } from './address'
+export type { MallAddress, MallAddressPayload } from './address'

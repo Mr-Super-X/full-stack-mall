@@ -68,8 +68,10 @@ const MALL_TOPIC = {
 // 项目 composable @vv/shared（vite 自动注入）——商品卡/金刚区跳详情与列表用
 const { pushByName } = useAppRouter()
 
-function onAdd(): void {
-  show('已加入购物袋')
+function onAdd(item: MallGoodsItem): void {
+  // 加购 API 需要规格 id（productItemId）——首页商品卡无规格维度，
+  // 统一跳详情页选规格：自营在详情页加购物车，寄卖在详情页「立即购买」（DIRECT）
+  void pushByName('H5MallDetail', { id: item.id })
 }
 
 /** 点商品卡：跳商品详情页（限时甄选/新品/为你推荐三区块共用） */

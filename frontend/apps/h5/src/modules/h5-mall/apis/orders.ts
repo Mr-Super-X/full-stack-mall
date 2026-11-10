@@ -81,4 +81,29 @@ export const h5OrderApi = {
 
   /** 确认收货（SHIPPED→COMPLETED + 生成 Payout）；重复调用后端 400 上抛 */
   confirm: (id: number) => request<void>({ url: `/mall/orders/${id}/confirm`, method: 'post' }),
+
+  /** 下单（CART 购物车结算 / DIRECT 寄卖直购，后端单一事务：快照+扣库存+清购物车+建支付单） */
+  create: (data: MallCreateOrderPayload) => request<MallOrder>({ url: '/mall/orders', method: 'post', data }),
+
+  /** 发起支付（CREATED→PAYING），返回收银台跳转地址 payUrl */
+  pay: (paymentNo: string) => request<MallPayResult>({ url: `/mall/payments/${paymentNo}/pay`, method: 'post' }),
+
+  /** 轮询支付状态（status：CREATED/PAYING/SUCCESS/FAILED） */
+  payStatus: (paymentNo: string) => request<MallPayResult>({ url: `/mall/payments/${paymentNo}`, method: 'get' }),
+}
+
+/** 下单入参（与后端 CreateOrderRequest 对齐：source=CART 带 cartItemIds；DIRECT 带 productItemId） */
+export interface MallCreateOrderPayload {
+  addressId: number
+  source: 'CART' | 'DIRECT'
+  cartItemIds?: number[]
+  productItemId?: number
+}
+
+/** 支付结果（PayResultDTO：payUrl 仅发起支付时返回，状态查询为 null） */
+export interface MallPayResult {
+  paymentNo: string
+  /** 收银台跳转地址（FakeProvider 模拟收银台） */
+  payUrl: string | null
+  status: string
 }

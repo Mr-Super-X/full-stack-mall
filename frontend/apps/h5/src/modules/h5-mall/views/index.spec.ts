@@ -102,8 +102,9 @@ describe('h5-mall 商城首页（API 驱动）', () => {
     expect(w.findAll('.vv-mall-goods__gcard')).toHaveLength(1)
   })
 
-  it('点「加入购物袋」：Toast 弹出', async () => {
+  it('点「加入购物袋」：跳详情页选规格（自营文案）', async () => {
     vi.mocked(h5MallApi.getHome).mockResolvedValue(mockHome)
+    mockPushByName.mockClear()
 
     const w = mount(HomeIndex)
     await vi.waitFor(() => expect(w.text()).toContain('为你推荐'))
@@ -111,9 +112,20 @@ describe('h5-mall 商城首页（API 驱动）', () => {
     const addBtn = w.findAll('button').find((b) => b.text() === '加入购物袋')!
     await addBtn.trigger('click')
 
-    expect(w.findComponent(MallToast).props('visible')).toBe(true)
-    expect(w.findComponent(MallToast).props('message')).toBe('已加入购物袋')
-    // 注：常驻 tabbar 已上移至 shell.vue（ledger Task 1 Ruling），角标断言随之移除
+    // 加购需规格 id（productItemId）——首页卡无规格维度，统一跳详情页选规格
+    expect(mockPushByName).toHaveBeenCalledWith('H5MallDetail', { id: 5 })
+  })
+
+  it('寄卖商品卡按钮文案为「立即购买」', async () => {
+    vi.mocked(h5MallApi.getHome).mockResolvedValue({
+      ...mockHome,
+      recommend: [{ ...mockHome.recommend[0]!, ownerType: 'CONSIGNMENT' }],
+    })
+
+    const w = mount(HomeIndex)
+    await vi.waitFor(() => expect(w.text()).toContain('为你推荐'))
+
+    expect(w.findAll('button').some((b) => b.text() === '立即购买')).toBe(true)
   })
 
   it('点商品卡：跳商品详情页 H5MallDetail（带商品 id）', async () => {

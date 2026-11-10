@@ -22,10 +22,19 @@
 
 ### Added（前端 · h5 买家端，计划 08）
 
-- **tabbar 常驻**（`h5-mall` 模块外壳 `views/shell.vue`）：MallTabbar + `useMallTabNav` + 新增 `useTabbarRouteSync`（route.name ↔ activeTab，浏览器前进/后退/刷新选中态跟随路由）上移至模块外壳——切 tab 页不消失；订单/工作台挂外壳下享常驻 tabbar，详情/登录/404 平级不渲染（模块边界裁决：AGENTS.md §1.2 禁 layouts 引用 modules/，常驻落模块外壳而非 `layouts/h5`）；首页移除局部 tabbar 与底部留白
-- **买家订单页**（`views/orders.vue`）：`GET /mall/orders` 卡片列表（订单号/商品快照/金额/状态标签），SHIPPED 订单「确认收货」（`useConfirm` 二次确认 + 防重点击），成功/400 均 reload 列表对齐真态（错误 toast 后端消息，不留幻觉成功）；`useMallTabNav` 补漏接线「我的」tab → 订单页
-- **卖家工作台**（`views/seller.vue`）：van-tabs 双列表——我的寄卖（`GET /mall/consignments/mine`，PRICED 单「接受定价」`useConfirm` 明示不可撤销 + 防重，驳回原因展示）+ 售出订单（`GET /mall/orders/sold`，PAID 单「发货」）；订单页顶部「我是卖家」入口分流（后端无 seller 角色字段，user tab 固定落订单页）
-- **页面级登录守卫**：订单/工作台路由 `beforeEnter requireMallLogin`（Session 'auth' 标记 → 模块内 H5MallLogin 带 redirect 回跳；h5 全局无登录守卫，拦截落路由级）
+- **完整购物车与结算闭环**：详情页自营「加入购物袋」（POST /mall/cart/items，uk 叠加）+ 寄卖「立即购买」（DIRECT 直购，符合后端 CONSIGNMENT_DIRECT_ONLY 约束）；购物袋 tab 落地购物车页（数量步进/本地勾选/失效标记/合计/删除）；结算页（地址选择/新建 + CART/DIRECT 双模式下单 + FakeProvider 收银台新窗口支付 + 状态轮询自动回订单页）；tabbar 角标实时联动（加购/改量/删除/支付后刷新）
+- **tabbar 常驻**（`h5-mall` 模块外壳 `views/shell.vue`）：MallTabbar + `useTabbarRouteSync`（route.name 派生选中态，浏览器前进/后退/刷新跟随路由）上移至模块外壳——切 tab 页不消失；订单/工作台/购物袋/结算挂外壳下享常驻 tabbar，详情/登录/404 平级不渲染（模块边界裁决：AGENTS.md §1.2 禁 layouts 引用 modules/）；首页移除局部 tabbar 与底部留白
+- **买家订单页**（`views/orders.vue`）：`GET /mall/orders` 卡片列表（订单号/商品快照/金额/状态标签），SHIPPED 订单「确认收货」（`useConfirm` 二次确认 + 防重点击），成功/400 均 reload 列表对齐真态（错误 toast 后端消息，不留幻觉成功）；「我的」tab → 订单页
+- **卖家工作台**（`views/seller.vue`）：van-tabs 双列表——我的寄卖（`GET /mall/consignments/mine`，PRICED 单「接受定价」`useConfirm` 明示不可撤销 + 防重，驳回原因展示）+ 售出订单（`GET /mall/orders/sold`，PAID 单「发货」，实收按本卖家明细行合计）；订单页顶部「我是卖家」入口分流（后端无 seller 角色字段，user tab 固定落订单页）
+- **页面级登录守卫**：订单/工作台/购物袋/结算路由 `beforeEnter requireMallLogin`（Session 'auth' 标记 → 模块内 H5MallLogin 带 redirect 回跳；h5 全局无登录守卫，拦截落路由级）
+- **首页导航接线**：商品卡（限时甄选/新品/为你推荐）点击 → 详情页；金刚区/Hero CTA/「全部」/专题 → 列表页（原型锚点死链路由化）
+
+### Fixed（前端 · h5 买家端）
+
+- **切离首页后 tabbar/商品线稿 icon 全丢**：MallSprite（SVG symbol 唯一定义源）随常驻外壳上移 shell.vue，detail.vue 与 shell 平级自带一份（路由互斥，同一时刻全页仍唯一）
+- **加购接口 500**：购物车端点契约为 `POST /mall/cart/items` / `PATCH /mall/cart/items/{id}` / `DELETE /mall/cart/items/{id}`（方法级 `/items` 子路径曾按 REST 惯例误写为 `POST /mall/cart` + PUT，405 被全局兜底为「系统繁忙」）；并以当前源码起 18081 诊断实例拿真实堆栈定位
+- **useAuthForm 运行时白屏**：shared barrel 刻意不导出 authApi 值（http.ts 值加载副作用），改经 `@api/modules/auth`（§1.6.2 既定例外路径）；h5 type-check 由 1 错归零
+- **结算跳「路由跳转失败」**：`pushWithTitle` 内含 useI18n（仅 setup 顶层可用），事件回调内改经 useAppRouter 暴露的 router 实例直跳（`router.push`）
 
 ### Fixed（前端 · admin 后台）
 

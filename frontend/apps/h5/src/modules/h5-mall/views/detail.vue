@@ -1,10 +1,14 @@
 <script setup lang="ts">
 // ref 由 unplugin-auto-import 注入（CLAUDE.md §1.6）
 import { useProductDetail } from '../composables/useProductDetail'
+import { h5CartApi } from '../apis/cart'
+import { useToast } from '../composables/useToast'
+import { useCartBadgeStore } from '../store/cart'
 import MallPh from '../components/MallPh.vue'
 // detail 与常驻外壳 shell.vue 平级（不享其 sprite），自行渲染一份 symbol 定义源；
 // 与 shell 路由互斥、同一时刻全页仍只有一份
 import MallSprite from '../components/MallSprite.vue'
+import MallToast from '../components/MallToast.vue'
 
 /**
  * 商品详情页：图片轮播 + 规格选择 + 成色报告（寄卖）+ 卖家卡片（寄卖）+ 详情富文本。
@@ -15,7 +19,8 @@ const bem = createNamespace('mall-detail')
 
 const route = useRoute()
 // 项目 composable @vv/shared（vite 自动注入）
-const { replaceByName } = useAppRouter()
+const { replaceByName, router } = useAppRouter()
+const { visible: toastVisible, message: toastMessage, show } = useToast()
 const productId = computed(() => Number(route.params.id))
 
 const { detail, loading, error, isEmpty, refresh } = useProductDetail(productId)
@@ -55,9 +60,29 @@ function phOf(id: number): 'a' | 'b' | 'c' {
   return id % 3 === 0 ? 'a' : id % 3 === 1 ? 'b' : 'c'
 }
 
-/** 加入购物袋（阶段 2 接真实购物车，阶段 1 仅 toast） */
-function onAdd(): void {
-  // TODO: 阶段 2 接购物车 API
+/**
+ * 加购/立即购买分流（后端 CartServiceImpl 约束）：
+ * - 自营件「加入购物袋」→ POST /mall/cart（productItemId=选中规格）+ 刷新 tabbar 角标
+ * - 寄卖件「立即购买」→ 跳结算页 DIRECT 通道（寄卖不可入购物车，库存恒 1 直购）
+ */
+async function onAdd(): Promise<void> {
+  const item = selectedItem.value
+  if (!item || !detail.value) return
+  if (isConsignment.value) {
+    // pushWithTitle 内含 useI18n（仅 setup 顶层可用），事件回调内改用 router 实例直跳
+    void router.push({
+      name: 'H5MallCheckout',
+      query: { mode: 'DIRECT', itemId: String(item.id), title: detail.value.name, price: String(item.price) },
+    })
+    return
+  }
+  try {
+    await h5CartApi.add({ productItemId: item.id, quantity: 1 })
+    await useCartBadgeStore().refresh()
+    show('已加入购物袋')
+  } catch (err: unknown) {
+    show(err instanceof Error ? err.message : '加入失败，请重试')
+  }
 }
 </script>
 
@@ -147,13 +172,14 @@ function onAdd(): void {
         <div :class="bem.e('html')" v-html="detail.detailHtml" />
       </div>
 
-      <!-- 底部操作栏 -->
+      <!-- 底部操作栏：寄卖「立即购买」（DIRECT），自营「加入购物袋」 -->
       <div :class="bem.e('actionbar')">
         <van-button round type="primary" block :class="bem.e('addbtn')" @click="onAdd">
-          加入购物袋
+          {{ isConsignment ? '立即购买' : '加入购物袋' }}
         </van-button>
       </div>
     </template>
+    <MallToast :visible="toastVisible" :message="toastMessage" />
   </div>
 </template>
 

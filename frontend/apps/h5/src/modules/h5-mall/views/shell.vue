@@ -23,6 +23,7 @@ import MallTabbar from '../components/MallTabbar.vue'
 import MallToast from '../components/MallToast.vue'
 import { useTabbarRouteSync } from '../composables/useTabbarRouteSync'
 import { useToast } from '../composables/useToast'
+import { useCartBadgeStore } from '../store/cart'
 
 const bem = createNamespace('h5-mall')
 
@@ -32,6 +33,12 @@ const { pushByName } = useAppRouter()
 
 /** Tabbar 选中态：route.name 派生（单一事实源，切 tab/前进后退/刷新均随路由） */
 const activeTab = useTabbarRouteSync()
+
+/** 购物车角标（bag 条数）：挂载刷新一次，加购/购物车变更后由调用方 refresh */
+const cartBadge = useCartBadgeStore()
+onMounted(() => {
+  void cartBadge.refresh()
+})
 
 /** tab key → 路由接线：点击只负责跳路由，选中态由路由派生（取代原 useMallTabNav 的 watch 模型） */
 function onTabSelect(key: string): void {
@@ -47,8 +54,8 @@ function onTabSelect(key: string): void {
     void pushByName('H5MallOrders')
     return
   }
-  // bag（购物袋）页未实现（非本计划目标），toast 提示
-  show('购物袋功能开发中')
+  // bag（购物袋）：跳购物车页（未登录由路由守卫拦登录）
+  void pushByName('H5MallCart')
 }
 </script>
 
@@ -58,7 +65,7 @@ function onTabSelect(key: string): void {
          必须挂常驻外壳——tabbar 常驻后切走首页即卸载，symbol 丢失致 icon 全空（2026-11-10 浏览器实证） -->
     <MallSprite />
     <RouterView />
-    <MallTabbar :model-value="activeTab" @update:model-value="onTabSelect" :cart-count="0" />
+    <MallTabbar :model-value="activeTab" @update:model-value="onTabSelect" :cart-count="cartBadge.count" />
     <MallToast :visible="visible" :message="message" />
   </div>
 </template>

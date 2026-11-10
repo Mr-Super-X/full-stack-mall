@@ -84,7 +84,7 @@ function phOf(id: number): 'a' | 'b' | 'c' {
             <s v-if="item.originPrice" :class="bem.e('origin')">¥{{ item.originPrice }}</s>
           </span>
           <button type="button" :class="bem.e('addbtn')" @click.stop="emit('add', item)">
-            加入购物袋
+            {{ item.ownerType === 'CONSIGNMENT' ? '立即购买' : '加入购物袋' }}
           </button>
         </div>
       </div>

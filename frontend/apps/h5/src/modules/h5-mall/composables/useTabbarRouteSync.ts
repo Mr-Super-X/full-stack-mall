@@ -12,6 +12,9 @@ const ROUTE_NAME_TO_TAB: Readonly<Record<string, string>> = {
   H5MallList: 'grid',
   H5MallOrders: 'user',
   H5MallSeller: 'user',
+  // 购物袋/结算同属 bag（结算页 cart 角标语义保持）
+  H5MallCart: 'bag',
+  H5MallCheckout: 'bag',
 }
 
 /**

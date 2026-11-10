@@ -24,6 +24,11 @@ describe('routeToTab（route.name → tab key 纯映射）', () => {
     expect(routeToTab('H5MallSeller')).toBe('user')
   })
 
+  it('购物袋/结算映射 bag', () => {
+    expect(routeToTab('H5MallCart')).toBe('bag')
+    expect(routeToTab('H5MallCheckout')).toBe('bag')
+  })
+
   it('未知路由与空名回退 home', () => {
     expect(routeToTab('H5MallUnknown')).toBe('home')
     expect(routeToTab(null)).toBe('home')
