@@ -59,7 +59,9 @@ class SeckillServiceImplTest {
         service = new SeckillServiceImpl(
                 seckillActivityMapper, productMapper, productItemMapper, productImageMapper,
                 addressMapper, orderMapper, orderItemMapper,
-                new com.fullstackmall.shop.seckill.service.SeckillOrderAssembler(orderMapper, paymentMapper));
+                new com.fullstackmall.shop.seckill.service.SeckillOrderAssembler(orderMapper, paymentMapper),
+                new com.fullstackmall.shop.seckill.service.SeckillProperties(),
+                new com.fullstackmall.shop.seckill.service.DbPessimisticDeductor(seckillActivityMapper));
     }
 
     @Test

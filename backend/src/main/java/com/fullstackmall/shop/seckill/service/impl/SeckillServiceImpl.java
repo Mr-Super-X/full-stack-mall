@@ -25,8 +25,11 @@ import com.fullstackmall.shop.seckill.dto.SeckillOrderResultDTO;
 import com.fullstackmall.shop.seckill.entity.SeckillActivity;
 import com.fullstackmall.shop.seckill.enums.SeckillStatus;
 import com.fullstackmall.shop.seckill.mapper.SeckillActivityMapper;
+import com.fullstackmall.shop.seckill.service.SeckillDeductStrategy;
 import com.fullstackmall.shop.seckill.service.SeckillOrderAssembler;
+import com.fullstackmall.shop.seckill.service.SeckillProperties;
 import com.fullstackmall.shop.seckill.service.SeckillService;
+import com.fullstackmall.shop.seckill.service.DbPessimisticDeductor;
 import com.fullstackmall.shop.user.context.UserContext;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -58,6 +61,8 @@ public class SeckillServiceImpl implements SeckillService {
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
     private final SeckillOrderAssembler orderAssembler;
+    private final SeckillProperties seckillProperties;
+    private final DbPessimisticDeductor pessimisticDeductor;
 
     public SeckillServiceImpl(SeckillActivityMapper seckillActivityMapper,
                               ProductMapper productMapper,
@@ -66,7 +71,9 @@ public class SeckillServiceImpl implements SeckillService {
                               AddressMapper addressMapper,
                               OrderMapper orderMapper,
                               OrderItemMapper orderItemMapper,
-                              SeckillOrderAssembler orderAssembler) {
+                              SeckillOrderAssembler orderAssembler,
+                              SeckillProperties seckillProperties,
+                              DbPessimisticDeductor pessimisticDeductor) {
         this.seckillActivityMapper = seckillActivityMapper;
         this.productMapper = productMapper;
         this.productItemMapper = productItemMapper;
@@ -75,6 +82,8 @@ public class SeckillServiceImpl implements SeckillService {
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
         this.orderAssembler = orderAssembler;
+        this.seckillProperties = seckillProperties;
+        this.pessimisticDeductor = pessimisticDeductor;
     }
 
     @Override
@@ -247,8 +256,12 @@ public class SeckillServiceImpl implements SeckillService {
         if (orderCount != null && orderCount >= 1) {
             throw new BusinessException(ResultCode.LIMIT_EXCEEDED);
         }
-        // 5. 扣独立池（条件更新行数守卫）
-        deductStock(activityId);
+        // 5. 扣独立池：按 seckill.strategy 分派三实现（对照实验公平性——前后置步骤完全一致）
+        switch (seckillProperties.getStrategy()) {
+            case PESSIMISTIC -> pessimisticDeductor.deduct(activityId);
+            case REDIS -> throw new BusinessException(ResultCode.INTERNAL_ERROR); // Task 9 填充：Lua 预扣 + MQ 异步出单
+            default -> deductStock(activityId);
+        }
         // 6. 建单（快照定格秒杀价；撞 uk_user_activity → 40004）——三步委托 Assembler，与 MQ 异步路径共用
         try {
             Address address = requireAddress(userId, req.getAddressId());
