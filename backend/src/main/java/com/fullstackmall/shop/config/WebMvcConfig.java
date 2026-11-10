@@ -30,7 +30,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         // 注册顺序即语义：Auth 先解析身份写 UserContext，Admin 后读上下文校验角色
         registry.addInterceptor(new AuthInterceptor(jwtService, cookieName))
                 .addPathPatterns("/mall/auth/me", "/mall/consignments/**", "/mall/addresses/**",
-                        "/mall/admin/**", "/mall/cart/**", "/mall/orders/**", "/mall/payments/**")
+                        "/mall/admin/**", "/mall/cart/**", "/mall/orders/**", "/mall/payments/**",
+                        "/mall/seckill/*/orders")
                 // 支付异步回调与模拟收银台：网关调用/浏览器直开，无用户 Cookie，鉴权靠验签，放行
                 .excludePathPatterns("/mall/payments/fake/notify", "/mall/payments/fake/checkout");
         registry.addInterceptor(new AdminInterceptor())
