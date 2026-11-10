@@ -16,6 +16,8 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      # 命令超时 3s（对照表"Redis 挂"场景快速失败 40005 的前提——默认无超时会挂起到 TCP 超时，实测）
+      timeout: 3s
   rabbitmq:
     host: ${RABBIT_HOST:localhost}
     port: ${RABBIT_PORT:5672}
@@ -36,6 +38,7 @@ mybatis-plus:
 
 seckill:
   # 扣库存实现：optimistic（4a 默认）/ pessimistic（FOR UPDATE 对照组）/ redis（Lua+MQ 异步出单）
+  # 压测期间按趟临时改此处默认值（Windows 下环境变量传 spring-boot:run 不可靠——实测两轮均失败）
   strategy: ${SECKILL_STRATEGY:optimistic}
   rate-limit:
     # 令牌桶初始值；按"DB 拐点并发 70%"压测校准后更新本注释（spec §6 证据链落字）
