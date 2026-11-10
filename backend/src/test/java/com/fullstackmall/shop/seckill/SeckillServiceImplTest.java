@@ -43,13 +43,22 @@ class SeckillServiceImplTest {
     private ProductItemMapper productItemMapper;
     @Mock
     private ProductImageMapper productImageMapper;
+    @Mock
+    private com.fullstackmall.shop.address.mapper.AddressMapper addressMapper;
+    @Mock
+    private com.fullstackmall.shop.order.mapper.OrderMapper orderMapper;
+    @Mock
+    private com.fullstackmall.shop.order.mapper.OrderItemMapper orderItemMapper;
+    @Mock
+    private com.fullstackmall.shop.payment.mapper.PaymentMapper paymentMapper;
 
     private SeckillServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new SeckillServiceImpl(
-                seckillActivityMapper, productMapper, productItemMapper, productImageMapper);
+                seckillActivityMapper, productMapper, productItemMapper, productImageMapper,
+                addressMapper, orderMapper, orderItemMapper, paymentMapper);
     }
 
     @Test

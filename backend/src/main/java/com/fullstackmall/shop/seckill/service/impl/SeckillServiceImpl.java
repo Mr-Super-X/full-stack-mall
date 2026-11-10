@@ -1,8 +1,22 @@
 package com.fullstackmall.shop.seckill.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fullstackmall.shop.address.entity.Address;
+import com.fullstackmall.shop.address.mapper.AddressMapper;
 import com.fullstackmall.shop.common.BusinessException;
 import com.fullstackmall.shop.common.ResultCode;
+import com.fullstackmall.shop.order.entity.Order;
+import com.fullstackmall.shop.order.entity.OrderItem;
+import com.fullstackmall.shop.order.enums.OrderStatus;
+import com.fullstackmall.shop.order.enums.OrderType;
+import com.fullstackmall.shop.order.mapper.OrderItemMapper;
+import com.fullstackmall.shop.order.mapper.OrderMapper;
+import com.fullstackmall.shop.order.service.OrderNoGenerator;
+import com.fullstackmall.shop.payment.entity.Payment;
+import com.fullstackmall.shop.payment.enums.PayChannel;
+import com.fullstackmall.shop.payment.enums.PaymentStatus;
+import com.fullstackmall.shop.payment.mapper.PaymentMapper;
 import com.fullstackmall.shop.product.entity.Product;
 import com.fullstackmall.shop.product.entity.ProductImage;
 import com.fullstackmall.shop.product.entity.ProductItem;
@@ -10,15 +24,22 @@ import com.fullstackmall.shop.product.mapper.ProductImageMapper;
 import com.fullstackmall.shop.product.mapper.ProductItemMapper;
 import com.fullstackmall.shop.product.mapper.ProductMapper;
 import com.fullstackmall.shop.seckill.dto.SeckillActiveDTO;
+import com.fullstackmall.shop.seckill.dto.SeckillOrderRequest;
+import com.fullstackmall.shop.seckill.dto.SeckillOrderResultDTO;
 import com.fullstackmall.shop.seckill.entity.SeckillActivity;
 import com.fullstackmall.shop.seckill.enums.SeckillStatus;
 import com.fullstackmall.shop.seckill.mapper.SeckillActivityMapper;
 import com.fullstackmall.shop.seckill.service.SeckillService;
+import com.fullstackmall.shop.user.context.UserContext;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -33,20 +54,35 @@ public class SeckillServiceImpl implements SeckillService {
 
     /** upcoming 展示上限（spec §3.3） */
     private static final int UPCOMING_LIMIT = 5;
+    /** 秒杀单超时关单分钟数（与常规单一致，惰性关单在 OrderServiceImpl 触发） */
+    private static final int ORDER_EXPIRE_MINUTES = 15;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final SeckillActivityMapper seckillActivityMapper;
     private final ProductMapper productMapper;
     private final ProductItemMapper productItemMapper;
     private final ProductImageMapper productImageMapper;
+    private final AddressMapper addressMapper;
+    private final OrderMapper orderMapper;
+    private final OrderItemMapper orderItemMapper;
+    private final PaymentMapper paymentMapper;
 
     public SeckillServiceImpl(SeckillActivityMapper seckillActivityMapper,
                               ProductMapper productMapper,
                               ProductItemMapper productItemMapper,
-                              ProductImageMapper productImageMapper) {
+                              ProductImageMapper productImageMapper,
+                              AddressMapper addressMapper,
+                              OrderMapper orderMapper,
+                              OrderItemMapper orderItemMapper,
+                              PaymentMapper paymentMapper) {
         this.seckillActivityMapper = seckillActivityMapper;
         this.productMapper = productMapper;
         this.productItemMapper = productItemMapper;
         this.productImageMapper = productImageMapper;
+        this.addressMapper = addressMapper;
+        this.orderMapper = orderMapper;
+        this.orderItemMapper = orderItemMapper;
+        this.paymentMapper = paymentMapper;
     }
 
     @Override
@@ -58,7 +94,7 @@ public class SeckillServiceImpl implements SeckillService {
         List<SeckillActivity> pendings = seckillActivityMapper.selectList(Wrappers.<SeckillActivity>lambdaQuery()
                 .eq(SeckillActivity::getStatus, SeckillStatus.PENDING));
 
-        // 过期 ACTIVE 惰性推进 ENDED + 归还剩余（同一事务）
+        // 过期 ACTIVE 惰性推进 ENDED + 归还剩余（同一事务）；到点 PENDING 惰性激活
         List<SeckillActivity> lives = new java.util.ArrayList<>();
         for (SeckillActivity activity : actives) {
             if (activity.getEndTime() != null && activity.getEndTime().isBefore(now)) {
@@ -67,11 +103,23 @@ public class SeckillServiceImpl implements SeckillService {
                 lives.add(activity);
             }
         }
+        List<SeckillActivity> upcomingList = new ArrayList<>();
+        for (SeckillActivity pending : pendings) {
+            activateIfDue(pending, now);
+            if (pending.getStatus() == SeckillStatus.ACTIVE) {
+                if (pending.getEndTime() != null && pending.getEndTime().isBefore(now)) {
+                    settleEnded(pending);
+                } else {
+                    lives.add(pending);
+                }
+            } else if (pending.getStartTime() != null && pending.getStartTime().isAfter(now)) {
+                upcomingList.add(pending);
+            }
+        }
 
         SeckillActiveDTO dto = new SeckillActiveDTO();
         dto.setLive(assembleLive(lives));
-        dto.setUpcoming(pendings.stream()
-                .filter(a -> a.getStartTime() != null && a.getStartTime().isAfter(now))
+        dto.setUpcoming(upcomingList.stream()
                 .limit(UPCOMING_LIMIT)
                 .map(this::toUpcomingDTO)
                 .toList());
@@ -155,6 +203,179 @@ public class SeckillServiceImpl implements SeckillService {
         dto.setStartTime(a.getStartTime());
         dto.setEndTime(a.getEndTime());
         return dto;
+    }
+
+    // ── 秒杀下单（spec §3.4 七步事务）─────────────────────────────
+
+    @Override
+    @Transactional
+    public SeckillOrderResultDTO placeOrder(Long activityId, SeckillOrderRequest req) {
+        Long userId = UserContext.getRequired().userId();
+        LocalDateTime now = LocalDateTime.now();
+        // 1. 查活动
+        SeckillActivity activity = seckillActivityMapper.selectById(activityId);
+        if (activity == null) {
+            throw new BusinessException(ResultCode.SECKILL_NOT_FOUND);
+        }
+        // 2. 惰性推进：到点 PENDING 激活；过期 ACTIVE 推进 ENDED + 归还；其余非 ACTIVE 态拒绝
+        activateIfDue(activity, now);
+        if (activity.getStatus() == SeckillStatus.ACTIVE
+                && activity.getEndTime() != null && activity.getEndTime().isBefore(now)) {
+            settleEnded(activity);
+        }
+        if (activity.getStatus() != SeckillStatus.ACTIVE
+                || activity.getStartTime() == null || activity.getStartTime().isAfter(now)
+                || activity.getEndTime() == null || activity.getEndTime().isBefore(now)) {
+            throw new BusinessException(ResultCode.SECKILL_NOT_STARTED);
+        }
+        // 3. 挂载校验：商品在售 + item 为挂载商品唯一 SKU 且与入参匹配
+        Product product = productMapper.selectById(activity.getProductId());
+        ProductItem item = soleItem(activity.getProductId());
+        if (product == null || product.getStatus() != 1 || item == null
+                || !item.getId().equals(req.getProductItemId())) {
+            throw new BusinessException(ResultCode.SECKILL_NOT_STARTED, "秒杀商品已下架或规格不匹配");
+        }
+        // 4. 限购（先查数体验层；并发兜底靠 uk_user_activity 撞线 → 40004）
+        Long orderCount = orderMapper.selectCount(Wrappers.<Order>lambdaQuery()
+                .eq(Order::getUserId, userId)
+                .eq(Order::getSeckillActivityId, activityId));
+        if (orderCount != null && orderCount >= 1) {
+            throw new BusinessException(ResultCode.LIMIT_EXCEEDED);
+        }
+        // 5. 扣独立池（条件更新行数守卫）
+        deductStock(activityId);
+        // 6. 建单（快照定格秒杀价；撞 uk_user_activity → 40004）
+        try {
+            Address address = requireAddress(userId, req.getAddressId());
+            Order order = insertSeckillOrder(userId, activity, address);
+            OrderItem line = buildSeckillLine(item, product,
+                    activity.getSeckillPrice(), loadMainImage(product.getId()));
+            line.setOrderId(order.getId());
+            orderItemMapper.insert(line);
+            Payment payment = insertPayment(order.getId(), activity.getSeckillPrice());
+            return new SeckillOrderResultDTO(order.getOrderNo(), payment.getPaymentNo());
+        } catch (DuplicateKeyException e) {
+            throw new BusinessException(ResultCode.DUPLICATE_ORDER);
+        }
+    }
+
+    /** 扣减独立池（4b 演进位：Redis DECR + Lua 替换本方法内部实现） */
+    @Override
+    public void deductStock(Long activityId) {
+        int rows = seckillActivityMapper.update(null, Wrappers.<SeckillActivity>update()
+                .setSql("sold_count = sold_count + 1")
+                .eq("id", activityId)
+                .ltSql("sold_count", "seckill_stock"));
+        if (rows == 0) {
+            throw new BusinessException(ResultCode.SOLD_OUT);
+        }
+    }
+
+    /** PENDING 到点激活（条件迁移行数守卫；并发激活只放行一个） */
+    private void activateIfDue(SeckillActivity activity, LocalDateTime now) {
+        if (activity.getStatus() == SeckillStatus.PENDING
+                && activity.getStartTime() != null && !activity.getStartTime().isAfter(now)) {
+            int rows = seckillActivityMapper.update(null, Wrappers.<SeckillActivity>update()
+                    .set("status", SeckillStatus.ACTIVE.name())
+                    .eq("id", activity.getId())
+                    .eq("status", SeckillStatus.PENDING.name()));
+            if (rows > 0) {
+                activity.setStatus(SeckillStatus.ACTIVE);
+            }
+        }
+    }
+
+    private Address requireAddress(Long userId, Long addressId) {
+        Address address = addressMapper.selectOne(Wrappers.<Address>lambdaQuery()
+                .eq(Address::getId, addressId)
+                .eq(Address::getUserId, userId));
+        if (address == null) {
+            throw new BusinessException(ResultCode.ADDRESS_NOT_FOUND);
+        }
+        return address;
+    }
+
+    /** 订单写入：订单号 uk 冲突换号重试 ≤3 次；uk_user_activity 撞线由调用方转 40004 */
+    private Order insertSeckillOrder(Long userId, SeckillActivity activity, Address address) {
+        Order order = new Order();
+        order.setUserId(userId);
+        order.setType(OrderType.SECKILL);
+        order.setSeckillActivityId(activity.getId());
+        order.setStatus(OrderStatus.PENDING_PAYMENT);
+        order.setPayAmount(activity.getSeckillPrice());
+        order.setAddressSnapshot(addressJson(address));
+        order.setExpiredAt(LocalDateTime.now().plusMinutes(ORDER_EXPIRE_MINUTES));
+        for (int attempt = 0; attempt < 3; attempt++) {
+            order.setOrderNo(OrderNoGenerator.orderNo());
+            try {
+                orderMapper.insert(order);
+                return order;
+            } catch (DuplicateKeyException e) {
+                if (attempt == 2) {
+                    throw e;
+                }
+            }
+        }
+        throw new BusinessException(ResultCode.INTERNAL_ERROR);
+    }
+
+    /** 快照行：成交价定格秒杀价（快照铁律，活动结束/改价不回联） */
+    private OrderItem buildSeckillLine(ProductItem item, Product product,
+                                       BigDecimal seckillPrice, String imageUrl) {
+        OrderItem line = new OrderItem();
+        line.setProductItemId(item.getId());
+        line.setPrice(seckillPrice);
+        line.setQuantity(1);
+        line.setSellerId(null);
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("title", product.getName());
+        snapshot.put("imageUrl", imageUrl);
+        snapshot.put("conditionGrade", item.getConditionGrade() != null ? item.getConditionGrade().name() : null);
+        snapshot.put("size", item.getSize());
+        snapshot.put("color", item.getColor());
+        snapshot.put("brand", product.getBrand());
+        snapshot.put("ownerType", product.getOwnerType() != null ? product.getOwnerType().name() : null);
+        try {
+            line.setItemSnapshot(OBJECT_MAPPER.writeValueAsString(snapshot));
+        } catch (Exception e) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR);
+        }
+        return line;
+    }
+
+    /** 下单同事务建支付单（CREATED，前端据此发起 pay） */
+    private Payment insertPayment(Long orderId, BigDecimal amount) {
+        Payment payment = new Payment();
+        payment.setPaymentNo(OrderNoGenerator.paymentNo());
+        payment.setOrderId(orderId);
+        payment.setAmount(amount);
+        payment.setProvider(PayChannel.FAKE);
+        payment.setStatus(PaymentStatus.CREATED);
+        paymentMapper.insert(payment);
+        return payment;
+    }
+
+    private String addressJson(Address address) {
+        try {
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("receiverName", address.getReceiverName());
+            snapshot.put("phone", address.getPhone());
+            snapshot.put("province", address.getProvince());
+            snapshot.put("city", address.getCity());
+            snapshot.put("district", address.getDistrict());
+            snapshot.put("detail", address.getDetail());
+            return OBJECT_MAPPER.writeValueAsString(snapshot);
+        } catch (Exception e) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR);
+        }
+    }
+
+    private String loadMainImage(Long productId) {
+        ProductImage image = productImageMapper.selectOne(Wrappers.<ProductImage>lambdaQuery()
+                .eq(ProductImage::getProductId, productId)
+                .orderByAsc(ProductImage::getSort)
+                .last("LIMIT 1"));
+        return image != null ? image.getUrl() : null;
     }
 
     private ProductItem soleItem(Long productId) {
