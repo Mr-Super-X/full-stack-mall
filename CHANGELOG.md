@@ -8,7 +8,27 @@
 
 ## [Unreleased]
 
-### Added（前端 · admin 后台 + 统一登录，计划 07）
+### Added（后端 · 阶段 4a：秒杀业务闭环）
+
+- **秒杀场次域**（`com.fullstackmall.shop.seckill` 新包，表阶段 0 已建零迁移）：`seckill_activity` 实体/Mapper/`SeckillStatus`（PENDING/ACTIVE/ENDED/CANCELLED），`orders` 加 `seckill_activity_id` + `uk_user_activity` 唯一键（一人一场并发兜底）
+- **admin 场次管理**：创建（限购恒 1 + 单 SKU 自营挂载校验 + 划拨事务 `stock>=N` 行数守卫）/取消（仅 PENDING，归还划拨库存）/分页；`GET /mall/admin/seckill-activities/products` 候选商品（单 SKU 有库存，DB 过滤 + 内存双保险）
+- **C 端活动查询** `GET /mall/seckill/active`（匿名）：live/upcoming 分组；过期 ACTIVE 读路径惰性推进 ENDED + 归还剩余（同事务），到点 PENDING 惰性激活
+- **秒杀下单** `POST /mall/seckill/{id}/orders`（Auth 拦截）：七步事务（查活动→惰性推进→挂载校验含商品在售→限购查数→扣独立池条件更新 `ltSql(sold_count, seckill_stock)`→建单快照定格秒杀价→返回 orderNo/paymentNo）；四错误码 40001 未开始/已结束、40002 已抢完、40003 超限购、40004 撞唯一键（+ 计划内 `SECKILL_NOT_FOUND`）
+- **惰性关单/主动取消回补分支**：`restock(Order)` 按 type 分派——秒杀单回补独立池 `sold_count-1 WHERE sold_count>0` 条件防负，普通单原逐行回补
+- **出参装配**：`ProductDetailDTO.activeSeckill`（详情页插件）、`HomeContentDTO.seckill` 区块（live ≤2 + upcomingCount）；`SeckillService.deductStock` 独立方法埋 4b Redis 预扣演进位
+- 种子：id 16/17 两个单 SKU 秒杀商品 + LIVE/UPCOMING 两场活动（NOW() 相对时间保幂等）
+
+### Added（前端 · h5 买家端与 admin · 阶段 4a）
+
+- **详情页秒杀插件**（`MallSeckillBar` 组件复用）：秒杀价大字 + 划线原价 + 截止倒计时（`useDeadlineCountdown`）+ 抢购进度条；操作栏三分支「立即抢购/立即购买/加入购物袋」，秒杀跳结算页携 `seckillActivityId`，规格选择器隐藏（单 SKU 裁决）
+- **结算页秒杀模式**：query 识别 `seckillActivityId` 改调 `h5SeckillApi.placeOrder`，四错误码 toast 穿透，收银台闭环复用
+- **秒杀会场页** `/h5-mall/seckill`（挂常驻外壳）：van-tabs 抢购中/即将开始，场卡片复用 MallSeckillBar，三态齐全；**首页秒杀区块**（MallSeckill.vue）：live 场卡 + 「全部」入口 + 预告计数，无 live 整块不渲染
+- **admin 秒杀场次管理页**（ProTable + 原生按钮组状态筛选 + 新建 dialog 原生 select 候选商品 + PENDING 取消 useConfirm）
+- **Ruling**：秒杀无 mock 处理器（商城业务接口无先例，dev 走网关）；el-tabs/el-option 的 `@ts-expect-error` 压制依赖 vue-tsc 生成代码行映射不可复制（admin 全量 type-check 实证 Consignments/Payouts 同为报错存量），新页改用原生控件——存量 4 个 TS 错误已如实上报，不在本计划修复
+
+### Fixed（前端 · h5 买家端）
+
+- **切离首页后 tabbar/商品线稿 icon 全丢**
 
 - **统一登录接线商城后端**：`@vv/shared` 认证契约四端点改指 `/mall/auth/*`（login/register/me/logout），`userProfileSchema.transform` 把商城 `UserInfoDTO` 映射为 shared `UserProfile`（`ROLE_PERMISSIONS`：ADMIN→`mall:admin`、USER→`mall:user`，未知 role 空数组不静默放行）——apps/auth 统一登录页 / apps/admin 守卫 / apps/h5 登录全 monorepo 一套商城账号会话
 - **admin 经网关同源接后端**：`packages/config/src/proxy.ts` 补 `/api → 18080` 代理（原空壳占位），admin `VITE_API_BASE_URL` 用相对 `/api` 经 `dev:gateway` 8080 同源代理，HttpOnly Cookie（path=/api）同源匹配，统一登录会话跨 app 漫游（P4 协议落地）
