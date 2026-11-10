@@ -1,6 +1,8 @@
 package com.fullstackmall.shop.seckill.mq;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fullstackmall.shop.seckill.service.SeckillService;
 import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +33,10 @@ public class SeckillOrderCreateConsumer implements ChannelAwareMessageListener {
     private static final int MAX_RETRY = 3;
     private static final String RETRY_HEADER = "x-retry-count";
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    /** JSR310 必注册：消息含 LocalDateTime，默认 ObjectMapper 反序列化即抛（T8 实证） */
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     private final SeckillService seckillService;
     private final RabbitTemplate rabbitTemplate;
     /** 故障注入：消费失败率 0~1（spec §8 对照表"落库失败"行；仅压测开启） */
