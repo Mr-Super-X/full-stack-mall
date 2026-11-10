@@ -340,6 +340,30 @@ public class SeckillServiceImpl implements SeckillService {
                 .eq("status", "ACCEPTED"));
     }
 
+    @Override
+    public com.fullstackmall.shop.seckill.dto.SeckillOrderStatusDTO queryOrderStatus(String orderNo) {
+        Long userId = UserContext.getRequired().userId();
+        // ① 订单表优先：已建单（含支付号）——归属校验防越权探测（Review Focus #4）
+        Map<String, Object> orderRow = orderMapper.selectWithPaymentByOrderNo(orderNo);
+        if (orderRow != null) {
+            Long ownerId = ((Number) orderRow.get("user_id")).longValue();
+            if (!ownerId.equals(userId)) {
+                throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
+            }
+            return new com.fullstackmall.shop.seckill.dto.SeckillOrderStatusDTO(
+                    "CREATED", (String) orderRow.get("payment_no"));
+        }
+        // ② 受理表回退：ACCEPTED（受理中）/ FAILED（死信登记，库存已回补）
+        SeckillOrderAcceptance acceptance = seckillOrderAcceptanceMapper.selectOne(
+                Wrappers.<SeckillOrderAcceptance>lambdaQuery()
+                        .eq(SeckillOrderAcceptance::getOrderNo, orderNo)
+                        .eq(SeckillOrderAcceptance::getUserId, userId));
+        if (acceptance == null) {
+            throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
+        }
+        return new com.fullstackmall.shop.seckill.dto.SeckillOrderStatusDTO(acceptance.getStatus(), null);
+    }
+
     /** PENDING 到点激活（条件迁移行数守卫；并发激活只放行一个） */
     private void activateIfDue(SeckillActivity activity, LocalDateTime now) {
         if (activity.getStatus() == SeckillStatus.PENDING

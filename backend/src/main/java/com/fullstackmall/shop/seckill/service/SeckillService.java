@@ -47,4 +47,10 @@ public interface SeckillService {
      *         （并发重复消费语义）——由调用方转 ack 不回流
      */
     void fulfillSeckillOrder(com.fullstackmall.shop.seckill.mq.SeckillOrderMessage message);
+
+    /**
+     * 出单状态轮询（spec §5.4）：订单表优先（CREATED + paymentNo，含归属校验——他人单号一律 404
+     * 不泄露存在性）→ 受理表回退（ACCEPTED/FAILED）→ 全无 404 ORDER_NOT_FOUND。
+     */
+    com.fullstackmall.shop.seckill.dto.SeckillOrderStatusDTO queryOrderStatus(String orderNo);
 }

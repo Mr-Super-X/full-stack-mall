@@ -4,6 +4,7 @@ import com.fullstackmall.shop.common.Result;
 import com.fullstackmall.shop.seckill.dto.SeckillActiveDTO;
 import com.fullstackmall.shop.seckill.dto.SeckillOrderRequest;
 import com.fullstackmall.shop.seckill.dto.SeckillOrderResultDTO;
+import com.fullstackmall.shop.seckill.dto.SeckillOrderStatusDTO;
 import com.fullstackmall.shop.seckill.service.SeckillService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,5 +39,11 @@ public class SeckillController {
     public Result<SeckillOrderResultDTO> placeOrder(
             @PathVariable Long activityId, @RequestBody @Valid SeckillOrderRequest request) {
         return Result.success(seckillService.placeOrder(activityId, request));
+    }
+
+    /** 出单状态轮询（4b 异步受理）：ACCEPTED 受理中 / CREATED 携 paymentNo / FAILED 已回补 */
+    @GetMapping("/orders/{orderNo}")
+    public Result<SeckillOrderStatusDTO> orderStatus(@PathVariable String orderNo) {
+        return Result.success(seckillService.queryOrderStatus(orderNo));
     }
 }
