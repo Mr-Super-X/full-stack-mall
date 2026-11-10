@@ -1,12 +1,15 @@
 <script setup lang="ts">
 // ref 由 unplugin-auto-import 注入（CLAUDE.md §1.6）
 import type { MallGoodsItem } from '../apis/index'
+import { h5SearchApi } from '../apis/search'
 import { useProductList } from '../composables/useProductList'
+import { useSearchHistory } from '../composables/useSearchHistory'
 import MallPh from '../components/MallPh.vue'
 
 /**
  * 商品列表页：搜索 + 筛选 + 分页加载。
- * 数据来源：useProductList() 拉取 /mall/product/list（走后端 API，非 mall.ts 硬编码）。
+ * 输入态（keyword 为空）：搜索历史（localStorage）+ 热搜词（后端常量）chips；
+ * 结果态：既有列表。数据来源：useProductList() 拉取 /mall/product/list。
  */
 const bem = createNamespace('mall-list')
 
@@ -17,8 +20,20 @@ const sort = ref<'newest' | 'price_asc' | 'price_desc' | 'sales_desc'>('newest')
 
 const { list, total, loading, error, isEmpty, loadMore, page } = useProductList({ keyword, sort })
 
+/** 搜索历史（去重置顶/上限 10/隐私降级） */
+const { list: history, add: addHistory, clear: clearHistory } = useSearchHistory()
+/** 热搜词（后端常量；失败不阻塞搜索，仅热搜区留空） */
+const { data: hotWords } = useRequest(() => h5SearchApi.hotWords())
+
 function onSearch(): void {
-  // keyword 变化已由 watch 触发重新拉取并重置 page，此处仅收起键盘
+  // keyword 变化已由 watch 触发重新拉取并重置 page，此处仅记录历史 + 收起键盘
+  addHistory(keyword.value)
+}
+
+/** 点击历史/热搜词：记录并触发查询 */
+function onPickWord(word: string): void {
+  addHistory(word)
+  keyword.value = word
 }
 
 function onLoadMore(): void {
@@ -48,6 +63,43 @@ function showConditionTag(item: MallGoodsItem): boolean {
       @cancel="keyword = ''"
     />
 
+    <!-- 输入态：搜索历史 + 热搜词（keyword 为空时结果区整体替换，列表不加载） -->
+    <div v-if="!keyword" :class="bem.e('assist')">
+      <div v-if="history.length > 0" :class="bem.e('assist-block')">
+        <div :class="bem.e('assist-head')">
+          <span>搜索历史</span>
+          <button type="button" :class="bem.e('assist-clear')" @click="clearHistory">清空</button>
+        </div>
+        <div :class="bem.e('chips')">
+          <button
+            v-for="h in history"
+            :key="h"
+            type="button"
+            :class="bem.e('chip')"
+            @click="onPickWord(h)"
+          >
+            {{ h }}
+          </button>
+        </div>
+      </div>
+      <div :class="bem.e('assist-block')">
+        <div :class="bem.e('assist-head')"><span>热门搜索</span></div>
+        <div :class="bem.e('chips')">
+          <button
+            v-for="w in hotWords ?? []"
+            :key="w"
+            type="button"
+            :class="[bem.e('chip'), bem.is('hot', true)]"
+            @click="onPickWord(w)"
+          >
+            {{ w }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 结果态：排序 + 列表 -->
+    <template v-else>
     <!-- 排序栏 -->
     <div :class="bem.e('sortbar')">
       <button
@@ -117,6 +169,7 @@ function showConditionTag(item: MallGoodsItem): boolean {
         </router-link>
       </div>
     </van-list>
+    </template>
   </div>
 </template>
 
@@ -135,6 +188,59 @@ function showConditionTag(item: MallGoodsItem): boolean {
 
   &__search {
     background: var(--mall-bg-card);
+  }
+
+  &__assist {
+    padding: 26px 53px;
+    background: var(--mall-bg-card);
+  }
+
+  &__assist-block {
+    margin-bottom: 35px;
+  }
+
+  &__assist-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--mall-ink-1);
+  }
+
+  &__assist-clear {
+    font: inherit;
+    font-size: 26px;
+    font-weight: 400;
+    color: var(--mall-ink-3);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+
+  &__chip {
+    padding: 13px 26px;
+    font-size: 27px;
+    color: var(--mall-ink-2);
+    background: var(--mall-bg-page);
+    border: 1px solid var(--mall-line);
+    border-radius: 31px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    &.is-hot {
+      color: var(--mall-brand-deep);
+      background: var(--mall-brand-soft);
+      border-color: var(--mall-line-strong);
+    }
   }
 
   &__sortbar {
