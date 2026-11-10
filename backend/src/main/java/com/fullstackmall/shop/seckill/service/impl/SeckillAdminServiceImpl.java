@@ -36,13 +36,19 @@ public class SeckillAdminServiceImpl implements SeckillAdminService {
     private final SeckillActivityMapper seckillActivityMapper;
     private final ProductMapper productMapper;
     private final ProductItemMapper productItemMapper;
+    private final com.fullstackmall.shop.seckill.service.SeckillProperties seckillProperties;
+    private final com.fullstackmall.shop.seckill.service.RedisStockDeductor redisStockDeductor;
 
     public SeckillAdminServiceImpl(SeckillActivityMapper seckillActivityMapper,
                                    ProductMapper productMapper,
-                                   ProductItemMapper productItemMapper) {
+                                   ProductItemMapper productItemMapper,
+                                   com.fullstackmall.shop.seckill.service.SeckillProperties seckillProperties,
+                                   com.fullstackmall.shop.seckill.service.RedisStockDeductor redisStockDeductor) {
         this.seckillActivityMapper = seckillActivityMapper;
         this.productMapper = productMapper;
         this.productItemMapper = productItemMapper;
+        this.seckillProperties = seckillProperties;
+        this.redisStockDeductor = redisStockDeductor;
     }
 
     @Override
@@ -111,6 +117,11 @@ public class SeckillAdminServiceImpl implements SeckillAdminService {
                         .setSql("stock = stock + " + remain + ", version = version + 1")
                         .eq("id", item.getId()));
             }
+        }
+        // 4b 生命周期挂接：取消摘除 Redis 关口（失败仅 warn）
+        if (seckillProperties.getStrategy()
+                == com.fullstackmall.shop.seckill.service.SeckillDeductStrategy.REDIS) {
+            redisStockDeductor.dropStock(activityId);
         }
     }
 

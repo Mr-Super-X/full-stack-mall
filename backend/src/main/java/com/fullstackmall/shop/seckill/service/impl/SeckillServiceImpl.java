@@ -184,6 +184,10 @@ public class SeckillServiceImpl implements SeckillService {
                         .eq("id", item.getId()));
             }
         }
+        // 4b 生命周期挂接：活动结束摘除 Redis 关口（失败仅 warn）
+        if (seckillProperties.getStrategy() == SeckillDeductStrategy.REDIS) {
+            redisStockDeductor.dropStock(activity.getId());
+        }
     }
 
     /** live 装配：商品标题/主图/挂载 item（原价与 productItemId）批量回填，禁 N+1 */
@@ -364,7 +368,7 @@ public class SeckillServiceImpl implements SeckillService {
         return new com.fullstackmall.shop.seckill.dto.SeckillOrderStatusDTO(acceptance.getStatus(), null);
     }
 
-    /** PENDING 到点激活（条件迁移行数守卫；并发激活只放行一个） */
+    /** PENDING 到点激活（条件迁移行数守卫；并发激活只放行一个）+ redis 关口初始化 */
     private void activateIfDue(SeckillActivity activity, LocalDateTime now) {
         if (activity.getStatus() == SeckillStatus.PENDING
                 && activity.getStartTime() != null && !activity.getStartTime().isAfter(now)) {
@@ -374,6 +378,12 @@ public class SeckillServiceImpl implements SeckillService {
                     .eq("status", SeckillStatus.PENDING.name()));
             if (rows > 0) {
                 activity.setStatus(SeckillStatus.ACTIVE);
+                // 4b 生命周期挂接：激活即初始化 Redis 关口（失败仅 warn——下单路径 key 缺失自愈重建）
+                if (seckillProperties.getStrategy() == SeckillDeductStrategy.REDIS) {
+                    redisStockDeductor.initStock(activity.getId(),
+                            activity.getSeckillStock()
+                                    - (activity.getSoldCount() == null ? 0 : activity.getSoldCount()));
+                }
             }
         }
     }

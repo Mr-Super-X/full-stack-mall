@@ -74,6 +74,8 @@ class OrderServiceImplTest {
     private com.fullstackmall.shop.consignment.mapper.ConsignmentListingMapper consignmentListingMapper;
     @Mock
     private com.fullstackmall.shop.seckill.mapper.SeckillActivityMapper seckillActivityMapper;
+    @Mock
+    private com.fullstackmall.shop.seckill.service.RedisStockDeductor redisStockDeductor;
 
     private OrderService orderService;
 
@@ -81,7 +83,9 @@ class OrderServiceImplTest {
     void setUp() {
         orderService = new OrderServiceImpl(orderMapper, orderItemMapper, cartItemMapper,
                 productItemMapper, productMapper, productImageMapper, paymentMapper, addressMapper,
-                payoutMapper, consignmentListingMapper, seckillActivityMapper);
+                payoutMapper, consignmentListingMapper, seckillActivityMapper,
+                new com.fullstackmall.shop.seckill.service.SeckillProperties(),
+                redisStockDeductor);
         UserContext.set(new LoginUser(3L, "buyer", "USER"));
     }
 

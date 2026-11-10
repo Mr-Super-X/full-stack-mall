@@ -79,13 +79,17 @@ public class OrderServiceImpl implements OrderService {
     private final PayoutMapper payoutMapper;
     private final ConsignmentListingMapper consignmentListingMapper;
     private final SeckillActivityMapper seckillActivityMapper;
+    private final com.fullstackmall.shop.seckill.service.SeckillProperties seckillProperties;
+    private final com.fullstackmall.shop.seckill.service.RedisStockDeductor redisStockDeductor;
 
     public OrderServiceImpl(OrderMapper orderMapper, OrderItemMapper orderItemMapper,
                             CartItemMapper cartItemMapper, ProductItemMapper productItemMapper,
                             ProductMapper productMapper, ProductImageMapper productImageMapper,
                             PaymentMapper paymentMapper, AddressMapper addressMapper,
                             PayoutMapper payoutMapper, ConsignmentListingMapper consignmentListingMapper,
-                            SeckillActivityMapper seckillActivityMapper) {
+                            SeckillActivityMapper seckillActivityMapper,
+                            com.fullstackmall.shop.seckill.service.SeckillProperties seckillProperties,
+                            com.fullstackmall.shop.seckill.service.RedisStockDeductor redisStockDeductor) {
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
         this.cartItemMapper = cartItemMapper;
@@ -97,6 +101,8 @@ public class OrderServiceImpl implements OrderService {
         this.payoutMapper = payoutMapper;
         this.consignmentListingMapper = consignmentListingMapper;
         this.seckillActivityMapper = seckillActivityMapper;
+        this.seckillProperties = seckillProperties;
+        this.redisStockDeductor = redisStockDeductor;
     }
 
     @Override
@@ -474,6 +480,11 @@ public class OrderServiceImpl implements OrderService {
                     .setSql("sold_count = sold_count - 1")
                     .eq("id", order.getSeckillActivityId())
                     .gt("sold_count", 0));
+            // 4b 生命周期挂接：redis 策略下同步回补关口（失败仅 warn 不阻断——key 可后续重建）
+            if (seckillProperties.getStrategy()
+                    == com.fullstackmall.shop.seckill.service.SeckillDeductStrategy.REDIS) {
+                redisStockDeductor.restoreStock(order.getSeckillActivityId());
+            }
             return;
         }
         List<OrderItem> lines = loadLines(order.getId());

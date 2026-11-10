@@ -49,7 +49,9 @@ class SeckillAdminServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new SeckillAdminServiceImpl(seckillActivityMapper, productMapper, productItemMapper);
+        service = new SeckillAdminServiceImpl(seckillActivityMapper, productMapper, productItemMapper,
+                new com.fullstackmall.shop.seckill.service.SeckillProperties(),
+                org.mockito.Mockito.mock(com.fullstackmall.shop.seckill.service.RedisStockDeductor.class));
     }
 
     @Test
