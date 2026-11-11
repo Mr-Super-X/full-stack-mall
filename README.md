@@ -33,6 +33,14 @@ docker compose up -d --build   # web(nginx) + backend(Spring Boot JAR) + mysql +
 # 浏览器 http://localhost:8080/ → 自动跳 /h5/h5-mall（买家端）；/admin/ 管理端
 # 秒杀演进体验：SECKILL_STRATEGY=redis docker compose up -d backend
 
+# 常用运维
+docker compose ps                  # 查看五容器状态
+docker compose logs -f backend     # 跟踪后端日志（web/mysql/rabbit 同法）
+docker compose restart backend     # 重启单个服务
+docker compose stop                # 停止全栈（数据保留在卷，start 重新拉起）
+docker compose down                # 停止并移除容器（数据仍保留在卷）
+docker compose down -v             # 停止 + 删数据卷——彻底重置（改 init.sql 种子后须用它重建才生效）
+
 # 开发调试（后端三件套 Docker + 应用本机 mvn；前端 pnpm 网关）
 cd backend && docker compose up -d   # MySQL 13306 + Redis 6379 + RabbitMQ 5672/15672
 mvn spring-boot:run                  # Spring Boot 18080，context-path /api
