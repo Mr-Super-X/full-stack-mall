@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 4 课 · 支付与幂等 — full-stack-mall 后端课</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --accent: #8c2f2f;
+    --muted: #666;
+    --rule: #d9d9d9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Palatino Linotype", Palatino, Georgia, "Songti SC", "SimSun", serif;
+    color: var(--ink);
+    background: #fdfcf9;
+    line-height: 1.75;
+    font-size: 17px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 64px 24px 120px; }
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 40px; }
+  .kicker { font-size: 13px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; }
+  h1 { font-size: 30px; font-weight: 600; margin-top: 8px; }
+  .goal { color: var(--muted); font-style: italic; margin-top: 10px; }
+  h2 { font-size: 22px; font-weight: 600; margin: 48px 0 16px; }
+  h2 .no { color: var(--accent); margin-right: 8px; }
+  p { margin: 14px 0; }
+  code {
+    font-family: "SF Mono", Consolas, "Courier New", monospace;
+    font-size: 0.86em;
+    background: #f2efe8;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    background: #2b2b2b; color: #e8e6e3; padding: 16px 18px;
+    border-radius: 6px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+    margin: 18px 0;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .src { font-size: 12.5px; color: var(--muted); margin-top: -10px; margin-bottom: 18px; font-family: Consolas, monospace; }
+  .aside {
+    font-size: 13.5px; color: var(--muted); border-left: 3px solid var(--accent);
+    padding: 4px 14px; margin: 20px 0; font-style: italic;
+  }
+  .aside b { color: var(--accent); font-style: normal; }
+  .stop { display: flex; gap: 14px; margin: 26px 0; align-items: flex-start; }
+  .stop .badge {
+    flex: 0 0 30px; height: 30px; border-radius: 50%;
+    border: 1.5px solid var(--accent); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .stop h3 { font-size: 17px; margin-bottom: 4px; }
+  .flow {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 18px 22px; margin: 22px 0; font-size: 15px; line-height: 2.1;
+    font-family: Consolas, monospace;
+  }
+  details { margin: 10px 0; }
+  summary { cursor: pointer; font-size: 15.5px; }
+  summary::marker { color: var(--accent); }
+  .quiz {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 24px 26px; margin: 30px 0;
+  }
+  .quiz h2 { margin-top: 0; }
+  .q { margin: 20px 0 6px; font-weight: 600; }
+  .opts { list-style: none; margin: 8px 0; }
+  .opts li { padding: 5px 0 5px 4px; }
+  .ans { font-size: 14.5px; color: var(--accent); }
+  .next {
+    border-top: 1px solid var(--rule); margin-top: 56px; padding-top: 24px;
+    font-size: 15px; color: var(--muted);
+  }
+  a { color: var(--accent); }
+  @media print {
+    body { background: #fff; font-size: 12pt; }
+    pre { background: #f5f5f5; color: #000; border: 1px solid #ccc; }
+    .quiz { border: 1.5px solid #000; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">full-stack-mall 后端课 · Lesson 4</div>
+  <h1>支付与幂等</h1>
+  <p class="goal">本课收获：能讲清"支付宝回调来了"之后后端如何证明它是真的、没被动过、且来几次都只生效一次。幂等是分布式系统的面试必考词，本课让它落地。</p>
+</header>
+
+<p style="font-size:14px;color:var(--muted);">承接 <a href="./0003-transactions-and-ordering.html">第 3 课 · 事务与下单</a>。本课主角：<code>POST /mall/payments/fake/notify</code>，教材 <code>payment/service/impl/PaymentServiceImpl.java</code>。</p>
+
+<h2><span class="no">0</span>先理解回调的三个"坏毛病"</h2>
+<p>支付结果不是前端告诉后端的，而是支付网关<strong>异步回调</strong>通知的（为什么不信前端？因为前端可以被伪造）。但回调这个信使有三个坏毛病：</p>
+<div class="flow">
+① 可能<b>是假的</b>——任何人都能往 /notify 发请求（所以它免登录，登录态管不了服务器）<br>
+② 可能<b>被改过</b>——中间人把回调里的金额 9.9 改成 0.01<br>
+③ 可能<b>来很多次</b>——网关没收到你的响应就会重发（至少一次投递语义）
+</div>
+<p>notify 方法用八步应对（<code>PaymentServiceImpl.java:84-134</code>）。下面按三道防线讲。</p>
+
+<h2><span class="no">1</span>防线一：验签——证明"你是真的支付宝"</h2>
+<pre><code>// 1. 验签：回调的可信来源是签名而非登录态
+if (!paymentProvider.verifySign(req.getPaymentNo(), req.getAmount(), req.getSign())) {
+    log.warn("支付回调验签失败：paymentNo={}", req.getPaymentNo());
+    throw new BusinessException(ResultCode.BAD_REQUEST);
+}</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/payment/service/impl/PaymentServiceImpl.java:85-89</p>
+<p>原理：商户和网关共享一个<strong>密钥</strong>。网关把 paymentNo+amount+key 做哈希得到签名 sign 一并回调；后端用同样的算法重算一遍，不一致就是假的。模拟实现用 md5，真实支付宝用 RSA 非对称密钥——思路相同：<strong>签名证明来源，而不是登录态</strong>（呼应第 1 课：/notify 被排除在 AuthInterceptor 之外，因为它根本不是浏览器请求）。</p>
+
+<h2><span class="no">2</span>防线二：金额校验——证明"你没被改过"</h2>
+<pre><code>// 5. 金额校验：回调金额必须等于应付（篡改检测）
+if (payment.getAmount().compareTo(req.getAmount()) != 0) {
+    log.warn("支付回调金额不符：...");
+    throw new BusinessException(ResultCode.BAD_REQUEST);
+}</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/payment/service/impl/PaymentServiceImpl.java:104-109</p>
+<p>验签防"伪造"，但假设密钥泄露或签名被重放呢？第二关：<strong>只信数据库里的应付金额</strong>。回调说"付了 0.01"，库里记着 9.9，直接拒。金额是后端自己的账本说了算，回调说了不算。</p>
+
+<h2><span class="no">3</span>防线三：幂等——证明"第几次来都一样"</h2>
+<p>幂等（idempotent）：同一个操作执行一次和执行 N 次，<strong>效果完全相同</strong>。网关重发三次"支付成功"，绝不能给订单加三次销量。本项目用三层结构实现：</p>
+<div class="stop"><div class="badge">1</div><div>
+<h3>第一层：已成功的直接短路</h3>
+<pre><code>// 3. 重复回调幂等：已 SUCCESS 直接返回，不重复推进
+if (payment.getStatus() == PaymentStatus.SUCCESS) {
+    return Map.of("success", true, "message", "重复回调已忽略");
+}</code></pre>
+<p class="src">PaymentServiceImpl.java:96-99</p>
+</div></div>
+<div class="stop"><div class="badge">2</div><div>
+<h3>第二层：状态机只许单向</h3>
+<pre><code>// 4. 状态机单向：仅 CREATED/PAYING 可迁移
+if (payment.getStatus() != CREATED && payment.getStatus() != PAYING) {
+    throw new BusinessException(ResultCode.PAYMENT_STATE_ILLEGAL);
+}
+// 8. 条件迁移：WHERE status IN (CREATED, PAYING)
+migratePaymentStatus(payment.getId(), SUCCESS, CREATED, PAYING);</code></pre>
+<p class="src">PaymentServiceImpl.java:100-103, 127</p>
+<p>状态机：CREATED → PAYING → SUCCESS（或 FAILED）。没有回头路，没有跳跃。条件迁移（第 3 课范式）保证并发下只有一条回调能把状态推过去。</p>
+</div></div>
+<div class="stop"><div class="badge">3</div><div>
+<h3>第三层：行数裁判决定"要不要做副作用"</h3>
+<pre><code>// 订单 PAID 条件迁移：行数 1 = 本次回调真正推进；0 = 并发/重复已推进
+private boolean migrateOrderPaid(Long orderId) {
+    int rows = orderMapper.update(... .eq("status", "PENDING_PAYMENT"));
+    return rows == 1;
+}
+// 调用处：只有真正推进的那次回调才累加销量
+if (migrateOrderPaid(order.getId())) {
+    accrueSales(order.getId());
+    markConsignmentsSold(order.getId());
+}</code></pre>
+<p class="src">PaymentServiceImpl.java:176-183, 127-132</p>
+<p>这是全课最精妙的一笔：<strong>销量累加不是无条件执行，而是"我这次真的把订单状态推过去了"才执行</strong>。三条并发回调只有一个能命中 WHERE 迁成 PAID（行数 1），只有它配累销量；另外两条撞行数 0，安静返回成功。对网关来说三次都得到 success（所以网关不再重发），对系统来说副作用只发生一次。</p>
+</div></div>
+
+<h2><span class="no">4</span>诚实工程：一个留在代码里的 TODO</h2>
+<pre><code>// TODO(Refund v2): 此分支代表"用户已扣款但订单已关"——需退款流水追踪
+if (order.getStatus() == OrderStatus.CANCELLED) {
+    log.error("订单已取消但收到支付成功回调（资金黑洞待退款追踪）：...");
+    throw new BusinessException(ResultCode.PAYMENT_STATE_ILLEGAL);
+}</code></pre>
+<p class="src">PaymentServiceImpl.java:110-120</p>
+<p>极端场景：用户拖到最后 1 秒支付，钱扣了，但订单已被惰性关单。这时钱货两空（"资金黑洞"）。本项目的选择：记 error 日志、拒绝推进、把 TODO 和设计方案（§4.5 钱的两条线）留在代码里，而不是假装问题不存在。面试时主动讲这个边界，比背八步更能体现工程判断力。</p>
+
+<h2><span class="no">5</span>FakeProvider：用假网关教真知识</h2>
+<p>没有真实支付宝，怎么闭环？项目写了一个模拟网关：收银台页面展示金额（PaymentController.java:55-100），点"完成支付"就带签名 POST /notify——<strong>数据结构、验签链路、异步回调时序与真实支付宝同款</strong>。换成真实渠道只需实现 <code>PaymentProvider</code> 接口换一家实现。这就是"抽象隔离变化"的最小教学样本。</p>
+
+<h2><span class="no">6</span>30 秒面试版（背下来）</h2>
+<p>"支付回调免登录但绝不裸奔：第一道<strong>验签</strong>证明来源是网关（共享密钥重算哈希），第二道<strong>金额校验</strong>只信库里的应付金额防篡改，第三道<strong>幂等</strong>分三层——已 SUCCESS 直接短路、状态机单向条件迁移、最后用<strong>行数裁判</strong>决定副作用：只有真正推进订单到 PAID 的那次回调才累销量，重复回调返回成功但不再产生任何写操作。另外订单已关但钱到了这种资金黑洞，我们记日志拒绝推进并留了退款流水的 TODO——边界问题显式处理而不是吞掉。"</p>
+
+<div class="quiz">
+<h2>自检测验</h2>
+<p style="color:var(--muted);font-size:14px;">先在心里作答，再点开答案。</p>
+
+<p class="q">1. 支付回调为什么靠验签而不是登录态做身份认证？</p>
+<ul class="opts">
+<li>A · 调用方是网关服务器，浏览器那套登录态管不到它</li>
+<li>B · 签名比 Cookie 校验速度快，可以撑起更高回调吞吐</li>
+<li>C · 登录态经网关转发时容易意外丢失，无法找回</li>
+<li>D · 用户可能伪造请求，所以必须用非对称加密验签</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>回调是服务器对服务器的调用，发起方不是用户的浏览器，自然没有用户的 Cookie（第 1 课讲过它被排除在 AuthInterceptor 之外）。身份的证明方式换成"共享密钥算签名"。D 的前半句对（要防伪造）但验签 symmetric md5 / 非对称 RSA 都行，"必须非对称"不成立；B/C 不是设计动机。</p></details>
+
+<p class="q">2. 同一笔支付的成功回调到达三次，本系统会怎样？</p>
+<ul class="opts">
+<li>A · 第一次推进状态累销量，后两次返回成功不再写库</li>
+<li>B · 每次都累加销量，所以去重必须依赖网关侧完成</li>
+<li>C · 第二次起抛异常报错，让网关持续重试直到人工</li>
+<li>D · 三条回调生成三张订单，分别进入并发发货流程</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>三层幂等叠加的效果：第一次回调把支付单迁成 SUCCESS、订单条件迁成 PAID（行数 1）→ 累销量；第二三次来，要么命中"已 SUCCESS 直接短路"，要么订单迁移行数 0 跳过副作用。三次都返回 success（网关满意不再重发），系统只写一次。B/D 正是幂等要防的事故；C 会让网关无限重试打爆服务。</p></details>
+
+<p class="q">3. 回调金额与数据库应付金额不一致时，正确处置是？</p>
+<ul class="opts">
+<li>A · 判为可疑请求拒绝处理，并记录警告日志追踪</li>
+<li>B · 以回调金额为准，同步更新支付单订单金额</li>
+<li>C · 取两金额中较小值，向用户收取部分款项</li>
+<li>D · 视为网关优惠活动，自动接受差额完成结算</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>金额只信自己的账（payment.getAmount()），回调金额不符 = 篡改或异常，拒绝 + 记日志。B 等于把账目主权交给外部；C/D 是玩笑式的错误选项——真实系统里任何"按回调金额改账"的想法都是资金漏洞。</p></details>
+</div>
+
+<h2>主推荐来源</h2>
+<p>支付宝开放平台官方文档 <a href="https://opendocs.alipay.com/open/203/105285">异步通知（notify）说明</a>——真实网关的"至少一次重发"行为、验签要求与本课三道防线一一对应，面试引用真实网关文档最有说服力。</p>
+
+<div class="next">
+<p><strong>想追问？</strong>把下面这段贴给 AI 智能体：</p>
+<p style="font-family:Consolas,monospace;font-size:13px;background:#f2efe8;padding:10px 14px;border-radius:6px;">我读完了 full-stack-mall 后端第 4 课（支付回调验签/金额校验/三层幂等/资金黑洞 TODO）。请基于 backend/ 真实代码继续讲：秒杀的三种扣库存策略（optimistic/pessimistic/redis）是怎么实现和切换的，各自优缺点是什么。</p>
+<p><strong>下一课预告：</strong>秒杀三策略对照——同一套下单接口，三种扣库存实现（数据库乐观 / 悲观 / Redis+MQ），以及压测数据怎么支撑选型。这是本项目最硬的一道面试题。</p>
+</div>
+
+</div>
+</body>
+</html>
