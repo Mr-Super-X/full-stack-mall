@@ -1,0 +1,95 @@
+# 生产形态全栈编排（一条命令起全栈；开发调试用 backend/docker-compose.yml + 本机 mvn）。
+# 对外仅暴露 8080（web）；基础设施与 backend 仅在容器网络内可达。
+# 压测/演示种子数据随 init.sql 全量初始化（含活动 18 + perf001~500 压测账号池——benchmark/README.md 引用，属特性非残留）。
+# 改 init.sql 后须 docker compose down -v 重建卷（mysql entrypoint 仅空数据目录初始化）。
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: mall-mysql-prod
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-mall-root}
+      MYSQL_DATABASE: mall
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      # 悲观锁对照组拐点可见性（4b 教学口径沿用）
+      - --innodb-lock-wait-timeout=5
+    volumes:
+      - mall-mysql-prod-data:/var/lib/mysql
+      - ./backend/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p$${MYSQL_ROOT_PASSWORD}" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  mall-redis:
+    image: redis:7
+    container_name: mall-redis-prod
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  mall-rabbit:
+    image: rabbitmq:3.13-management
+    container_name: mall-rabbit-prod
+    environment:
+      # guest 被 rabbitmq loopback_users 禁远程，容器网络内必 ACCESS_REFUSED——
+      # 首启建 mall/mall 替代（开发态 guest 走宿主机 loopback 不受影响）
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER:-mall}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD:-mall}
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    image: mall-backend:prod
+    container_name: mall-backend-prod
+    depends_on:
+      mysql: { condition: service_healthy }
+      mall-redis: { condition: service_healthy }
+      mall-rabbit: { condition: service_healthy }
+    environment:
+      # JVM 墙钟时区——init.sql 时间窗按 Asia/Shanghai 写入（MySQL TZ），
+      # 缺此配置 JVM 默认 UTC 致时间窗误判 40001（2026-11-11 全栈冒烟实测）
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      # 容器网络服务名注入（对齐 application.yml 的 ${VAR:default} 占位，yml 零改动）
+      DB_URL: jdbc:mysql://mysql:3306/mall?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-mall-root}
+      REDIS_HOST: mall-redis
+      REDIS_PORT: 6379
+      RABBIT_HOST: mall-rabbit
+      RABBIT_PORT: 5672
+      RABBIT_USER: ${RABBIT_USER:-mall}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD:-mall}
+      SECKILL_STRATEGY: ${SECKILL_STRATEGY:-optimistic}
+      # 教学默认值（与 application.yml 一致）；生产部署必须经环境变量覆盖
+      JWT_SECRET: ${JWT_SECRET:-dev-only-mall-jwt-secret-key-please-override-in-prod}
+      PAYMENT_SECRET: ${PAYMENT_SECRET:-dev-only-mall-payment-secret-please-override-in-prod}
+    # 不暴露宿主机端口（web 容器内反代即可）；调试可临时加 ports: ["18080:18080"]
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    image: vv-web:prod
+    container_name: mall-web-prod
+    ports:
+      - "8080:80"
+    environment:
+      API_UPSTREAM: http://backend:18080
+    depends_on:
+      backend: { condition: service_started }
+    restart: unless-stopped
+
+volumes:
+  mall-mysql-prod-data:

@@ -5,7 +5,7 @@
 # nginx 内置变量（$host/$uri/$remote_addr…）不在容器 env，不会被误替换。
 #
 # 路径语义与 dev 网关逐条对齐（scripts/node-gateway.ts 头注）：
-#   /         → 302 /portal/
+#   /         → 302 /h5/h5-mall（本项目买家端；favicon 仍指 portal 产物——h5 无 favicon 文件）
 #   /<app>/   → dist-prod/<app>/ 静态产物（未命中回退该 app 的 index.html，history SPA）
 #   /api/     → 反代 ${API_UPSTREAM}（无 URI 部分 = 原始路径原样透传；SSE 关缓冲）
 #   未匹配    → 404
@@ -35,10 +35,10 @@ server {
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()";
     add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
 
-    # ---- 根路径 302 → portal（$http_host 保留浏览器原始 Host 含端口，对齐 dev 网关
+    # ---- 根路径 302 → h5-mall 买家端（$http_host 保留浏览器原始 Host 含端口，对齐 dev 网关
     # rootRedirect 语义——防容器内监听 80 对外映射 8080 时相对 redirect 丢端口）----
     location = / {
-        return 302 $scheme://$http_host/portal/;
+        return 302 $scheme://$http_host/h5/h5-mall;
     }
 
     # 浏览器默认拉根路径 favicon：指到 portal 产物（public/ 文件构建于 /portal/ 下）
