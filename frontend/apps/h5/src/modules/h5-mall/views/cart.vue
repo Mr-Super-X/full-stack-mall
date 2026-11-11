@@ -92,6 +92,14 @@ function goCheckout(): void {
       </van-empty>
     </div>
     <template v-else>
+      <!-- 粘顶结算栏：全选/合计/去结算常驻视口顶部（sticky top），长列表无需滚回底部（2026-11-11 交互优化） -->
+      <footer :class="bem.e('bar')">
+        <van-checkbox :model-value="allChecked" @update:model-value="toggleAll">全选</van-checkbox>
+        <span :class="bem.e('total')">合计 <b>¥{{ checkedTotal }}</b></span>
+        <van-button round type="primary" :disabled="checkedIds.size === 0" @click="goCheckout">
+          去结算（{{ checkedIds.size }}）
+        </van-button>
+      </footer>
       <article
         v-for="item in list ?? []"
         :key="item.id"
@@ -123,13 +131,6 @@ function goCheckout(): void {
       </article>
     </template>
 
-    <footer v-if="!isEmpty && (list?.length ?? 0) > 0" :class="bem.e('bar')">
-      <van-checkbox :model-value="allChecked" @update:model-value="toggleAll">全选</van-checkbox>
-      <span :class="bem.e('total')">合计 <b>¥{{ checkedTotal }}</b></span>
-      <van-button round type="primary" :disabled="checkedIds.size === 0" @click="goCheckout">
-        去结算（{{ checkedIds.size }}）
-      </van-button>
-    </footer>
     <MallToast :visible="visible" :message="message" />
   </div>
 </template>
@@ -213,15 +214,19 @@ function goCheckout(): void {
   }
 
   &__bar {
+    // 粘顶常驻视口顶部：sticky 相对 body 滚动吸附——结算栏在文档流前部（条目上方），
+    // 向下滚动时吸在 top:0 直至容器底部长列表滚完；无需滚回底部即可结算（2026-11-11 交互优化）。
+    // 顶部负边距向容器外扩实现全宽（容器有 32px 内边距）
     position: sticky;
-    bottom: 0;
+    top: 0;
     display: flex;
     align-items: center;
     gap: 24px;
-    margin: 32px -32px -32px;
-    padding: 24px 32px calc(24px + env(safe-area-inset-bottom));
+    margin: -32px -32px 32px;
+    padding: 24px 32px;
     background: var(--mall-bg-card);
-    border-top: 1px solid var(--mall-line);
+    border-bottom: 1px solid var(--mall-line);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
   }
 
   &__total {
