@@ -219,6 +219,9 @@ function goCheckout(): void {
     // 顶部负边距向容器外扩实现全宽（容器有 32px 内边距）
     position: sticky;
     top: 0;
+    // 浮在滚经的条目之上：sticky 与后续兄弟同层时按文档顺序后绘制者覆盖，
+    // 无 z-index 则条目勾选/卡片穿透结算栏（2026-11-11 穿模实证）
+    z-index: 2;
     display: flex;
     align-items: center;
     gap: 24px;
