@@ -36,10 +36,38 @@ function onSearch(): void {
   if (active instanceof HTMLElement) active.blur()
 }
 
-/** 点击历史/热搜词：记录并触发查询 */
+/** 点击历史/热搜词：记录并触发查询，同时收起面板展示结果态（v-else 列表仅在非输入态渲染） */
 function onPickWord(word: string): void {
   addHistory(word)
   keyword.value = word
+  searchFocused.value = false
+}
+
+/** 取消：清空关键词并退出输入态（收起面板回浏览态） */
+function onCancel(): void {
+  keyword.value = ''
+  searchFocused.value = false
+}
+
+/**
+ * 容器焦点出界才退出输入态。focusout 冒泡先于 click：点击目标是容器内元素
+ * （历史/热搜 chip、清空、取消）时 relatedTarget 仍在容器内，若此时卸载面板，
+ * mousedown 与 click 之间的元素已消失，click 被吃掉（2026-11-11 实测回归）。
+ */
+function onContainerFocusOut(e: FocusEvent): void {
+  const next = e.relatedTarget as HTMLElement | null
+  if (next && (e.currentTarget as HTMLElement).contains(next)) return
+  searchFocused.value = false
+}
+
+/**
+ * 仅搜索框聚焦进入输入态。容器上 focusin 会冒泡自任何可聚焦元素——浏览态点
+ * 排序按钮/商品链接（a/button 聚焦）若置 true，v-if 面板插入 + v-else 列表卸载，
+ * 会把 mousedown 后未触发的 click 吃掉（商品点击无响应的根因，2026-11-11 实测）。
+ */
+function onContainerFocusIn(e: FocusEvent): void {
+  const target = e.target as HTMLElement
+  if (target.closest('.van-search')) searchFocused.value = true
 }
 
 function onLoadMore(): void {
@@ -58,8 +86,10 @@ function showConditionTag(item: MallGoodsItem): boolean {
 </script>
 
 <template>
-  <!-- focusin/focusout 冒泡，容器上监听即可捕获 van-search 内部 input 的焦点变化 -->
-  <div :class="bem.b()" @focusin="searchFocused = true" @focusout="searchFocused = false">
+  <!-- focusin 仅在搜索框聚焦时进入输入态（见 onContainerFocusIn）；focusout 需
+       relatedTarget 判断（见 onContainerFocusOut），否则点击面板内元素时面板先于
+       click 卸载，chip/清空/取消全部失灵 -->
+  <div :class="bem.b()" @focusin="onContainerFocusIn" @focusout="onContainerFocusOut">
     <!-- 搜索栏 -->
     <van-search
       v-model="keyword"
@@ -67,7 +97,7 @@ function showConditionTag(item: MallGoodsItem): boolean {
       show-action
       :class="bem.e('search')"
       @search="onSearch"
-      @cancel="keyword = ''"
+      @cancel="onCancel"
     />
 
     <!-- 输入态：搜索历史 + 热搜词（搜索框聚焦时显示；失焦回列表态，避免分类 tab 入口看不到商品） -->

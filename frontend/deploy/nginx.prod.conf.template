@@ -33,7 +33,9 @@ server {
     add_header X-Frame-Options DENY;
     add_header Referrer-Policy strict-origin-when-cross-origin;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()";
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
+    # img-src 放开 picsum（种子商品图外链；302 → fastly.picsum.photos 实际出图域名）；
+    # font-src 放开 iconfont（vant 图标字体 at.alicdn.com——CSP 拦截会导致全部图标空白）
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://picsum.photos https://fastly.picsum.photos; font-src 'self' data: https://at.alicdn.com http://at.alicdn.com; connect-src 'self'; frame-ancestors 'none'";
 
     # ---- 根路径 302 → h5-mall 买家端（$http_host 保留浏览器原始 Host 含端口，对齐 dev 网关
     # rootRedirect 语义——防容器内监听 80 对外映射 8080 时相对 redirect 丢端口）----
@@ -55,7 +57,9 @@ server {
         add_header X-Frame-Options DENY;
         add_header Referrer-Policy strict-origin-when-cross-origin;
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=()";
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
+        # img-src 放开 picsum（种子商品图外链；302 → fastly.picsum.photos 实际出图域名）；
+    # font-src 放开 iconfont（vant 图标字体 at.alicdn.com——CSP 拦截会导致全部图标空白）
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://picsum.photos https://fastly.picsum.photos; font-src 'self' data: https://at.alicdn.com http://at.alicdn.com; connect-src 'self'; frame-ancestors 'none'";
         try_files $uri =404;
     }
 
