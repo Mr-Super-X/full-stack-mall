@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 2 课 · 登录注册与 JWT — full-stack-mall 后端课</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --accent: #8c2f2f;
+    --muted: #666;
+    --rule: #d9d9d9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Palatino Linotype", Palatino, Georgia, "Songti SC", "SimSun", serif;
+    color: var(--ink);
+    background: #fdfcf9;
+    line-height: 1.75;
+    font-size: 17px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 64px 24px 120px; }
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 40px; }
+  .kicker { font-size: 13px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; }
+  h1 { font-size: 30px; font-weight: 600; margin-top: 8px; }
+  .goal { color: var(--muted); font-style: italic; margin-top: 10px; }
+  h2 { font-size: 22px; font-weight: 600; margin: 48px 0 16px; }
+  h2 .no { color: var(--accent); margin-right: 8px; }
+  p { margin: 14px 0; }
+  code {
+    font-family: "SF Mono", Consolas, "Courier New", monospace;
+    font-size: 0.86em;
+    background: #f2efe8;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    background: #2b2b2b; color: #e8e6e3; padding: 16px 18px;
+    border-radius: 6px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+    margin: 18px 0;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .src { font-size: 12.5px; color: var(--muted); margin-top: -10px; margin-bottom: 18px; font-family: Consolas, monospace; }
+  .aside {
+    font-size: 13.5px; color: var(--muted); border-left: 3px solid var(--accent);
+    padding: 4px 14px; margin: 20px 0; font-style: italic;
+  }
+  .aside b { color: var(--accent); font-style: normal; }
+  .stop { display: flex; gap: 14px; margin: 26px 0; align-items: flex-start; }
+  .stop .badge {
+    flex: 0 0 30px; height: 30px; border-radius: 50%;
+    border: 1.5px solid var(--accent); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .stop h3 { font-size: 17px; margin-bottom: 4px; }
+  .flow {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 18px 22px; margin: 22px 0; font-size: 15px; line-height: 2.1;
+    font-family: Consolas, monospace;
+  }
+  details { margin: 10px 0; }
+  summary { cursor: pointer; font-size: 15.5px; }
+  summary::marker { color: var(--accent); }
+  .quiz {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 24px 26px; margin: 30px 0;
+  }
+  .quiz h2 { margin-top: 0; }
+  .q { margin: 20px 0 6px; font-weight: 600; }
+  .opts { list-style: none; margin: 8px 0; }
+  .opts li { padding: 5px 0 5px 4px; }
+  .ans { font-size: 14.5px; color: var(--accent); }
+  .next {
+    border-top: 1px solid var(--rule); margin-top: 56px; padding-top: 24px;
+    font-size: 15px; color: var(--muted);
+  }
+  a { color: var(--accent); }
+  @media print {
+    body { background: #fff; font-size: 12pt; }
+    pre { background: #f5f5f5; color: #000; border: 1px solid #ccc; }
+    .quiz { border: 1.5px solid #000; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">full-stack-mall 后端课 · Lesson 2</div>
+  <h1>登录注册与 JWT</h1>
+  <p class="goal">本课收获：能完整讲出你的密码如何变成一枚 token、又如何被验回来——以及三处安全设计（BCrypt、同文案、HttpOnly）各自挡住了什么攻击。这是面试必问区。</p>
+</header>
+
+<p style="font-size:14px;color:var(--muted);">承接 <a href="./0001-anatomy-of-a-request.html">第 1 课 · 一次请求的完整旅程</a>。本课主角：<code>POST /mall/auth/login</code>。</p>
+
+<div class="flow">
+密码明文 ──→ ① BCrypt 校验 ──→ ② JWT 签发 ──→ ③ 写入 HttpOnly Cookie<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑<br>
+数据库比对哈希 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;④ 之后每次请求：拦截器验签 → UserContext
+</div>
+
+<h2><span class="no">1</span>第一站：密码的存与验——BCrypt</h2>
+<p>注册时密码<strong>永远不明文入库</strong>。<code>AuthServiceImpl.java:40</code>：</p>
+<pre><code>// 注册：密码经 BCrypt 散列后才落库
+user.setPassword(passwordEncoder.encode(req.getPassword()));</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/user/service/impl/AuthServiceImpl.java:38-44</p>
+<p>登录时也不是"解密比对"——BCrypt 是<strong>单向</strong>算法，不可逆。它用一种叫"盐"（salt）的随机佐料把密码搅成哈希，登录时 <code>matches(明文, 库中哈希)</code> 在算法内部重演搅拌过程，看结果是否一致（<code>AuthServiceImpl.java:53</code>）。</p>
+<div class="aside"><b>面试点：</b>BCrypt 自带盐，同一密码每次哈希结果都不同，彩虹表（预计算哈希对照表）直接失效；且它故意设计得很"慢"，拖慢攻击者暴力破解的速度。泄露数据库也泄露不了可逆的密码。</div>
+<div class="aside"><b>第二个安全设计：</b><code>AuthServiceImpl.java:52-54</code>——用户不存在和密码错误<strong>返回同文案</strong>。否则攻击者拿"用户不存在"和"密码错误"两种响应的差异，就能逐个试探哪些账号已注册（账号枚举）。</div>
+
+<h2><span class="no">2</span>第二站：JWT 签发——一枚自包含的凭证</h2>
+<p>校验通过后，Controller 调 <code>JwtService.sign(...)</code> 造 token（<code>JwtService.java:33-43</code>）：</p>
+<pre><code>return Jwts.builder()
+        .subject(String.valueOf(userId))     // 主题：谁
+        .claim("username", username)         // 自定义行李
+        .claim("role", role)                 // 角色也装进去（Admin 校验要用）
+        .issuedAt(Date.from(now))            // 签发时间
+        .expiration(Date.from(now.plus(expireHours, ...)))  // 过期时间
+        .signWith(key)                       // 用密钥签名（HS256）
+        .compact();</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/user/service/JwtService.java:33-43</p>
+<p>JWT 本质是一张"签了名的 JSON 名片"，分三段：<strong>头部</strong>（算法声明）· <strong>载荷</strong>（上面的 userId/username/role/时间）· <strong>签名</strong>。关键认知：<strong>载荷只是 Base64 编码，没有加密</strong>——任何人解开都能看到里面写了什么；签名保证的是"没人能篡改它"。所以 JWT 里绝不能放密码等敏感信息。</p>
+<div class="aside"><b>边界纪律（面试加分句）：</b>JwtService 的类注释写明"只做凭证换算，不碰数据库；解析失败原样抛异常，由 AuthInterceptor 翻译成 401——此处不消化异常"。一个类只干一件事，错误的翻译权归调用方。</div>
+
+<h2><span class="no">3</span>第三站：写入 Cookie——三个属性的攻防</h2>
+<pre><code>ResponseCookie cookie = ResponseCookie.from(cookieName, token)
+        .httpOnly(true)      // JS 读不到 → 防 XSS 偷凭证
+        .sameSite("Lax")     // 跨站请求默认不带 → 防 CSRF
+        .path("/api")        // 只随 API 请求发送，缩小暴露面
+        .maxAge(maxAgeSeconds)
+        .build();</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/user/controller/AuthController.java:69-77</p>
+<div class="aside"><b>为什么 logout 也要服务端来做？</b>HttpOnly 意味着前端 JS 删不掉这枚 Cookie（这正是它的安全价值）。所以 <code>logout</code> 由服务端"原名单发一枚 maxAge=0 的同名 Cookie"把它顶掉（AuthController.java:57-62）。安全设计的代价，由服务端兜回来。</div>
+
+<h2><span class="no">4</span>回程：每次请求如何验回来</h2>
+<p>第 1 课讲过：拦截器从 Cookie 取 token → <code>jwtService.parse(token)</code> 验签名+查过期 → 装进 <code>UserContext</code>。两个细节值得再看：</p>
+<p>① 验签失败（过期/篡改/格式错）<strong>统一翻译成"未登录"</strong>，不区分原因——不向外泄 JWT 细节（AuthInterceptor.java:35-38）。</p>
+<p>② <code>UserContext</code> 提供两个 API（<code>UserContext.java:22-33</code>）：<code>get()</code> 可能返回 null（匿名路径要自行判空）；<code>getRequired()</code> 直接抛 401（受保护路径专用，省掉每个 Controller 手写判空）。</p>
+
+<h2><span class="no">5</span>30 秒面试版（背下来）</h2>
+<p>"密码用 BCrypt 单向散列入库，自带盐、故意慢，抗彩虹表抗爆破；登录时'用户不存在'和'密码错误'同文案，防账号枚举。校验通过后签发 JWT——载荷装 userId/username/role，Base64 不加密所以不放敏感信息，签名防篡改。token 写进 HttpOnly Cookie，JS 读不到防 XSS，SameSite=Lax 防 CSRF。之后每次请求拦截器验签装 ThreadLocal，验签失败统一 401 不外泄原因；请求结束必须 clear，因为 Tomcat 线程复用。"</p>
+
+<div class="quiz">
+<h2>自检测验</h2>
+<p style="color:var(--muted);font-size:14px;">先在心里作答，再点开答案。</p>
+
+<p class="q">1. 登录接口为什么把"用户不存在"和"密码错误"设计成同文案？</p>
+<ul class="opts">
+<li>A · 防攻击者拿响应差异试探账号是否已经注册</li>
+<li>B · 减少响应内容长度从而提升接口传输性能</li>
+<li>C · 便于前端统一处理而无需区分两种错误</li>
+<li>D · 避免数据库重复查询造成连接池压力</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>AuthServiceImpl.java:52 注释直说"防账号枚举"。如果两种错误文案不同，攻击者注册前先拿用户名打一遍登录接口，"用户不存在"的就是可攻击目标。B/C/D 都是顺带效果或臆想，不是设计动机。</p></details>
+
+<p class="q">2. Cookie 的 HttpOnly 属性挡住的是哪种攻击？</p>
+<ul class="opts">
+<li>A · 前端 JS 脚本读取凭证，配合 XSS 完成窃取</li>
+<li>B · 明文传输被嗅探，凭证在链路上被直接截获</li>
+<li>C · 跨站请求伪造，诱导浏览器带 Cookie 发起操作</li>
+<li>D · 恶意网站通过同源策略越权读取响应内容</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>HttpOnly = 浏览器禁止 document.cookie 读取，XSS 注入的脚本偷不走凭证。B 是 HTTPS 要解决的问题，C 是 SameSite 要解决的问题（本项目配 Lax），D 说的是 CORS。四个属性各司其职，别张冠李戴。</p></details>
+
+<p class="q">3. JWT 的签名（signature）究竟保证了什么？</p>
+<ul class="opts">
+<li>A · 令牌内容自签发后没有被任何人篡改过</li>
+<li>B · 令牌载荷已被加密，他人无法读取其中数据</li>
+<li>C · 令牌可在任意多个不同域名间共享会话</li>
+<li>D · 服务端可以随时吊销这枚令牌的生效资格</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>签名 = 用密钥对头部+载荷做 HMAC，改一个字节验签就失败。B 错——载荷只是 Base64 编码，人人可读，所以不放密码；C 与签名无关；D 恰恰相反——JWT 无状态的好处是可水平扩展，代价就是服务端没法主动吊销，只能等它过期（本项目 expire-hours 到期自然失效）。</p></details>
+</div>
+
+<h2>主推荐来源</h2>
+<p><a href="https://jwt.io/introduction">jwt.io — Introduction to JSON Web Tokens</a>：左侧输入任意 JWT 即可实时看到三段解码结果，是本课"Base64 不加密"最直观的验证工具。</p>
+
+<div class="next">
+<p><strong>想追问？</strong>把下面这段贴给 AI 智能体：</p>
+<p style="font-family:Consolas,monospace;font-size:13px;background:#f2efe8;padding:10px 14px;border-radius:6px;">我读完了 full-stack-mall 后端第 2 课（BCrypt/JWT/HttpOnly Cookie）。请基于 backend/ 真实代码继续讲：AdminInterceptor 是怎么做角色校验的，以及为什么有了 token 里的 role 还要查一次库。</p>
+<p><strong>下一课预告：</strong>事务与下单——"下单"这个动作为什么必须是一个不可分割的事务，以及条件 UPDATE 怎么防止两个人同时买走最后一件。</p>
+</div>
+
+</div>
+</body>
+</html>

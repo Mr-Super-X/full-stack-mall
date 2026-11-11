@@ -11,6 +11,7 @@
 ## 当前进度
 
 - 第 1 课（一次请求的完整旅程）：已交付 → `lessons/0001-anatomy-of-a-request.html`
+- 第 2 课（登录注册与 JWT）：已交付 → `lessons/0002-login-and-jwt.html`
 
 ## 教学约束
 
