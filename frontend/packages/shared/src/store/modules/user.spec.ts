@@ -65,7 +65,7 @@ beforeEach(() => {
 })
 
 describe('userStore.login()', () => {
-  it('成功路径：写登录标记 + 拉 profile + 预加载字典', async () => {
+  it('成功路径：写登录标记 + 拉 profile（不预载模板字典）', async () => {
     mockAuthLogin.mockResolvedValueOnce({ profile: { id: 1, name: 'Admin' } })
     mockAuthFetchProfile.mockResolvedValueOnce({
       id: 1,
@@ -83,21 +83,9 @@ describe('userStore.login()', () => {
     expect(mockAuthFetchProfile).toHaveBeenCalledTimes(1)
     expect(store.profile).toEqual({ id: 1, name: 'Admin', permissions: ['user:view'] })
     expect(store.permissions).toEqual(['user:view'])
-    expect(mockPreloadDict).toHaveBeenCalledTimes(1)
-  })
-
-  it('字典预加载失败不阻塞登录（console.warn 兜底）', async () => {
-    mockAuthLogin.mockResolvedValueOnce({})
-    mockAuthFetchProfile.mockResolvedValueOnce({ id: 1, name: 'A', permissions: [] })
-    mockPreloadDict.mockRejectedValueOnce(new Error('dict error'))
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const store = useUserStore()
-
-    await store.login({ username: 'admin', password: '123456' })
-
-    expect(store.isLoggedIn).toBe(true)
-    expect(warn).toHaveBeenCalled()
-    warn.mockRestore()
+    // 存量修复（2026-11-11）：PRELOAD_DICT_KEYS(user_status/role) 为模板遗留字典，mall 后端无
+    // /dict 端点，预载只会触发 500 toast——业务模块零字典消费，登录不再预载
+    expect(mockPreloadDict).not.toHaveBeenCalled()
   })
 })
 

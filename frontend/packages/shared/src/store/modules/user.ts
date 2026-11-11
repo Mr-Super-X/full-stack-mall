@@ -18,7 +18,6 @@ import { defineStore } from 'pinia'
 import { authApi, type LoginPayload, type UserProfile } from '../../api/modules/auth.ts'
 import { Session } from '../../utils/storage.ts'
 import { globalAbort } from '../../api/global-abort.ts'
-import { useDictStore } from './dict'
 
 /**
  * 本地登录态复位时的附加清理钩子注册表（app 侧在启动期注册）。
@@ -51,12 +50,8 @@ export const useUserStore = defineStore('user', () => {
     Session.set('auth', true)
     authenticated.value = true
     await fetchProfile()
-    // 登录成功后预加载常用字典（失败不阻塞登录流程，5min TTL 兜底）
-    try {
-      await useDictStore().preloadDict()
-    } catch (err) {
-      console.warn('[user] 字典预加载失败（不阻塞登录流程）:', err)
-    }
+    // 不预载模板字典：PRELOAD_DICT_KEYS(user_status/role) 为模板遗留，mall 后端无 /dict 端点，
+    // 预载只触发 500 toast；业务模块零字典消费，useDict 声明式加载仍在（dict.ts 保留）
   }
 
   /**

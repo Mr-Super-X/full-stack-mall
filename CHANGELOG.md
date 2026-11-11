@@ -18,6 +18,9 @@
 - **后端容器时区修正** `JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Shanghai`——init.sql 时间窗按上海墙钟写入，JVM 默认 UTC 致秒杀时间窗误判 40001（全栈冒烟实测捕获）
 - **nginx 根 302 → /h5/h5-mall**（favicon/portal 落地页保留可访问）
 
+#### 前端
+- **存量修复：登录不再预载模板字典**——`PRELOAD_DICT_KEYS(user_status/role)` 为模板遗留，mall 后端无 `/dict` 端点，登录后预载触发 500「系统繁忙」toast ×2（订单页可见）；业务模块零字典消费（useDict 声明式加载保留在 dict.ts），user store 登录路径移除 preloadDict 调用（user.spec 断言反转）
+
 #### 文档
 - **README 作品集化**：黄金一页「技术亮点」区（4b 压测三层证据摘要：三实现对照数字 + 取舍金句 + 证据链接）+「功能截图」区六张全栈实截（h5 买家链路/admin/RabbitMQ 队列）+ 深读索引
 - **截图素材入库** `docs/screenshots/`（六张，全栈容器实截）
