@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 5 课 · 秒杀三策略对照 — full-stack-mall 后端课</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --accent: #8c2f2f;
+    --muted: #666;
+    --rule: #d9d9d9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Palatino Linotype", Palatino, Georgia, "Songti SC", "SimSun", serif;
+    color: var(--ink);
+    background: #fdfcf9;
+    line-height: 1.75;
+    font-size: 17px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 64px 24px 120px; }
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 40px; }
+  .kicker { font-size: 13px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; }
+  h1 { font-size: 30px; font-weight: 600; margin-top: 8px; }
+  .goal { color: var(--muted); font-style: italic; margin-top: 10px; }
+  h2 { font-size: 22px; font-weight: 600; margin: 48px 0 16px; }
+  h2 .no { color: var(--accent); margin-right: 8px; }
+  p { margin: 14px 0; }
+  code {
+    font-family: "SF Mono", Consolas, "Courier New", monospace;
+    font-size: 0.86em;
+    background: #f2efe8;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    background: #2b2b2b; color: #e8e6e3; padding: 16px 18px;
+    border-radius: 6px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+    margin: 18px 0;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .src { font-size: 12.5px; color: var(--muted); margin-top: -10px; margin-bottom: 18px; font-family: Consolas, monospace; }
+  .aside {
+    font-size: 13.5px; color: var(--muted); border-left: 3px solid var(--accent);
+    padding: 4px 14px; margin: 20px 0; font-style: italic;
+  }
+  .aside b { color: var(--accent); font-style: normal; }
+  .stop { display: flex; gap: 14px; margin: 26px 0; align-items: flex-start; }
+  .stop .badge {
+    flex: 0 0 30px; height: 30px; border-radius: 50%;
+    border: 1.5px solid var(--accent); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .stop h3 { font-size: 17px; margin-bottom: 4px; }
+  .flow {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 18px 22px; margin: 22px 0; font-size: 15px; line-height: 2.1;
+    font-family: Consolas, monospace;
+  }
+  table.data {
+    width: 100%; border-collapse: collapse; margin: 22px 0; font-size: 14.5px;
+  }
+  table.data th, table.data td {
+    border: 1px solid var(--rule); padding: 7px 10px; text-align: left;
+  }
+  table.data th { background: #f2efe8; }
+  details { margin: 10px 0; }
+  summary { cursor: pointer; font-size: 15.5px; }
+  summary::marker { color: var(--accent); }
+  .quiz {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 24px 26px; margin: 30px 0;
+  }
+  .quiz h2 { margin-top: 0; }
+  .q { margin: 20px 0 6px; font-weight: 600; }
+  .opts { list-style: none; margin: 8px 0; }
+  .opts li { padding: 5px 0 5px 4px; }
+  .ans { font-size: 14.5px; color: var(--accent); }
+  .next {
+    border-top: 1px solid var(--rule); margin-top: 56px; padding-top: 24px;
+    font-size: 15px; color: var(--muted);
+  }
+  a { color: var(--accent); }
+  @media print {
+    body { background: #fff; font-size: 12pt; }
+    pre { background: #f5f5f5; color: #000; border: 1px solid #ccc; }
+    .quiz { border: 1.5px solid #000; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">full-stack-mall 后端课 · Lesson 5</div>
+  <h1>秒杀三策略对照</h1>
+  <p class="goal">本课收获：同一套下单接口背后的三种扣库存实现——数据库乐观锁、悲观锁、Redis+MQ 异步——各自原理、代价、以及压测数据怎么支撑选型。这是本项目最硬的一道面试题，也是"你项目里最难的技术点"的标准答案。</p>
+</header>
+
+<p style="font-size:14px;color:var(--muted);">承接 <a href="./0004-payments-and-idempotency.html">第 4 课 · 支付与幂等</a>。本课主角：<code>POST /mall/seckill/{id}/orders</code>。</p>
+
+<h2><span class="no">0</span>先定义问题：秒杀难在哪</h2>
+<p>一万个人抢<strong>同一件商品的 10 件库存</strong>。难在三点：</p>
+<div class="flow">
+① 热点行——所有请求 UPDATE 同一行，数据库行锁变成串行排队<br>
+② 超卖即资损——卖出 11 件 = 平台赔 1 件 + 客诉，<b>正确性高于一切</b><br>
+③ 突发流量——0 点整请求洪峰，同步落库的事务越长排队越惨
+</div>
+
+<h2><span class="no">1</span>一个开关，三种实现</h2>
+<p>三策略不是三个接口，而是<strong>同一个 placeOrder 契约下的三个实现</strong>，靠配置切换（<code>SeckillProperties.java:15</code>，环境变量 <code>SECKILL_STRATEGY</code>），分派就在 Service 里（<code>SeckillServiceImpl.java:280-288</code>）：</p>
+<pre><code>// 5. redis 策略：Lua 预扣 + 受理落库 + 提交后发 MQ（受理即返）
+if (seckillProperties.getStrategy() == SeckillDeductStrategy.REDIS) {
+    return placeOrderRedis(userId, activity, item, req);
+}
+// 6. 扣独立池：optimistic 条件更新 / pessimistic FOR UPDATE
+switch (seckillProperties.getStrategy()) {
+    case PESSIMISTIC -&gt; pessimisticDeductor.deduct(activityId);
+    default -&gt; deductStock(activityId);   // OPTIMISTIC
+}</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/seckill/service/impl/SeckillServiceImpl.java:280-288</p>
+<div class="aside"><b>对照实验的公平性怎么保证？</b>——前后置步骤（查活动/惰性推进/挂载校验/限购/建单）完全一致，只有"扣库存"这一步的实现不同。这是压测数字可比的前提（建单三步还抽了共用 <code>SeckillOrderAssembler</code>）。</div>
+
+<h2><span class="no">2</span>策略一 · OPTIMISTIC：条件更新（第 3 课范式的复用）</h2>
+<pre><code>// UPDATE seckill_activity SET sold_count = sold_count + 1
+//   WHERE id = ? AND sold_count &lt; seckill_stock   ← 行数 0 = 抢完</code></pre>
+<p>就是第 3 课"条件 UPDATE + 行数裁判"。优点：实现简单、无锁等待；缺点：大量并发下所有人挤同一行，UPDATE 排队，响应时延随并发线性涨。它是<strong>默认策略</strong>（4a 形态），也是其余两策略的对照基线。</p>
+
+<h2><span class="no">3</span>策略二 · PESSIMISTIC：FOR UPDATE 行锁（对照组）</h2>
+<pre><code>// DbPessimisticDeductor.java:32-49
+SeckillActivity locked = seckillActivityMapper.selectForUpdate(activityId);  // 锁行
+if (sold &gt;= locked.getSeckillStock()) throw ...SOLD_OUT;
+// 锁内再条件更新双保险
+int rows = seckillActivityMapper.update(... .ge("sold_count", sold));</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/seckill/service/DbPessimisticDeductor.java:32-49</p>
+<p><strong>先 SELECT ... FOR UPDATE 把行锁住，别人排队等我提交</strong>。语义最直白，但吞吐上限被行锁串行化锁死，且锁等待会放大拐点。类注释写明它是"压测/教学用途，故意保留锁等待/死锁风险"——作为对照组存在的意义，是让压测曲线替你说出"悲观锁在这种热点场景为什么不行"。</p>
+
+<h2><span class="no">4</span>策略三 · REDIS：Lua 预扣 + MQ 异步出单（4b 主形态）</h2>
+<div class="stop"><div class="badge">1</div><div>
+<h3>关口：一段 Lua 脚本把"判库存+占位+扣减"焊成原子操作</h3>
+<pre><code>local stock = tonumber(redis.call('GET', KEYS[1]) or -1)
+if stock &lt; 0 then return -1 end        -- 关口缺失
+if stock == 0 then return 0 end        -- 抢完
+if redis.call('SET', KEYS[2], ARGV[1], 'NX', 'EX', 900) == false
+   then return -2 end                    -- 已占位（限购）
+redis.call('DECR', KEYS[1])              -- 扣 1
+return 1</code></pre>
+<p class="src">RedisStockDeductor.java:38-51（三分支脚本：1 成功 / 0 抢完 / -1 缺失 / -2 已占位）</p>
+<p>Redis 执行 Lua 脚本时<strong>不会插入其他命令</strong>——判库存、占位（一人一场，TTL 900s 对齐订单超时）、扣减三步物理上不可分割，超卖在 Redis 层<strong>不可能发生</strong>。DB 从此退居"真相源"：关口 key 丢了用 (seckill_stock - sold_count) 自愈重建。</p>
+</div></div>
+<div class="stop"><div class="badge">2</div><div>
+<h3>受理即返：同步路径里最贵的一步被搬出请求线程</h3>
+<pre><code>// placeOrderRedis 时序（SeckillServiceImpl.java:415-448）：
+1. Lua 预扣                      ← 毫秒级
+2. 地址校验 + 受理记录落库        ← 小事务（ACCEPTED 受理表）
+3. afterCommit 发 MQ             ← 事务提交后才发
+4. return (orderNo, null)        ← 用户立刻拿到"排队凭证"，paymentNo 为空</code></pre>
+<p class="src">SeckillServiceImpl.java:415-448</p>
+<p>对比：OPTIMISTIC/PESSIMISTIC 是<strong>七步事务同步建单</strong>（返回 orderNo + paymentNo，用户直接在收银台）；REDIS 是<strong>受理即返</strong>（只返回 orderNo，paymentNo 为 null），前端拿 orderNo 轮询 <code>/mall/seckill/orders/{orderNo}</code>，MQ 消费者异步建单成功后才拿到 paymentNo 进收银台。<strong>请求线程不等落库事务，时延与落库压力解耦</strong>。</p>
+</div></div>
+<div class="stop"><div class="badge">3</div><div>
+<h3>一致性细节：每个失败路径都有补偿</h3>
+<pre><code>// 事务段失败 → 回补 Redis（SeckillServiceImpl.java:429-432）
+} catch (RuntimeException e) {
+    redisStockDeductor.restoreStock(activity.getId());  // INCR 还回去
+    throw e;
+}
+// MQ 发送失败 → 受理置 FAILED + Redis 回补（:451-462）
+// 消费失败 3 次 → 进 DLX，DlxMonitor 自动回补（受理 FAILED + 关口复原）
+// 重复消费 → 消费者按 orderNo 幂等查重，订单恒 1</code></pre>
+<div class="aside"><b>关键取舍：</b>Redis 宕机时<strong>拒绝服务（503 + 40005），不降级回 DB</strong>——降级会让 Redis 和 DB 两本账真相分裂，宁可拒绝不可超卖。这就是"最终一致，宁可少卖不超卖"（超卖=资损+客诉，少卖=损失一次成交，代价不对称）。</div>
+</div></div>
+
+<h2><span class="no">5</span>压测数据：数字替你说话</h2>
+<table class="data">
+<tr><th>成功单 avg(ms)</th><th>20</th><th>50</th><th>100</th><th>200</th><th>500</th></tr>
+<tr><td>optimistic</td><td>22</td><td>96</td><td>102</td><td>363</td><td><b>1345</b></td></tr>
+<tr><td>pessimistic</td><td>405*</td><td>91</td><td>121</td><td>260</td><td><b>1658</b></td></tr>
+<tr><td>redis</td><td>23</td><td><b>24</b></td><td>170</td><td>189</td><td><b>954</b></td></tr>
+<tr><td>超卖/少卖（15 组）</td><td colspan="5">全 0 / 全 0</td></tr>
+</table>
+<p class="src">backend/benchmark/README.md 三实现 × 五档并发矩阵（2026-11-10 实测）</p>
+<p>解读三点：① redis 趟时延曲线整体最低（T=50 时 24ms vs 91/96ms）——<strong>受理即返把落库排队转移到 MQ 消费侧，对调用方不可见</strong>；② 中低并发下悲观/乐观几乎等效（单行锁微秒级），悲观的教学价值在更大口径才显现；③ <strong>诚实边界</strong>：10 件库存 + 本机 Docker 测不出爆炸拐点，&gt;500 未测如实标注——面试官最吃"我知道我的数据边界在哪"。</p>
+
+<h2><span class="no">6</span>30 秒面试版（背下来）</h2>
+<p>"秒杀我们用同一接口做了三种扣库存实现，一个配置开关切换跑对照压测。<strong>乐观锁</strong>是条件 UPDATE 行数守卫，简单但高并发挤热点行；<strong>悲观锁</strong> FOR UPDATE 锁行，吞吐被串行化锁死，留作教学对照组；最终选型 <strong>Redis Lua 预扣 + RabbitMQ 异步出单</strong>——Lua 把判库存、一人一场占位、扣减焊成原子操作，超卖在 Redis 层物理不可能；DB 退为真相源支持自愈重建。下单线程只做 Lua 预扣 + 受理表小事务，提交后 afterCommit 发 MQ 异步建单，受理即返，前端轮询拿 paymentNo。每个失败路径都有补偿：事务回滚/MQ 失败补 Redis INCR，消费失败进 DLX 由监控器回补，重复消费靠 orderNo 幂等。Redis 宕机我们选择 503 拒绝而不是降级 DB——宁可少卖不超卖。JMeter 五档并发实测：redis 趟 T=500 时延 954ms vs 同步方案 1345/1658ms，15 组压测超卖少卖全零。"</p>
+
+<div class="quiz">
+<h2>自检测验</h2>
+<p style="color:var(--muted);font-size:14px;">先在心里作答，再点开答案。</p>
+
+<p class="q">1. 为什么 Lua 脚本能从物理上杜绝超卖？</p>
+<ul class="opts">
+<li>A · 脚本执行中间不会插入任何其他客户端命令</li>
+<li>B · Redis 把库存 key 标记为只读禁止外部修改</li>
+<li>C · 脚本运行前会自动对库存 key 加分布式锁</li>
+<li>D · Redis 单线程模型执行期间拒绝一切连接</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>Redis 保证同一时刻只有一个 Lua 脚本在执行，脚本内多条命令之间不会有其他命令插队——判库存、占位、DECR 三步不可分割，自然没有"都看到 stock=1"的竞态。C 的"分布式锁"是多余的发明（Redlock 正是本项目明确不做的，见取舍声明）；D 错在"拒绝连接"——其他客户端照常连接，只是命令排队。</p></details>
+
+<p class="q">2. MQ 消息放在 afterCommit（事务提交后）发送，防的是什么？</p>
+<ul class="opts">
+<li>A · 消息已发出但事务随后回滚造成的幽灵订单</li>
+<li>B · MQ broker 宕机导致消息在队列中永久丢失</li>
+<li>C · 消费者处理太快早于数据库事务提交完成</li>
+<li>D · 网络抖动导致消息到达顺序错乱被重复消费</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>事务内直接发 MQ 的风险：消息已投递、消费者正准备建单，本地事务却回滚了——消费者看到一条"并不存在"的下单指令（幽灵订单）。afterCommit 保证消息只在事务铁定提交后才发出。B/D 是别的问题（发送失败有 INCR 补偿、重复消费有 orderNo 幂等查重）；C 因果关系反了。</p></details>
+
+<p class="q">3. Redis 宕机时选择 503 拒绝而非降级查 DB，核心理由是？</p>
+<ul class="opts">
+<li>A · 降级会让 Redis 与数据库两本账真相分裂</li>
+<li>B · 数据库没有库存字段无法承担扣减职责</li>
+<li>C · 503 响应更快从而提升接口吞吐指标表现</li>
+<li>D · 降级需要反向同步 Redis 改造成本过高</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>RedisStockDeductor 类注释的原话（取舍声明）："降级会让双写真相分裂，宁可拒绝不可超卖。"Redis 已扣了 3 件、DB 不知道，降级走 DB 又会按它的 sold_count 放行——两本账对不上，超卖风险反而变大。B 是事实错误（DB 当然是真相源）；C 把拒绝服务说成性能优化；D 的"成本"不是核心——核心是不可超卖的正确性红线。</p></details>
+</div>
+
+<h2>主推荐来源</h2>
+<p>Redis 官方文档 <a href="https://redis.io/docs/latest/develop/programmability/eval-intro/">Introduction to Lua scripting（EVAL）</a>——"脚本以原子方式执行"的权威表述，本课 Lua 关口与所有取舍声明的概念源头。</p>
+
+<div class="next">
+<p><strong>想追问？</strong>把下面这段贴给 AI 智能体：</p>
+<p style="font-family:Consolas,monospace;font-size:13px;background:#f2efe8;padding:10px 14px;border-radius:6px;">我读完了 full-stack-mall 后端第 5 课（秒杀三策略对照：条件更新/FOR UPDATE/Lua 预扣+MQ 异步/压测矩阵）。请基于 backend/ 真实代码继续讲：寄卖全流程的状态机（SUBMITTED→PRICED→LISTED→SOLD→SETTLED）和佣金计算是怎么实现的。</p>
+<p><strong>下一课预告（收官）：</strong>寄卖与结算闭环——闲置如何变成在售商品，成交后平台怎么按比例与卖家分钱（Payout 三步审批）。</p>
+</div>
+
+</div>
+</body>
+</html>

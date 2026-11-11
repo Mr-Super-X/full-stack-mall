@@ -14,6 +14,7 @@
 - 第 2 课（登录注册与 JWT）：已交付 → `lessons/0002-login-and-jwt.html`
 - 第 3 课（事务与下单）：已交付 → `lessons/0003-transactions-and-ordering.html`
 - 第 4 课（支付与幂等）：已交付 → `lessons/0004-payments-and-idempotency.html`
+- 第 5 课（秒杀三策略对照）：已交付 → `lessons/0005-seckill-strategies.html`
 
 ## 教学约束
 
