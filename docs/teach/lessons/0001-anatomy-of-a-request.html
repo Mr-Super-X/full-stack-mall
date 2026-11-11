@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 1 课 · 一次请求的完整旅程 — full-stack-mall 后端课</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --accent: #8c2f2f;
+    --muted: #666;
+    --rule: #d9d9d9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Palatino Linotype", Palatino, Georgia, "Songti SC", "SimSun", serif;
+    color: var(--ink);
+    background: #fdfcf9;
+    line-height: 1.75;
+    font-size: 17px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 64px 24px 120px; }
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 40px; }
+  .kicker { font-size: 13px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; }
+  h1 { font-size: 30px; font-weight: 600; margin-top: 8px; }
+  .goal { color: var(--muted); font-style: italic; margin-top: 10px; }
+  h2 { font-size: 22px; font-weight: 600; margin: 48px 0 16px; }
+  h2 .no { color: var(--accent); margin-right: 8px; }
+  p { margin: 14px 0; }
+  code {
+    font-family: "SF Mono", Consolas, "Courier New", monospace;
+    font-size: 0.86em;
+    background: #f2efe8;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    background: #2b2b2b; color: #e8e6e3; padding: 16px 18px;
+    border-radius: 6px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+    margin: 18px 0;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .src { font-size: 12.5px; color: var(--muted); margin-top: -10px; margin-bottom: 18px; font-family: Consolas, monospace; }
+  .aside {
+    font-size: 13.5px; color: var(--muted); border-left: 3px solid var(--accent);
+    padding: 4px 14px; margin: 20px 0; font-style: italic;
+  }
+  .aside b { color: var(--accent); font-style: normal; }
+  .stop { display: flex; gap: 14px; margin: 26px 0; align-items: flex-start; }
+  .stop .badge {
+    flex: 0 0 30px; height: 30px; border-radius: 50%;
+    border: 1.5px solid var(--accent); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .stop h3 { font-size: 17px; margin-bottom: 4px; }
+  details { margin: 10px 0; }
+  summary { cursor: pointer; font-size: 15.5px; }
+  summary::marker { color: var(--accent); }
+  .quiz {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 24px 26px; margin: 30px 0;
+  }
+  .quiz h2 { margin-top: 0; }
+  .q { margin: 20px 0 6px; font-weight: 600; }
+  .opts { list-style: none; margin: 8px 0; }
+  .opts li { padding: 5px 0 5px 4px; }
+  .ans { font-size: 14.5px; color: var(--accent); }
+  .next {
+    border-top: 1px solid var(--rule); margin-top: 56px; padding-top: 24px;
+    font-size: 15px; color: var(--muted);
+  }
+  a { color: var(--accent); }
+  @media print {
+    body { background: #fff; font-size: 12pt; }
+    pre { background: #f5f5f5; color: #000; border: 1px solid #ccc; }
+    .quiz { border: 1.5px solid #000; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">full-stack-mall 后端课 · Lesson 1</div>
+  <h1>一次请求的完整旅程</h1>
+  <p class="goal">本课收获：当浏览器发出 <code>GET /mall/product/list</code>，你能指着代码讲出它途经的每一站、谁把它拦住、谁给它打包回家。这是面试讲解项目的地基。</p>
+</header>
+
+<h2><span class="no">0</span>先建立一张地图</h2>
+<p>这个后端按<strong>业务域</strong>分包：<code>product</code>（商品）、<code>user</code>（用户/鉴权）、<code>cart</code>（购物车）、<code>order</code>（订单）、<code>payment</code>（支付）、<code>payout</code>（结算）、<code>seckill</code>（秒杀）、<code>consignment</code>（寄卖）。每个域内部再分四层，这是 Java Web 的经典分层：</p>
+<div class="aside"><b>四层速记：</b>Controller 接客 → Service 算账 → Mapper 取货 → 数据库落账。Guest 只跟 Controller 说话，Controller 只跟 Service 说话，谁都不许越级。</div>
+<p>程序从 <code>ShopApplication.java:15</code> 的 <code>SpringApplication.run(...)</code> 启动——它撑起一个内嵌的 Tomcat 服务器，从此守在 <code>18080</code> 端口等请求上门。</p>
+
+<h2><span class="no">1</span>第一站：拦截器——进门安检</h2>
+<p>请求到达后、Controller 之前，会先过一道安检。安检名单注册在 <code>config/WebMvcConfig.java:29-39</code>：</p>
+<pre><code>// 注册顺序即语义：Auth 先解析身份写 UserContext，
+// Admin 后读上下文校验角色
+registry.addInterceptor(new AuthInterceptor(jwtService, cookieName))
+    .addPathPatterns("/mall/auth/me", "/mall/cart/**", "/mall/orders/**", ...)
+    // 支付回调与模拟收银台：无用户 Cookie，鉴权靠验签，放行
+    .excludePathPatterns("/mall/payments/fake/notify",
+                         "/mall/payments/fake/checkout");</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/config/WebMvcConfig.java:29-39</p>
+<p>两个关键设计，都是面试会被追问的点：</p>
+<div class="stop"><div class="badge">1</div><div>
+<h3>路径黑白名单</h3>
+<p>首页、商品列表这类<strong>匿名可逛</strong>的接口刻意不挂拦截器（名单里没有 <code>/mall/product/**</code>）；购物车、订单等必须登录。而支付回调 <code>/fake/notify</code> 是"支付宝"服务器来调用的，它手里没有用户的登录 Cookie——所以排除，改由<strong>验签</strong>证明身份。</p>
+</div></div>
+<div class="stop"><div class="badge">2</div><div>
+<h3>UserContext 用完必须擦</h3>
+<pre><code>@Override
+public void afterCompletion(...) {
+    UserContext.clear();  // 红线：Tomcat 线程复用，不清理则下一请求读到上一用户
+}</code></pre>
+<p class="src">user/interceptor/AuthInterceptor.java:42-46</p>
+<p>解析出的用户身份放在 <code>UserContext</code>（基于 ThreadLocal——可以理解成"当前线程的口袋"）。Tomcat 的线程是<strong>复用</strong>的：这单生意做完，线程不销毁，直接去接待下一位客人。口袋不擦，下一位客人就会摸到上一位的身份证。</p>
+</div></div>
+
+<h2><span class="no">2</span>第二站：Controller——接单窗口</h2>
+<p>过了安检，请求按 URL 被分发到对应的 Controller。以商品列表为例，<code>product/controller/ProductController.java:29-32</code>：</p>
+<pre><code>@GetMapping("/list")
+public Result&lt;PageResult&lt;ProductSummaryDTO&gt;&gt; list(
+        @Valid @ModelAttribute ProductListRequest request) {
+    return Result.success(productService.pageProducts(request));
+}</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/product/controller/ProductController.java:29-32</p>
+<p>注意 Controller 有多"瘦"：它不查库、不算价，只做两件事——① 把 URL 路径和 <code>?page=1&amp;categoryId=3</code> 这类查询串翻译成 Java 对象（<code>@ModelAttribute</code>）；② 调用 Service，把结果包进 <code>Result.success(...)</code>。这就是面试常说的"<strong>瘦 Controller</strong>"。</p>
+
+<h2><span class="no">3</span>第三、四站：Service → Mapper → 数据库</h2>
+<p><code>ProductService</code> 里写业务规则（分页逻辑、筛选条件组装）；<code>ProductMapper</code> 是一个 MyBatis-Plus 接口，方法调用最终变成 SQL 发给 MySQL。这两层是后续课程的主战场——今天只需要知道：<strong>所有"规矩"都住在 Service，所有"取数"都住在 Mapper</strong>。</p>
+
+<h2><span class="no">4</span>回家路上：统一信封与异常兜底</h2>
+<p>Controller 返回的 <code>Result</code> 是<strong>统一响应信封</strong>（<code>common/Result.java:9-13</code>）：</p>
+<pre><code>// 与前端 packages/shared/src/api/http.ts 约定一致——
+// code=200 为成功，data 承载业务数据
+public class Result&lt;T&gt; {
+    private int code;     // 业务码：200 成功，其余见 ResultCode
+    private String message;
+    private T data;
+}</code></pre>
+<p>前端不用猜每个接口返回什么形状——永远是 <code>{code, message, data}</code>。业务失败（如"商品不存在"）时 Service 抛出 <code>BusinessException</code>，由 <code>GlobalExceptionHandler</code>（<code>common/GlobalExceptionHandler.java:28-37</code>）翻译回信封；连程序员自己都没预料到的异常也有兜底：<strong>记录服务端日志，但对前端只回一句"系统繁忙"，绝不回显堆栈</strong>——防止内部路径、SQL 错误泄露给攻击者。</p>
+<div class="aside"><b>面试话术：</b>"我项目里所有接口走统一信封 <code>{code,message,data}</code>，业务异常和系统异常分流：可预期的业务失败带业务码返回，未知异常全局兜底 500 且只记日志不外泄——这是安全和体验的双重考虑。"</div>
+
+<h2><span class="no">5</span>30 秒面试版（背下来）</h2>
+<p>"请求先进<strong>拦截器</strong>做鉴权——我们用黑白名单控制哪些路径要登录，还排除了支付回调因为它靠验签而不是 Cookie；身份放 ThreadLocal 且请求结束必须清理，因为 Tomcat 线程复用会串号。然后到 <strong>Controller</strong>，它很薄，只做参数翻译。业务规矩全在 <strong>Service</strong>，取数在 <strong>Mapper</strong>（MyBatis-Plus）。返回时统一包成 <code>{code,message,data}</code> 信封，异常由全局处理器兜底，未知错误只记日志不外泄。"</p>
+
+<div class="quiz">
+<h2>自检测验</h2>
+<p style="color:var(--muted);font-size:14px;">先在心里作答，再点开答案。答错不丢人——答错的地方正是下一课要加固的。</p>
+
+<p class="q">1. 如果 AuthInterceptor 删掉 afterCompletion 里的 clear()，会发生什么？</p>
+<ul class="opts">
+<li>A · 线程被复用，下个请求可能读到上个用户身份</li>
+<li>B · 内存持续增长，最终触发一次 Full GC 停顿</li>
+<li>C · 事务边界被打乱，订单数据产生脏写风险</li>
+<li>D · 拦截器执行链中断，Admin 角色校验被跳过</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>ThreadLocal 绑定的是线程而不是请求；Tomcat 线程池复用线程，请求结束不清理，下一个请求拿到同一线程时就能读到上一个用户的身份。这就是代码里"红线"注释的原因（AuthInterceptor.java:15）。B/C/D 都不是 ThreadLocal 不清理的直接后果。</p></details>
+
+<p class="q">2. 支付回调 /mall/payments/fake/notify 为什么被排除在鉴权拦截器之外？</p>
+<ul class="opts">
+<li>A · 调用方是支付网关，手里没有用户的登录 Cookie</li>
+<li>B · 该端点只读不写数据库，即使泄露也无风险</li>
+<li>C · 回调请求频率太高，过拦截器会影响吞吐性能</li>
+<li>D · 网关层的 IP 白名单已经完成身份核验工作</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>注释写得很直白（WebMvcConfig.java:35-36）："网关调用/浏览器直开，无用户 Cookie，鉴权靠验签"。它是"服务器对服务器"的调用，身份的证明方式是数字签名（md5 验签），不是用户的登录态。B 错误——它恰恰要写库（改订单状态）。</p></details>
+
+<p class="q">3. BusinessException 和普通 RuntimeException 在本项目中的分工是什么？</p>
+<ul class="opts">
+<li>A · 预期业务失败带码返回，系统异常统一兜底五百</li>
+<li>B · 前者命中缓存快速返回，后者回源数据库查询</li>
+<li>C · 前者只写错误日志，后者才向前端返回提示</li>
+<li>D · 前者由前端直接处理，后者由后台异步处理掉</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>BusinessException 的类注释（common/BusinessException.java:6-7）写明：仅用于"可预期的业务失败"（如商品不存在），由全局异常处理器翻译成带业务码的信封；系统异常直接抛 RuntimeException，走 500 兜底分支（GlobalExceptionHandler.java:56-60），记日志但不外泄。</p></details>
+</div>
+
+<h2>主推荐来源</h2>
+<p>Spring 官方文档 <a href="https://docs.spring.io/spring-framework/reference/web/webmvc/servlet/handlermapping-interceptor.html">Spring Web MVC — Interceptors</a>——拦截器三回调（preHandle / postHandle / afterCompletion）的权威定义，本课第一站的概念源头。</p>
+
+<div class="next">
+<p><strong>想追问？</strong>把下面这段贴给 AI 智能体即可继续深挖：</p>
+<p style="font-family:Consolas,monospace;font-size:13px;background:#f2efe8;padding:10px 14px;border-radius:6px;">我读完了 full-stack-mall 后端第 1 课（请求链路：拦截器→Controller→Service→Mapper→统一信封）。请基于 backend/ 真实代码继续讲：UserContext 和 ThreadLocal 的完整实现，以及 JwtService 是怎么签发和校验 token 的。</p>
+<p><strong>下一课预告：</strong>登录注册与 JWT——你的密码是怎样变成一枚 token，又如何被拦截器验回来的。</p>
+</div>
+
+</div>
+</body>
+</html>
