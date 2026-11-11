@@ -41,7 +41,7 @@ class AdminConsignmentControllerTest {
     private JwtService jwtService;
 
     @Test
-    void 核价通过应返回已定价并回填字段() throws Exception {
+    void approvePricing_shouldReturnPricedWithBackfilledFields() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(1L, "admin", "ADMIN"));
         given(consignmentService.review(eq(1L), any())).willReturn(dto(1L, "PRICED"));
 
@@ -56,7 +56,7 @@ class AdminConsignmentControllerTest {
     }
 
     @Test
-    void 驳回应返回已驳回并带原因() throws Exception {
+    void reject_shouldReturnRejectedWithReason() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(1L, "admin", "ADMIN"));
         ConsignmentDTO rejected = dto(1L, "REJECTED");
         rejected.setRejectReason("图片不清晰，无法鉴定成色");
@@ -73,7 +73,7 @@ class AdminConsignmentControllerTest {
     }
 
     @Test
-    void 对已定价单据再审核应返回400非法流转() throws Exception {
+    void reReviewPricedListing_shouldReturn400StateIllegal() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(1L, "admin", "ADMIN"));
         given(consignmentService.review(eq(1L), any()))
                 .willThrow(new BusinessException(ResultCode.CONSIGNMENT_STATE_ILLEGAL));
@@ -88,7 +88,7 @@ class AdminConsignmentControllerTest {
     }
 
     @Test
-    void 审核池缺省应查已提交() throws Exception {
+    void reviewPoolDefault_shouldQuerySubmitted() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(1L, "admin", "ADMIN"));
         given(consignmentService.adminList("SUBMITTED")).willReturn(List.of(dto(1L, "SUBMITTED")));
 
@@ -100,7 +100,7 @@ class AdminConsignmentControllerTest {
     }
 
     @Test
-    void 普通用户调用管理端应返回403() throws Exception {
+    void normalUserCallingAdminApi_shouldReturn403() throws Exception {
         // buyer（USER 角色）走真实双层拦截链：Auth 解析身份 → Admin 拦角色
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
 

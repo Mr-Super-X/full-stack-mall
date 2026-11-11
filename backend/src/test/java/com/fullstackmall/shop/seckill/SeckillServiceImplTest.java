@@ -74,7 +74,7 @@ class SeckillServiceImplTest {
     }
 
     @Test
-    void 过期进行中场被推进已结束并归还_不出现在live() {
+    void expiredActiveSession_advancedToEndedAndRestored_notInLive() {
         SeckillActivity expired = activity(1L, SeckillStatus.ACTIVE,
                 LocalDateTime.now().minusDays(1), LocalDateTime.now().minusHours(1));
         given(seckillActivityMapper.selectList(any())).willReturn(List.of(expired), List.of());
@@ -91,7 +91,7 @@ class SeckillServiceImplTest {
     }
 
     @Test
-    void 进行中场进live_含商品摘要与进度() {
+    void activeSessionGoesLive_withProductSummaryAndProgress() {
         SeckillActivity live = activity(1L, SeckillStatus.ACTIVE,
                 LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(7));
         given(seckillActivityMapper.selectList(any())).willReturn(List.of(live), List.of());
@@ -118,7 +118,7 @@ class SeckillServiceImplTest {
     }
 
     @Test
-    void 待开始场进upcoming_上限5条() {
+    void pendingSessionGoesUpcoming_cappedAtFive() {
         List<SeckillActivity> pendings = java.util.stream.IntStream.rangeClosed(1, 6)
                 .mapToObj(i -> activity((long) i, SeckillStatus.PENDING,
                         LocalDateTime.now().plusHours(3), LocalDateTime.now().plusHours(10)))
@@ -132,14 +132,14 @@ class SeckillServiceImplTest {
     }
 
     @Test
-    void 按商品查生效活动_窗口外返回null() {
+    void findActiveByProductId_returnsNullOutsideWindow() {
         given(seckillActivityMapper.selectOne(any())).willReturn(null);
 
         assertThat(service.findActiveByProductId(16L)).isNull();
     }
 
     @Test
-    void 按商品查生效活动_窗口内返回活动() {
+    void findActiveByProductId_returnsActivityWithinWindow() {
         SeckillActivity live = activity(1L, SeckillStatus.ACTIVE,
                 LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(7));
         given(seckillActivityMapper.selectOne(any())).willReturn(live);

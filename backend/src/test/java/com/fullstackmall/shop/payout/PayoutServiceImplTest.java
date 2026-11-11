@@ -53,7 +53,7 @@ class PayoutServiceImplTest {
     }
 
     @Test
-    void 初审应迁移为已初审() {
+    void firstReview_shouldTransitionToConfirmed() {
         given(payoutMapper.selectById(1L)).willReturn(payout(PayoutStatus.PENDING));
         given(payoutMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
 
@@ -67,7 +67,7 @@ class PayoutServiceImplTest {
     }
 
     @Test
-    void 未初审直接打款应抛跳级非法流转() {
+    void payWithoutFirstReview_shouldThrowIllegalTransition() {
         // 跳级语义：条件迁移 WHERE status='CONFIRMED' 命中 0 行（当前是 PENDING）
         given(payoutMapper.selectById(1L)).willReturn(payout(PayoutStatus.PENDING));
         given(payoutMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(0);
@@ -78,7 +78,7 @@ class PayoutServiceImplTest {
     }
 
     @Test
-    void 打款成功后应联动寄卖单转已结算() {
+    void paySuccess_shouldTransitionConsignmentToSettled() {
         given(payoutMapper.selectById(1L)).willReturn(payout(PayoutStatus.CONFIRMED));
         given(payoutMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
         OrderItem line = new OrderItem();
@@ -103,7 +103,7 @@ class PayoutServiceImplTest {
     }
 
     @Test
-    void 已打款重复操作应抛非法流转() {
+    void duplicatePay_shouldThrowIllegalTransition() {
         given(payoutMapper.selectById(1L)).willReturn(payout(PayoutStatus.PAID));
         given(payoutMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(0);
 
@@ -113,7 +113,7 @@ class PayoutServiceImplTest {
     }
 
     @Test
-    void 结算单不存在应抛404() {
+    void payoutNotFound_shouldThrow404() {
         given(payoutMapper.selectById(9L)).willReturn(null);
 
         assertThatThrownBy(() -> payoutService.confirm(9L))

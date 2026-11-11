@@ -29,7 +29,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void 业务异常应按码翻译() throws Exception {
+    void businessException_shouldTranslateByCode() throws Exception {
         mockMvc.perform(get("/test/biz"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(404))
@@ -37,7 +37,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void 参数校验失败应返回400() throws Exception {
+    void validationFailure_shouldReturn400() throws Exception {
         mockMvc.perform(get("/test/valid").param("page", "0"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
@@ -45,14 +45,14 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void 秒杀服务不可用应返回503且业务码40005() throws Exception {
+    void seckillUnavailable_shouldReturn503WithCode40005() throws Exception {
         mockMvc.perform(get("/test/unavailable"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value(40005));
     }
 
     @Test
-    void 限流应返回429且业务码40006() throws Exception {
+    void rateLimited_shouldReturn429WithCode40006() throws Exception {
         mockMvc.perform(get("/test/rate-limited"))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value(40006));

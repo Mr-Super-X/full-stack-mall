@@ -44,7 +44,7 @@ class CartControllerTest {
     private JwtService jwtService;
 
     @Test
-    void 加购成功应返回200与条目() throws Exception {
+    void addToCart_success_shouldReturn200WithItem() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(cartService.add(any())).willReturn(item(1L, 2, false));
 
@@ -59,7 +59,7 @@ class CartControllerTest {
     }
 
     @Test
-    void 寄卖商品加购应返回400直购提示() throws Exception {
+    void addConsignmentItem_shouldReturn400WithDirectBuyHint() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(cartService.add(any()))
                 .willThrow(new BusinessException(ResultCode.CONSIGNMENT_DIRECT_ONLY));
@@ -74,7 +74,7 @@ class CartControllerTest {
     }
 
     @Test
-    void 购物车列表应带实时信息与失效标记() throws Exception {
+    void cartList_shouldCarryLiveInfoAndInvalidFlag() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         CartItemDTO invalid = item(2L, 1, true);
         given(cartService.list()).willReturn(List.of(item(1L, 2, false), invalid));
@@ -89,7 +89,7 @@ class CartControllerTest {
     }
 
     @Test
-    void 修改数量成功返回200() throws Exception {
+    void updateQuantity_success_shouldReturn200() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(cartService.update(eq(1L), any())).willReturn(item(1L, 5, false));
 
@@ -103,7 +103,7 @@ class CartControllerTest {
     }
 
     @Test
-    void 修改他人条目应返回404() throws Exception {
+    void updateOthersItem_shouldReturn404() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(cartService.update(eq(9L), any()))
                 .willThrow(new BusinessException(ResultCode.CART_ITEM_NOT_FOUND));
@@ -118,7 +118,7 @@ class CartControllerTest {
     }
 
     @Test
-    void 删除他人条目应返回404() throws Exception {
+    void deleteOthersItem_shouldReturn404() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         doThrow(new BusinessException(ResultCode.CART_ITEM_NOT_FOUND))
                 .when(cartService).remove(9L);
@@ -130,7 +130,7 @@ class CartControllerTest {
     }
 
     @Test
-    void 未登录访问应返回401() throws Exception {
+    void unauthenticatedAccess_shouldReturn401() throws Exception {
         mockMvc.perform(get("/mall/cart"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(401));

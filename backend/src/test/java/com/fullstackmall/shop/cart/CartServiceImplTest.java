@@ -64,7 +64,7 @@ class CartServiceImplTest {
     }
 
     @Test
-    void 重复加购应叠加数量而非新建() {
+    void repeatAdd_shouldAccumulateQuantityInsteadOfNewRow() {
         given(productItemMapper.selectById(1L)).willReturn(platformItem(1L, 200));
         given(productMapper.selectById(1L)).willReturn(platformProduct());
         CartItem existing = cartRow(9L, 1L, 2);
@@ -83,7 +83,7 @@ class CartServiceImplTest {
     }
 
     @Test
-    void 重复加购叠加后应封顶99() {
+    void repeatAddAccumulation_shouldCapAt99() {
         given(productItemMapper.selectById(1L)).willReturn(platformItem(1L, 200));
         given(productMapper.selectById(1L)).willReturn(platformProduct());
         CartItem existing = cartRow(9L, 1L, 98);
@@ -101,7 +101,7 @@ class CartServiceImplTest {
     }
 
     @Test
-    void 寄卖商品加购应抛直购提示() {
+    void addConsignmentItem_shouldThrowDirectBuyHint() {
         ProductItem consignmentItem = platformItem(33L, 1);
         consignmentItem.setProductId(14L);
         given(productItemMapper.selectById(33L)).willReturn(consignmentItem);
@@ -120,7 +120,7 @@ class CartServiceImplTest {
     }
 
     @Test
-    void 列表中下架或缺货条目标记失效() {
+    void offlineOrSoldOutItemInList_shouldBeMarkedInvalid() {
         given(cartItemMapper.selectList(any())).willReturn(List.of(cartRow(1L, 1L, 2), cartRow(2L, 2L, 1)));
         ProductItem inStock = platformItem(1L, 200);
         ProductItem soldOut = platformItem(2L, 0);
@@ -140,7 +140,7 @@ class CartServiceImplTest {
     }
 
     @Test
-    void 修改他人条目应抛404() {
+    void updateOthersItem_shouldThrow404() {
         given(cartItemMapper.selectOne(any())).willReturn(null);
 
         com.fullstackmall.shop.cart.dto.UpdateCartItemRequest req =

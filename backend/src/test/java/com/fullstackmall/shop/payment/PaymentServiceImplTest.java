@@ -71,7 +71,7 @@ class PaymentServiceImplTest {
     }
 
     @Test
-    void 已成功的支付单重复回调应幂等返回且不重复推进() {
+    void duplicateCallbackOnSuccessPayment_shouldReturnIdempotentWithoutReprocessing() {
         Payment success = payment(PaymentStatus.SUCCESS);
         given(paymentMapper.selectOne(any())).willReturn(success);
 
@@ -85,7 +85,7 @@ class PaymentServiceImplTest {
     }
 
     @Test
-    void 回调金额不符应返回400且不推进() {
+    void callbackAmountMismatch_shouldReturn400WithoutAdvancing() {
         Payment created = payment(PaymentStatus.CREATED);
         given(paymentMapper.selectOne(any())).willReturn(created);
         NotifyRequest req = notifyReq(created);
@@ -100,7 +100,7 @@ class PaymentServiceImplTest {
     }
 
     @Test
-    void 验签失败应返回400() {
+    void invalidSignature_shouldReturn400() {
         Payment created = payment(PaymentStatus.CREATED);
         NotifyRequest req = notifyReq(created);
         req.setSign("forged-sign");
@@ -112,7 +112,7 @@ class PaymentServiceImplTest {
     }
 
     @Test
-    void 正常回调应迁移成功并累加销量() {
+    void normalCallback_shouldMarkSuccessAndAccumulateSales() {
         Payment created = payment(PaymentStatus.CREATED);
         given(paymentMapper.selectOne(any())).willReturn(created);
         Order pending = order(OrderStatus.PENDING_PAYMENT);
@@ -137,7 +137,7 @@ class PaymentServiceImplTest {
     }
 
     @Test
-    void 重复推进场景_订单已支付时跳过销量累加() {
+    void duplicateAdvanceWhenOrderPaid_shouldSkipSalesAccumulation() {
         Payment created = payment(PaymentStatus.CREATED);
         given(paymentMapper.selectOne(any())).willReturn(created);
         given(orderMapper.selectById(created.getOrderId())).willReturn(order(OrderStatus.PENDING_PAYMENT));
@@ -152,7 +152,7 @@ class PaymentServiceImplTest {
     }
 
     @Test
-    void 订单已取消时回调应拒绝() {
+    void callbackOnCancelledOrder_shouldReject() {
         Payment created = payment(PaymentStatus.CREATED);
         given(paymentMapper.selectOne(any())).willReturn(created);
         given(orderMapper.selectById(created.getOrderId())).willReturn(order(OrderStatus.CANCELLED));
@@ -166,7 +166,7 @@ class PaymentServiceImplTest {
     // ── Task 1（阶段 3）：售出联动（订单 PAID → 寄卖单 SOLD） ──────────
 
     @Test
-    void 支付成功后寄卖明细应联动寄卖单转已售出() {
+    void paymentSuccess_shouldTransitionConsignmentLineToSold() {
         Payment created = payment(PaymentStatus.CREATED);
         given(paymentMapper.selectOne(any())).willReturn(created);
         given(orderMapper.selectById(created.getOrderId())).willReturn(order(OrderStatus.PENDING_PAYMENT));
@@ -195,7 +195,7 @@ class PaymentServiceImplTest {
     }
 
     @Test
-    void 寄卖单迁移返回0时幂等容忍不影响订单支付主流程() {
+    void consignmentTransitionZeroRows_shouldTolerateIdempotently() {
         Payment created = payment(PaymentStatus.CREATED);
         given(paymentMapper.selectOne(any())).willReturn(created);
         given(orderMapper.selectById(created.getOrderId())).willReturn(order(OrderStatus.PENDING_PAYMENT));
@@ -221,7 +221,7 @@ class PaymentServiceImplTest {
     // ── 终审 fix pass ─────────────────────────────────────────
 
     @Test
-    void 失败回调应迁移为FAILED而非误标成功() {
+    void failedCallback_shouldMarkFailedNotSuccess() {
         Payment paying = payment(PaymentStatus.PAYING);
         given(paymentMapper.selectOne(any())).willReturn(paying);
         given(paymentMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
@@ -243,7 +243,7 @@ class PaymentServiceImplTest {
     }
 
     @Test
-    void 查询他人支付单状态应抛404() {
+    void queryOthersPaymentStatus_shouldThrow404() {
         com.fullstackmall.shop.user.context.UserContext.set(
                 new com.fullstackmall.shop.user.context.LoginUser(3L, "buyer", "USER"));
         try {
@@ -261,7 +261,7 @@ class PaymentServiceImplTest {
     }
 
     @Test
-    void 订单已过期发起支付应拒绝() {
+    void payExpiredOrder_shouldReject() {
         com.fullstackmall.shop.user.context.UserContext.set(
                 new com.fullstackmall.shop.user.context.LoginUser(3L, "buyer", "USER"));
         try {

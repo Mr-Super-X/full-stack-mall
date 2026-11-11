@@ -30,7 +30,7 @@ class CategoryControllerTest {
     private JwtService jwtService;
 
     @Test
-    void 分类树应返回两级结构() throws Exception {
+    void categoryTree_shouldReturnTwoLevels() throws Exception {
         CategoryTreeDTO child = new CategoryTreeDTO();
         child.setId(21L);
         child.setParentId(2L);

@@ -38,7 +38,7 @@ class SeckillOrderMockMvcTest {
     private JwtService jwtService;
 
     @Test
-    void 下单成功返回订单号与支付单号() throws Exception {
+    void placeOrderSuccess_returnsOrderNoAndPaymentNo() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(seckillService.placeOrder(eq(1L), any()))
                 .willReturn(new SeckillOrderResultDTO("M20261110120000-0001", "P20261110120000-0001"));
@@ -54,7 +54,7 @@ class SeckillOrderMockMvcTest {
     }
 
     @Test
-    void 未开始或已结束透传40001() throws Exception {
+    void notStartedOrEnded_transmits40001() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(seckillService.placeOrder(eq(1L), any()))
                 .willThrow(new BusinessException(ResultCode.SECKILL_NOT_STARTED));
@@ -69,7 +69,7 @@ class SeckillOrderMockMvcTest {
     }
 
     @Test
-    void 抢完透传40002() throws Exception {
+    void soldOut_transmits40002() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(seckillService.placeOrder(eq(1L), any()))
                 .willThrow(new BusinessException(ResultCode.SOLD_OUT));
@@ -83,7 +83,7 @@ class SeckillOrderMockMvcTest {
     }
 
     @Test
-    void 超限购透传40003() throws Exception {
+    void limitExceeded_transmits40003() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(seckillService.placeOrder(eq(1L), any()))
                 .willThrow(new BusinessException(ResultCode.LIMIT_EXCEEDED));
@@ -97,7 +97,7 @@ class SeckillOrderMockMvcTest {
     }
 
     @Test
-    void 重复参与透传40004() throws Exception {
+    void duplicateParticipation_transmits40004() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(seckillService.placeOrder(eq(1L), any()))
                 .willThrow(new BusinessException(ResultCode.DUPLICATE_ORDER));
@@ -111,7 +111,7 @@ class SeckillOrderMockMvcTest {
     }
 
     @Test
-    void 活动不存在透传404() throws Exception {
+    void activityNotFound_transmits404() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(seckillService.placeOrder(eq(9L), any()))
                 .willThrow(new BusinessException(ResultCode.SECKILL_NOT_FOUND));

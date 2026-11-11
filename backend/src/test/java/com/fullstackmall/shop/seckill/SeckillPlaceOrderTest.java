@@ -99,7 +99,7 @@ class SeckillPlaceOrderTest {
     }
 
     @Test
-    void 活动不存在应抛404() {
+    void activityNotFound_shouldThrow404() {
         given(seckillActivityMapper.selectById(9L)).willReturn(null);
 
         assertThatThrownBy(() -> service.placeOrder(9L, request()))
@@ -108,7 +108,7 @@ class SeckillPlaceOrderTest {
     }
 
     @Test
-    void 未开始应抛40001() {
+    void notStarted_shouldThrow40001() {
         given(seckillActivityMapper.selectById(1L))
                 .willReturn(activity(SeckillStatus.PENDING, nowMinusHours(1), nowPlusHours(3)));
 
@@ -118,7 +118,7 @@ class SeckillPlaceOrderTest {
     }
 
     @Test
-    void 已过期应推进已结束并归还后抛40001() {
+    void expired_shouldAdvanceToEndedAndRestoreThenThrow40001() {
         given(seckillActivityMapper.selectById(1L))
                 .willReturn(activity(SeckillStatus.ACTIVE, nowMinusHours(24), nowMinusHours(1)));
         given(seckillActivityMapper.update(any(), any())).willReturn(1);
@@ -132,7 +132,7 @@ class SeckillPlaceOrderTest {
     }
 
     @Test
-    void 商品已下架应抛40001() {
+    void productOffShelf_shouldThrow40001() {
         given(seckillActivityMapper.selectById(1L))
                 .willReturn(activity(SeckillStatus.ACTIVE, nowMinusHours(1), nowPlusHours(7)));
         Product offShelf = platformProduct();
@@ -145,7 +145,7 @@ class SeckillPlaceOrderTest {
     }
 
     @Test
-    void 已达限购应抛40003() {
+    void limitReached_shouldThrow40003() {
         given(seckillActivityMapper.selectById(1L))
                 .willReturn(activity(SeckillStatus.ACTIVE, nowMinusHours(1), nowPlusHours(7)));
         given(productMapper.selectById(16L)).willReturn(platformProduct());
@@ -158,7 +158,7 @@ class SeckillPlaceOrderTest {
     }
 
     @Test
-    void 独立池耗尽应抛40002() {
+    void dedicatedPoolExhausted_shouldThrow40002() {
         given(seckillActivityMapper.selectById(1L))
                 .willReturn(activity(SeckillStatus.ACTIVE, nowMinusHours(1), nowPlusHours(7)));
         given(productMapper.selectById(16L)).willReturn(platformProduct());
@@ -174,7 +174,7 @@ class SeckillPlaceOrderTest {
     }
 
     @Test
-    void 成功下单_订单定格秒杀价并建支付单() {
+    void placeOrderSuccess_orderSnapshotsSeckillPriceAndCreatesPayment() {
         SeckillActivity activity = activity(SeckillStatus.ACTIVE, nowMinusHours(1), nowPlusHours(7));
         given(seckillActivityMapper.selectById(1L)).willReturn(activity);
         given(productMapper.selectById(16L)).willReturn(platformProduct());
@@ -209,7 +209,7 @@ class SeckillPlaceOrderTest {
     }
 
     @Test
-    void 撞活动唯一键应抛40004() {
+    void uniqueKeyConflict_shouldThrow40004() {
         given(seckillActivityMapper.selectById(1L))
                 .willReturn(activity(SeckillStatus.ACTIVE, nowMinusHours(1), nowPlusHours(7)));
         given(productMapper.selectById(16L)).willReturn(platformProduct());

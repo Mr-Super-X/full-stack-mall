@@ -44,7 +44,7 @@ class AddressControllerTest {
     private JwtService jwtService;
 
     @Test
-    void 新增地址成功返回200与数据() throws Exception {
+    void addAddress_success_shouldReturn200WithData() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(addressService.create(any())).willReturn(address(1L, true));
 
@@ -59,7 +59,7 @@ class AddressControllerTest {
     }
 
     @Test
-    void 手机号非法应返回400() throws Exception {
+    void invalidPhone_shouldReturn400() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
 
         mockMvc.perform(post("/mall/addresses")
@@ -71,7 +71,7 @@ class AddressControllerTest {
     }
 
     @Test
-    void 地址列表仅本人() throws Exception {
+    void addressList_shouldOnlyContainOwn() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(addressService.list()).willReturn(List.of(address(1L, true), address(2L, false)));
 
@@ -83,7 +83,7 @@ class AddressControllerTest {
     }
 
     @Test
-    void 修改他人地址应返回404() throws Exception {
+    void updateOthersAddress_shouldReturn404() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(addressService.update(eq(9L), any()))
                 .willThrow(new BusinessException(ResultCode.ADDRESS_NOT_FOUND));
@@ -98,7 +98,7 @@ class AddressControllerTest {
     }
 
     @Test
-    void 删除他人地址应返回404() throws Exception {
+    void deleteOthersAddress_shouldReturn404() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         doThrow(new BusinessException(ResultCode.ADDRESS_NOT_FOUND))
                 .when(addressService).remove(9L);
@@ -110,7 +110,7 @@ class AddressControllerTest {
     }
 
     @Test
-    void 未登录访问应返回401() throws Exception {
+    void unauthenticatedAccess_shouldReturn401() throws Exception {
         // 不带 Cookie：AuthInterceptor 直接拦
         mockMvc.perform(get("/mall/addresses"))
                 .andExpect(status().isOk())

@@ -11,30 +11,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SearchQuerySupportTest {
 
     @Test
-    void 普通中文词原样通过() {
+    void plainKeywordPassesThrough() {
         assertThat(SearchQuerySupport.sanitize("T恤")).isEqualTo("T恤");
     }
 
     @Test
-    void 布尔操作符替换为空格() {
+    void booleanOperatorsReplacedWithSpaces() {
         assertThat(SearchQuerySupport.sanitize("牛仔+夹克")).isEqualTo("牛仔 夹克");
         assertThat(SearchQuerySupport.sanitize("a-b*c>d")).isEqualTo("a b c d");
     }
 
     @Test
-    void 连续空白压缩为单空格() {
+    void consecutiveWhitespaceCollapsedToSingleSpace() {
         assertThat(SearchQuerySupport.sanitize("  牛皮   靴 ")).isEqualTo("牛皮 靴");
     }
 
     @Test
-    void 纯操作符清洗后为空返回null() {
+    void pureOperatorsSanitizedToEmpty_returnsNull() {
         assertThat(SearchQuerySupport.sanitize("+++")).isNull();
         assertThat(SearchQuerySupport.sanitize("   ")).isNull();
         assertThat(SearchQuerySupport.sanitize("")).isNull();
     }
 
     @Test
-    void 空值原样返回null() {
+    void nullInput_returnsNull() {
         assertThat(SearchQuerySupport.sanitize(null)).isNull();
     }
 }

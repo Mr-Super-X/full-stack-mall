@@ -55,7 +55,7 @@ class SeckillAdminServiceImplTest {
     }
 
     @Test
-    void 创建划拨成功_条件扣减库存且活动落库为待开始() {
+    void createSuccess_conditionalDeductAndActivityPersistedAsPending() {
         given(productMapper.selectById(16L)).willReturn(platformProduct());
         given(productItemMapper.selectList(any())).willReturn(List.of(item(20)));
         given(productItemMapper.update(eq(null), any())).willReturn(1);
@@ -74,7 +74,7 @@ class SeckillAdminServiceImplTest {
     }
 
     @Test
-    void 创建挂载多SKU商品应拒绝() {
+    void createWithMultiSkuProduct_shouldReject() {
         given(productMapper.selectById(1L)).willReturn(platformProduct());
         given(productItemMapper.selectList(any())).willReturn(List.of(item(20), item(20)));
 
@@ -84,7 +84,7 @@ class SeckillAdminServiceImplTest {
     }
 
     @Test
-    void 创建划拨超库存应抛库存不足() {
+    void createOverStock_shouldThrowStockNotEnough() {
         given(productMapper.selectById(16L)).willReturn(platformProduct());
         given(productItemMapper.selectList(any())).willReturn(List.of(item(3)));
         given(productItemMapper.update(eq(null), any())).willReturn(0);
@@ -95,14 +95,14 @@ class SeckillAdminServiceImplTest {
     }
 
     @Test
-    void 创建限购大于1应拒绝() {
+    void createWithLimitGreaterThanOne_shouldReject() {
         assertThatThrownBy(() -> service.create(request(16L, 5, 2)))
                 .isInstanceOf(BusinessException.class)
                 .extracting("resultCode").isEqualTo(ResultCode.BAD_REQUEST);
     }
 
     @Test
-    void 取消待开始场_归还划拨库存且置已取消() {
+    void cancelPendingSession_restoresAllocatedStockAndMarksCancelled() {
         SeckillActivity activity = activity(SeckillStatus.PENDING);
         given(seckillActivityMapper.selectById(1L)).willReturn(activity);
         given(seckillActivityMapper.update(eq(null), any())).willReturn(1);
@@ -115,7 +115,7 @@ class SeckillAdminServiceImplTest {
     }
 
     @Test
-    void 取消进行中场应拒绝() {
+    void cancelActiveSession_shouldReject() {
         given(seckillActivityMapper.selectById(1L)).willReturn(activity(SeckillStatus.ACTIVE));
         given(seckillActivityMapper.update(eq(null), any())).willReturn(0);
 
@@ -142,7 +142,7 @@ class SeckillAdminServiceImplTest {
     }
 
     @Test
-    void 候选商品_仅保留单SKU自营且有库存() {
+    void candidates_keepOnlySingleSkuPlatformWithStock() {
         Product p1 = platformProduct();
         p1.setId(16L);
         Product p2 = platformProduct();

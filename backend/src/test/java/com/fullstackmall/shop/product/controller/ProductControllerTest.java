@@ -38,7 +38,7 @@ class ProductControllerTest {
     private JwtService jwtService;
 
     @Test
-    void 分页列表应返回约定信封与分页形状() throws Exception {
+    void pagedList_shouldReturnAgreedEnvelopeAndPageShape() throws Exception {
         ProductSummaryDTO item = new ProductSummaryDTO();
         item.setId(1L);
         item.setName("陶土色垂感风衣 · 中长款双面呢");
@@ -64,7 +64,7 @@ class ProductControllerTest {
     }
 
     @Test
-    void keyword为空白字符串应正常查询() throws Exception {
+    void blankKeyword_shouldQueryNormally() throws Exception {
         Page<ProductSummaryDTO> page = new Page<>(1, 10, 0);
         page.setRecords(List.of());
         given(productService.pageProducts(any())).willReturn(PageResult.of(page));
@@ -79,7 +79,7 @@ class ProductControllerTest {
     }
 
     @Test
-    void page为0应返回400() throws Exception {
+    void pageZero_shouldReturn400() throws Exception {
         mockMvc.perform(get("/mall/product/list")
                         .param("page", "0")
                         .param("pageSize", "10"))
@@ -88,7 +88,7 @@ class ProductControllerTest {
     }
 
     @Test
-    void 详情正常返回() throws Exception {
+    void detail_shouldReturnNormally() throws Exception {
         ProductItemDTO sku = new ProductItemDTO();
         sku.setId(1L);
         sku.setSize("M");
@@ -119,7 +119,7 @@ class ProductControllerTest {
     }
 
     @Test
-    void 详情不存在应返回404与统一文案() throws Exception {
+    void detailNotFound_shouldReturn404WithUnifiedMessage() throws Exception {
         given(productService.getDetail(999L)).willThrow(new BusinessException(ResultCode.PRODUCT_NOT_FOUND));
 
         mockMvc.perform(get("/mall/product/999"))

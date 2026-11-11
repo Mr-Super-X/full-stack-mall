@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class ResultTest {
 
     @Test
-    void 成功时code为200且携带data() {
+    void success_shouldHaveCode200AndCarryData() {
         Result<String> result = Result.success("ok-data");
 
         assertEquals(200, result.getCode());
@@ -17,7 +17,7 @@ class ResultTest {
     }
 
     @Test
-    void 业务错误码应透传code与message() {
+    void businessErrorCode_shouldPassThroughCodeAndMessage() {
         Result<Void> result = Result.error(ResultCode.PRODUCT_NOT_FOUND);
 
         assertEquals(404, result.getCode());
@@ -26,7 +26,7 @@ class ResultTest {
     }
 
     @Test
-    void 自定义错误消息应覆盖默认message() {
+    void customErrorMessage_shouldOverrideDefaultMessage() {
         Result<Void> result = Result.error(400, "page 必须大于等于 1");
 
         assertEquals(400, result.getCode());

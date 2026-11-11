@@ -25,7 +25,7 @@ class SearchControllerTest {
     private JwtService jwtService;
 
     @Test
-    void 热搜词匿名返回常量数组() throws Exception {
+    void hotWordsAnonymous_shouldReturnConstantArray() throws Exception {
         mockMvc.perform(get("/mall/search/hot-words"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))

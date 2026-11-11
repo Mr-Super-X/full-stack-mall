@@ -17,7 +17,7 @@ class JwtServiceTest {
     private static final String SECRET = "test-secret-key-for-jwt-signing-32bytes-plus";
 
     @Test
-    void 签发后解析应还原用户身份() {
+    void shouldRestoreUserIdentityAfterSignAndParse() {
         JwtService jwtService = new JwtService(SECRET, 24);
 
         String token = jwtService.sign(2L, "seller", "USER");
@@ -29,7 +29,7 @@ class JwtServiceTest {
     }
 
     @Test
-    void 过期token应抛ExpiredJwtException() throws InterruptedException {
+    void shouldThrowExpiredJwtExceptionWhenTokenExpired() throws InterruptedException {
         JwtService jwtService = new JwtService(SECRET, 0);
         String token = jwtService.sign(2L, "seller", "USER");
 
@@ -40,7 +40,7 @@ class JwtServiceTest {
     }
 
     @Test
-    void 篡改签名应抛JwtException() {
+    void shouldThrowJwtExceptionWhenSignatureTampered() {
         JwtService signer = new JwtService(SECRET, 24);
         JwtService otherKeyParser = new JwtService("another-secret-key-totally-different-32b", 24);
         String token = signer.sign(2L, "seller", "USER");

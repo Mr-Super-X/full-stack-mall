@@ -32,7 +32,7 @@ class HomeControllerTest {
     private JwtService jwtService;
 
     @Test
-    void 首页聚合应包含五个区块() throws Exception {
+    void homeAggregate_shouldContainFiveSections() throws Exception {
         HomeContentDTO.BannerItem banner = new HomeContentDTO.BannerItem();
         banner.setId(1L);
         banner.setTitle("新客立减 ¥30");
@@ -71,7 +71,7 @@ class HomeControllerTest {
     }
 
     @Test
-    void 区块为空数组时整体仍应200() throws Exception {
+    void emptySectionArrays_shouldStillReturn200() throws Exception {
         HomeContentDTO content = new HomeContentDTO();
         content.setNotice("notice");
         content.setBanners(List.of());

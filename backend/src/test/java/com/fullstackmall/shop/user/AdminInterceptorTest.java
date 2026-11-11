@@ -29,14 +29,14 @@ class AdminInterceptorTest {
     }
 
     @Test
-    void 无用户上下文应抛未登录() {
+    void shouldThrowUnauthorizedWhenNoUserContext() {
         assertThatThrownBy(() -> interceptor.preHandle(request, response, new Object()))
                 .isInstanceOf(BusinessException.class)
                 .extracting("resultCode").isEqualTo(ResultCode.UNAUTHORIZED);
     }
 
     @Test
-    void 普通用户应抛无权限() {
+    void shouldThrowForbiddenWhenNormalUser() {
         UserContext.set(new LoginUser(3L, "buyer", "USER"));
 
         assertThatThrownBy(() -> interceptor.preHandle(request, response, new Object()))
@@ -45,7 +45,7 @@ class AdminInterceptorTest {
     }
 
     @Test
-    void 管理员应放行() throws Exception {
+    void shouldAllowAdmin() throws Exception {
         UserContext.set(new LoginUser(1L, "admin", "ADMIN"));
 
         boolean proceed = interceptor.preHandle(request, response, new Object());

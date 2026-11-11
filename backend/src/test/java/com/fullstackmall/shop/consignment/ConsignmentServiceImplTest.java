@@ -68,7 +68,7 @@ class ConsignmentServiceImplTest {
     }
 
     @Test
-    void 已定价单据确认后应铸造商品四写并流转已上架() {
+    void acceptPricedListing_shouldMintProductWithFourWritesAndTransitionToListed() {
         given(listingMapper.selectOne(any())).willReturn(pricedListing());
         // 条件更新迁移成功（影响 1 行）
         given(listingMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
@@ -99,7 +99,7 @@ class ConsignmentServiceImplTest {
     }
 
     @Test
-    void 未定价单据确认应抛非法流转() {
+    void acceptUnpricedListing_shouldThrowStateIllegal() {
         ConsignmentListing submitted = pricedListing();
         submitted.setStatus(ConsignmentStatus.SUBMITTED);
         given(listingMapper.selectOne(any())).willReturn(submitted);
@@ -112,7 +112,7 @@ class ConsignmentServiceImplTest {
     }
 
     @Test
-    void 已上架单据重复确认应抛非法流转_幂等兜底() {
+    void acceptListedListingRepeatedly_shouldThrowStateIllegal_idempotentFallback() {
         ConsignmentListing listed = pricedListing();
         listed.setStatus(ConsignmentStatus.LISTED);
         given(listingMapper.selectOne(any())).willReturn(listed);
@@ -125,7 +125,7 @@ class ConsignmentServiceImplTest {
     }
 
     @Test
-    void 他人单据确认应抛404() {
+    void acceptOthersListing_shouldThrow404() {
         // 归属双条件查询查不到 → 404
         given(listingMapper.selectOne(any())).willReturn(null);
 
@@ -135,7 +135,7 @@ class ConsignmentServiceImplTest {
     }
 
     @Test
-    void accept方法必须声明事务注解_铸造四写原子性() throws Exception {
+    void acceptMethod_mustDeclareTransactionalAnnotation_forFourWritesAtomicity() throws Exception {
         Method accept = ConsignmentServiceImpl.class.getMethod("accept", Long.class);
         assertThat(accept.getAnnotation(Transactional.class)).isNotNull();
     }

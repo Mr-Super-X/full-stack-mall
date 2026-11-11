@@ -41,7 +41,7 @@ class ConsignmentControllerTest {
     private JwtService jwtService;
 
     @Test
-    void 提交成功应返回200且状态为已提交() throws Exception {
+    void submit_success_shouldReturn200WithSubmittedStatus() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(2L, "seller", "USER"));
         given(consignmentService.submit(any())).willReturn(dto(1L, "SUBMITTED"));
 
@@ -56,7 +56,7 @@ class ConsignmentControllerTest {
     }
 
     @Test
-    void 提交图片为空数组应返回400() throws Exception {
+    void submitWithEmptyImages_shouldReturn400() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(2L, "seller", "USER"));
 
         mockMvc.perform(post("/mall/consignments")
@@ -69,7 +69,7 @@ class ConsignmentControllerTest {
     }
 
     @Test
-    void 提交缺期望价应返回400() throws Exception {
+    void submitMissingExpectedPrice_shouldReturn400() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(2L, "seller", "USER"));
 
         // 去掉 expectedPrice 字段
@@ -83,7 +83,7 @@ class ConsignmentControllerTest {
     }
 
     @Test
-    void 详情他人单据应返回404() throws Exception {
+    void detailOthersListing_shouldReturn404() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(consignmentService.detail(1L))
                 .willThrow(new BusinessException(ResultCode.CONSIGNMENT_NOT_FOUND));
@@ -96,7 +96,7 @@ class ConsignmentControllerTest {
     }
 
     @Test
-    void 我的寄卖列表应返回本人单据() throws Exception {
+    void myConsignmentList_shouldReturnOwnListings() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(2L, "seller", "USER"));
         given(consignmentService.mine()).willReturn(List.of(dto(1L, "SUBMITTED"), dto(2L, "PRICED")));
 
@@ -109,7 +109,7 @@ class ConsignmentControllerTest {
     }
 
     @Test
-    void 未登录提交应返回401() throws Exception {
+    void unauthenticatedSubmit_shouldReturn401() throws Exception {
         mockMvc.perform(post("/mall/consignments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validSubmitBody()))
@@ -139,7 +139,7 @@ class ConsignmentControllerTest {
     // ── Task 5：accept 铸造上架契约 ──────────────────────────────
 
     @Test
-    void 确认定价成功应返回已上架与商品id() throws Exception {
+    void acceptPricing_success_shouldReturnListedWithProductId() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(2L, "seller", "USER"));
         ConsignmentDTO listed = dto(1L, "LISTED");
         listed.setListedProductId(16L);
@@ -154,7 +154,7 @@ class ConsignmentControllerTest {
     }
 
     @Test
-    void 未定价单据确认应返回400非法流转() throws Exception {
+    void acceptUnpricedListing_shouldReturn400StateIllegal() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(2L, "seller", "USER"));
         given(consignmentService.accept(1L))
                 .willThrow(new BusinessException(ResultCode.CONSIGNMENT_STATE_ILLEGAL));
@@ -167,7 +167,7 @@ class ConsignmentControllerTest {
     }
 
     @Test
-    void 确认他人单据应返回404() throws Exception {
+    void acceptOthersListing_shouldReturn404() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(consignmentService.accept(1L))
                 .willThrow(new BusinessException(ResultCode.CONSIGNMENT_NOT_FOUND));

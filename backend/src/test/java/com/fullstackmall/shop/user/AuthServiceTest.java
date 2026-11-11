@@ -40,7 +40,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void 注册重名应抛出用户名已存在() {
+    void shouldThrowUsernameExistsWhenDuplicateName() {
         // CI 行为由数据库 collation 保证；service 只认 exists 命中
         given(userMapper.selectCount(any())).willReturn(1L);
 
@@ -50,7 +50,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void 注册成功入库密码必须为BCrypt哈希而非明文() {
+    void shouldPersistBcryptHashNotPlaintextWhenRegisterSuccess() {
         given(userMapper.selectCount(any())).willReturn(0L);
 
         authService.register(registerReq("newbie", "123456"));
@@ -64,7 +64,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void 登录用户不存在与密码错误应同文案防枚举() {
+    void shouldUseSameMessageForUserNotFoundAndWrongPasswordToPreventEnumeration() {
         given(userMapper.selectOne(any())).willReturn(null);
         assertThatThrownBy(() -> authService.login(loginReq("ghost", "123456")))
                 .isInstanceOf(BusinessException.class)
@@ -78,7 +78,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void 登录成功应返回用户信息() {
+    void shouldReturnUserInfoWhenLoginSuccess() {
         User seller = userWith(2L, "seller", new BCryptPasswordEncoder().encode("seller123"));
         given(userMapper.selectOne(any())).willReturn(seller);
 
@@ -90,7 +90,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void infoOf查不到用户应视为未登录() {
+    void shouldTreatMissingUserAsUnauthorizedWhenInfoOf() {
         given(userMapper.selectById(99L)).willReturn(null);
 
         assertThatThrownBy(() -> authService.infoOf(99L))

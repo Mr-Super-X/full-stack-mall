@@ -48,7 +48,7 @@ class ProductServiceImplSeckillTest {
     }
 
     @Test
-    void 详情有生效活动_出参含activeSeckill() {
+    void detailWithActiveSeckill_outputContainsActiveSeckill() {
         given(productMapper.selectOne(any())).willReturn(product());
         given(productItemMapper.selectList(any())).willReturn(List.of(item()));
         given(productImageMapper.selectList(any())).willReturn(List.of(image(0), image(1)));
@@ -66,7 +66,7 @@ class ProductServiceImplSeckillTest {
     }
 
     @Test
-    void 详情无生效活动_activeSeckill为null() {
+    void detailWithoutActiveSeckill_activeSeckillIsNull() {
         given(productMapper.selectOne(any())).willReturn(product());
         given(productItemMapper.selectList(any())).willReturn(List.of(item()));
         given(productImageMapper.selectList(any())).willReturn(List.of(image(0)));
@@ -78,7 +78,7 @@ class ProductServiceImplSeckillTest {
     }
 
     @Test
-    void keyword经sanitize后为空_按全量查询处理() {
+    void keywordBlankAfterSanitize_treatedAsFullQuery() {
         var req = new com.fullstackmall.shop.product.dto.ProductListRequest();
         req.setKeyword("+++");
 

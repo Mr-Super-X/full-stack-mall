@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PasswordHashPrinter {
 
     @Test
-    void 打印种子用户密码哈希并自校验() {
+    void shouldPrintSeedUserPasswordHashesWithSelfCheck() {
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
         String[] plain = {"admin123", "seller123", "buyer123"};
         for (String p : plain) {
@@ -27,7 +27,7 @@ class PasswordHashPrinter {
      * 本用例锁定该哈希的明文（JMeter users.csv 依赖）。哈希若被重新生成而明文未同步会在此变红。
      */
     @Test
-    void 校验压测账号哈希明文配对() {
+    void shouldVerifyPerfAccountHashPlaintextPairing() {
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
         String initSqlHash = "$2a$10$qtzByZqa1qq3FHRjdkkyUuBn1seDmzzsD368wAuKJ9hqUwLp8HOC2";
         assertThat(encoder.matches("admin123", initSqlHash)).isTrue();

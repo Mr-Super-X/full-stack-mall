@@ -95,7 +95,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 秒杀单超时关单_回补独立池且不碰常规库存() {
+    void seckillOrderTimeoutClose_shouldReplenishSeckillPoolOnly() {
         Order expired = new Order();
         expired.setId(7L);
         expired.setUserId(3L);
@@ -116,7 +116,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 普通单超时关单_回补常规库存且不碰秒杀池() {
+    void normalOrderTimeoutClose_shouldReplenishNormalStockOnly() {
         Order expired = new Order();
         expired.setId(8L);
         expired.setUserId(3L);
@@ -138,7 +138,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 购物车结算下单成功_三写齐_快照含标题_扣库存_清购物车_建支付单() {
+    void cartCheckoutSuccess_shouldWriteOrderDeductStockClearCartAndCreatePayment() {
         given(cartItemMapper.selectList(any())).willReturn(List.of(cartRow(1L, 1L, 2)));
         given(addressMapper.selectOne(any())).willReturn(address());
         given(productItemMapper.selectBatchIds(any())).willReturn(List.of(platformItem(1L, 200, "399.00")));
@@ -170,7 +170,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 库存不足应整体回滚_不写订单() {
+    void insufficientStock_shouldRollbackAndNotWriteOrder() {
         given(cartItemMapper.selectList(any())).willReturn(List.of(cartRow(1L, 1L, 2)));
         given(addressMapper.selectOne(any())).willReturn(address());
         given(productItemMapper.selectBatchIds(any())).willReturn(List.of(platformItem(1L, 1, "399.00")));
@@ -188,7 +188,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 购物车行含他人条目应抛404() {
+    void cartCheckoutWithOthersItem_shouldThrow404() {
         given(addressMapper.selectOne(any())).willReturn(address());
         // 归属双条件查询只返回部分行（其余属于他人）
         given(cartItemMapper.selectList(any())).willReturn(List.of());
@@ -199,7 +199,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 地址不属于本人应抛404() {
+    void addressNotOwned_shouldThrow404() {
         given(addressMapper.selectOne(any())).willReturn(null);
 
         assertThatThrownBy(() -> orderService.create(cartRequest()))
@@ -208,7 +208,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 购物车模式缺条目列表应抛参数错误() {
+    void cartCheckoutMissingItems_shouldThrowBadRequest() {
         CreateOrderRequest req = new CreateOrderRequest();
         req.setAddressId(1L);
         req.setSource(CreateOrderRequest.Source.CART);
@@ -222,7 +222,7 @@ class OrderServiceImplTest {
     // ── Task 3：DIRECT 寄卖直购 ─────────────────────────────────
 
     @Test
-    void 寄卖直购成功_数量恒1_卖家快照进明细() {
+    void consignmentDirectBuySuccess_shouldSetQuantityOneAndSnapshotSeller() {
         given(addressMapper.selectOne(any())).willReturn(address());
         ProductItem consignmentItem = platformItem(33L, 1, "12800.00");
         consignmentItem.setProductId(14L);
@@ -254,7 +254,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 自营商品走直购应抛参数错误() {
+    void directBuySelfOperatedItem_shouldThrowBadRequest() {
         given(addressMapper.selectOne(any())).willReturn(address());
         given(productItemMapper.selectById(1L)).willReturn(platformItem(1L, 200, "399.00"));
         given(productMapper.selectById(1L)).willReturn(platformProduct());
@@ -270,7 +270,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 寄卖已售直购应抛库存不足() {
+    void directBuySoldConsignment_shouldThrowStockNotEnough() {
         given(addressMapper.selectOne(any())).willReturn(address());
         ProductItem soldOutItem = platformItem(33L, 0, "12800.00");
         soldOutItem.setProductId(14L);
@@ -297,7 +297,7 @@ class OrderServiceImplTest {
     // ── Task 4：查询 / 惰性关单 / cancel ────────────────────────
 
     @Test
-    void 查询过期订单应变已取消且回补库存() {
+    void queryExpiredOrder_shouldMarkCancelledAndReplenishStock() {
         Order expired = order(1L, OrderStatus.PENDING_PAYMENT, java.time.LocalDateTime.now().minusMinutes(20));
         given(orderMapper.selectOne(any())).willReturn(expired);
         // 条件迁移 CANCELLED 成功
@@ -313,7 +313,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 未过期订单查询不应关单() {
+    void queryUnexpiredOrder_shouldNotClose() {
         Order fresh = order(1L, OrderStatus.PENDING_PAYMENT, java.time.LocalDateTime.now().plusMinutes(10));
         given(orderMapper.selectOne(any())).willReturn(fresh);
         given(orderItemMapper.selectList(any())).willReturn(List.of(orderLine(1L, 2)));
@@ -325,7 +325,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 取消已支付订单应抛非法流转() {
+    void cancelPaidOrder_shouldThrowIllegalTransition() {
         given(orderMapper.selectOne(any()))
                 .willReturn(order(1L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10)));
 
@@ -335,7 +335,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 取消待支付订单成功并回补库存() {
+    void cancelPendingOrderSuccess_shouldReplenishStock() {
         Order pending = order(1L, OrderStatus.PENDING_PAYMENT, java.time.LocalDateTime.now().plusMinutes(10));
         given(orderMapper.selectOne(any())).willReturn(pending);
         given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
@@ -348,7 +348,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 查询他人订单应抛404() {
+    void queryOthersOrder_shouldThrow404() {
         given(orderMapper.selectOne(any())).willReturn(null);
 
         assertThatThrownBy(() -> orderService.detail(9L))
@@ -359,7 +359,7 @@ class OrderServiceImplTest {
     // ── Task 2（阶段 3）：卖家订单列表 ────────────────────────────
 
     @Test
-    void 卖家订单列表应只含我卖的订单与我卖的明细行() {
+    void sellerOrderList_shouldOnlyContainMySoldOrdersAndLines() {
         // 我卖的寄卖明细（sellerId=3，寄卖 DIRECT 单）
         com.fullstackmall.shop.order.entity.OrderItem myLine = orderLine(35L, 1);
         myLine.setOrderId(2L);
@@ -384,7 +384,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 卖家订单按状态过滤() {
+    void sellerOrders_shouldFilterByStatus() {
         com.fullstackmall.shop.order.entity.OrderItem lineA = orderLine(35L, 1);
         lineA.setOrderId(2L);
         lineA.setSellerId(3L);
@@ -403,7 +403,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 我没有卖出记录时返回空列表() {
+    void sellerOrders_shouldReturnEmptyListWhenNoSales() {
         given(orderItemMapper.selectList(any())).willReturn(List.of());
 
         List<OrderDTO> result = orderService.sold(null);
@@ -414,7 +414,7 @@ class OrderServiceImplTest {
     // ── Task 3（阶段 3）：发货（主体鉴权 + 状态迁移） ────────────
 
     @Test
-    void 卖家发自己的寄卖件应成功迁移已发货() {
+    void sellerShipOwnConsignment_shouldSucceedAndMarkShipped() {
         Order paid = order(1L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10));
         given(orderMapper.selectById(1L)).willReturn(paid);
         com.fullstackmall.shop.order.entity.OrderItem myConsignment = orderLine(35L, 1);
@@ -428,7 +428,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 非卖家发寄卖件应抛404不暴露存在性() {
+    void nonSellerShipConsignment_shouldThrow404() {
         // 寄卖件属于卖家 B（sellerId=2），当前用户是买家（id=3）或其他卖家 A
         Order paid = order(1L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10));
         given(orderMapper.selectById(1L)).willReturn(paid);
@@ -442,7 +442,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 普通用户发自营件应抛403() {
+    void normalUserShipSelfOperatedItem_shouldThrow403() {
         Order paid = order(1L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10));
         given(orderMapper.selectById(1L)).willReturn(paid);
         com.fullstackmall.shop.order.entity.OrderItem platformLine = orderLine(1L, 1);
@@ -455,7 +455,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 管理员发自营件应成功迁移已发货() {
+    void adminShipSelfOperatedItem_shouldSucceedAndMarkShipped() {
         UserContext.set(new LoginUser(1L, "admin", "ADMIN"));
         Order paid = order(1L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10));
         given(orderMapper.selectById(1L)).willReturn(paid);
@@ -470,7 +470,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 未支付订单发货应抛非法流转() {
+    void shipUnpaidOrder_shouldThrowIllegalTransition() {
         // 并发/重复发货语义：条件迁移 WHERE status='PAID' 命中 0 行
         Order pending = order(1L, OrderStatus.PENDING_PAYMENT, java.time.LocalDateTime.now().plusMinutes(10));
         given(orderMapper.selectById(1L)).willReturn(pending);
@@ -487,7 +487,7 @@ class OrderServiceImplTest {
     // ── Task 4（阶段 3）：确认收货 + Payout 生成 ──────────────────
 
     @Test
-    void 确认收货后应生成结算单且拆账恒等() {
+    void confirmReceipt_shouldCreatePayoutAndSplitIdentically() {
         Order shipped = order(1L, OrderStatus.SHIPPED, java.time.LocalDateTime.now().plusMinutes(10));
         given(orderMapper.selectOne(any())).willReturn(shipped);
         given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
@@ -521,7 +521,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 已有结算单时重复确认不重复生成() {
+    void confirmReceiptWithExistingPayout_shouldNotDuplicate() {
         Order shipped = order(1L, OrderStatus.SHIPPED, java.time.LocalDateTime.now().plusMinutes(10));
         given(orderMapper.selectOne(any())).willReturn(shipped);
         given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(1);
@@ -537,7 +537,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void 未发货订单确认收货应抛非法流转() {
+    void confirmReceiptUnshipped_shouldThrowIllegalTransition() {
         Order paid = order(1L, OrderStatus.PAID, java.time.LocalDateTime.now().plusMinutes(10));
         given(orderMapper.selectOne(any())).willReturn(paid);
         given(orderMapper.update(org.mockito.ArgumentMatchers.isNull(), any())).willReturn(0);

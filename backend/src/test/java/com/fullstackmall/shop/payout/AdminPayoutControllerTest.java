@@ -38,7 +38,7 @@ class AdminPayoutControllerTest {
     private JwtService jwtService;
 
     @Test
-    void 结算列表缺省应查待初审() throws Exception {
+    void payoutListDefault_shouldQueryPending() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(1L, "admin", "ADMIN"));
         given(payoutService.adminList("PENDING")).willReturn(List.of(dto("PENDING")));
 
@@ -52,7 +52,7 @@ class AdminPayoutControllerTest {
     }
 
     @Test
-    void 初审成功返回已初审() throws Exception {
+    void firstReviewSuccess_shouldReturnConfirmed() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(1L, "admin", "ADMIN"));
         given(payoutService.confirm(1L)).willReturn(dto("CONFIRMED"));
 
@@ -64,7 +64,7 @@ class AdminPayoutControllerTest {
     }
 
     @Test
-    void 打款成功返回已打款() throws Exception {
+    void paySuccess_shouldReturnPaid() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(1L, "admin", "ADMIN"));
         given(payoutService.pay(1L)).willReturn(dto("PAID"));
 
@@ -76,7 +76,7 @@ class AdminPayoutControllerTest {
     }
 
     @Test
-    void 普通用户调用管理端应返回403() throws Exception {
+    void normalUserCallingAdminApi_shouldReturn403() throws Exception {
         // buyer（USER 角色）走真实双层拦截链：Auth 解析身份 → Admin 拦角色
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
 

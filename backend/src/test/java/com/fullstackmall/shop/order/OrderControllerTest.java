@@ -39,7 +39,7 @@ class OrderControllerTest {
     private JwtService jwtService;
 
     @Test
-    void 下单成功应返回订单号与支付单号() throws Exception {
+    void placeOrderSuccess_shouldReturnOrderNoAndPaymentNo() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         OrderDTO dto = new OrderDTO();
         dto.setId(1L);
@@ -61,7 +61,7 @@ class OrderControllerTest {
     }
 
     @Test
-    void 购物车模式缺条目应返回400() throws Exception {
+    void cartCheckoutMissingItems_shouldReturn400() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         // Service 层对模式内必填做交叉校验，缺失即抛参数错误（Controller 契约=异常透传为 400 信封）
         given(orderService.create(any())).willThrow(new BusinessException(ResultCode.BAD_REQUEST));
@@ -75,7 +75,7 @@ class OrderControllerTest {
     }
 
     @Test
-    void 直购模式缺规格应返回400() throws Exception {
+    void directBuyMissingSpec_shouldReturn400() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(orderService.create(any())).willThrow(new BusinessException(ResultCode.BAD_REQUEST));
 
@@ -88,7 +88,7 @@ class OrderControllerTest {
     }
 
     @Test
-    void 未登录下单应返回401() throws Exception {
+    void placeOrderUnauthenticated_shouldReturn401() throws Exception {
         mockMvc.perform(post("/mall/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"addressId\":1,\"source\":\"CART\",\"cartItemIds\":[1]}"))
@@ -99,7 +99,7 @@ class OrderControllerTest {
     // ── Task 2（阶段 3）：卖家订单列表端点 ────────────────────────
 
     @Test
-    void 卖家订单列表成功返回() throws Exception {
+    void sellerOrderList_shouldReturnSuccess() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         OrderDTO dto = new OrderDTO();
         dto.setId(2L);
@@ -116,7 +116,7 @@ class OrderControllerTest {
     }
 
     @Test
-    void 卖家订单状态参数透传() throws Exception {
+    void sellerOrders_shouldPassThroughStatusParam() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         given(orderService.sold("SHIPPED")).willReturn(java.util.List.of());
 
@@ -132,7 +132,7 @@ class OrderControllerTest {
     // ── Task 3（阶段 3）：发货端点 ────────────────────────────────
 
     @Test
-    void 发货成功返回200() throws Exception {
+    void shipOrderSuccess_shouldReturn200() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(2L, "seller", "USER"));
 
         mockMvc.perform(post("/mall/orders/1/ship")
@@ -144,7 +144,7 @@ class OrderControllerTest {
     }
 
     @Test
-    void 发货角色不符返回403() throws Exception {
+    void shipOrderWrongRole_shouldReturn403() throws Exception {
         given(jwtService.parse("t")).willReturn(new LoginUser(3L, "buyer", "USER"));
         org.mockito.Mockito.doThrow(new com.fullstackmall.shop.common.BusinessException(
                         com.fullstackmall.shop.common.ResultCode.FORBIDDEN))

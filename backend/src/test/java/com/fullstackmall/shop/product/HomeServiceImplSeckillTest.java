@@ -47,7 +47,7 @@ class HomeServiceImplSeckillTest {
     }
 
     @Test
-    void 首页秒杀区块_live最多两场并统计预告数() {
+    void homeSeckillSection_liveCappedAtTwoAndCountsUpcoming() {
         SeckillActiveDTO active = new SeckillActiveDTO();
         active.setLive(List.of(liveItem(1L), liveItem(2L), liveItem(3L)));
         active.setUpcoming(List.of(liveItem(4L)));

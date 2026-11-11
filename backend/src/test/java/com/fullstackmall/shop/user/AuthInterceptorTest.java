@@ -43,14 +43,14 @@ class AuthInterceptorTest {
     }
 
     @Test
-    void 无Cookie应抛未登录() {
+    void shouldThrowUnauthorizedWhenNoCookie() {
         assertThatThrownBy(() -> interceptor.preHandle(request, response, new Object()))
                 .isInstanceOf(BusinessException.class)
                 .extracting("resultCode").isEqualTo(ResultCode.UNAUTHORIZED);
     }
 
     @Test
-    void 过期token应映射401而非500() {
+    void shouldMapExpiredTokenTo401Not500() {
         request.setCookies(new Cookie("token", "expired-token"));
         given(jwtService.parse("expired-token"))
                 .willThrow(new ExpiredJwtException(null, null, "token expired"));
@@ -61,7 +61,7 @@ class AuthInterceptorTest {
     }
 
     @Test
-    void 合法token应写入用户上下文() throws Exception {
+    void shouldWriteUserContextWhenTokenValid() throws Exception {
         request.setCookies(new Cookie("token", "good-token"));
         given(jwtService.parse("good-token")).willReturn(new LoginUser(2L, "seller", "USER"));
 
@@ -72,7 +72,7 @@ class AuthInterceptorTest {
     }
 
     @Test
-    void 请求完成后必须清理ThreadLocal防线程池串号() throws Exception {
+    void shouldClearThreadLocalAfterRequestToPreventThreadMixing() throws Exception {
         request.setCookies(new Cookie("token", "good-token"));
         given(jwtService.parse("good-token")).willReturn(new LoginUser(2L, "seller", "USER"));
         interceptor.preHandle(request, response, new Object());

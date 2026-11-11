@@ -40,7 +40,7 @@ class AuthControllerTest {
     private JwtService jwtService;
 
     @Test
-    void 注册成功应返回用户信息() throws Exception {
+    void shouldReturnUserInfoWhenRegisterSuccess() throws Exception {
         given(authService.register(any())).willReturn(info(4L, "newbie"));
 
         mockMvc.perform(post("/mall/auth/register")
@@ -52,7 +52,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void 注册重名应返回400与文案() throws Exception {
+    void shouldReturn400WithMessageWhenUsernameExists() throws Exception {
         given(authService.register(any())).willThrow(new BusinessException(ResultCode.USERNAME_EXISTS));
 
         mockMvc.perform(post("/mall/auth/register")
@@ -64,7 +64,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void 注册用户名格式非法应返回400() throws Exception {
+    void shouldReturn400WhenUsernameFormatInvalid() throws Exception {
         mockMvc.perform(post("/mall/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"a!\",\"password\":\"123456\"}"))
@@ -73,7 +73,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void 登录成功应写入HttpOnly且SameSiteLax的Cookie() throws Exception {
+    void shouldWriteHttpOnlySameSiteLaxCookieWhenLoginSuccess() throws Exception {
         UserInfoDTO info = info(2L, "seller");
         info.setRole("USER");
         given(authService.login(any())).willReturn(info);
@@ -90,7 +90,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void 登录失败应返回400同文案() throws Exception {
+    void shouldReturn400WithSameMessageWhenLoginFails() throws Exception {
         given(authService.login(any())).willThrow(new BusinessException(ResultCode.BAD_CREDENTIALS));
 
         mockMvc.perform(post("/mall/auth/login")
@@ -102,7 +102,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void 登出应清除Cookie() throws Exception {
+    void shouldClearCookieWhenLogout() throws Exception {
         mockMvc.perform(post("/mall/auth/logout"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
