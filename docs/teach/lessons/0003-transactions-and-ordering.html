@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 3 课 · 事务与下单 — full-stack-mall 后端课</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --accent: #8c2f2f;
+    --muted: #666;
+    --rule: #d9d9d9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Palatino Linotype", Palatino, Georgia, "Songti SC", "SimSun", serif;
+    color: var(--ink);
+    background: #fdfcf9;
+    line-height: 1.75;
+    font-size: 17px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 64px 24px 120px; }
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 40px; }
+  .kicker { font-size: 13px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; }
+  h1 { font-size: 30px; font-weight: 600; margin-top: 8px; }
+  .goal { color: var(--muted); font-style: italic; margin-top: 10px; }
+  h2 { font-size: 22px; font-weight: 600; margin: 48px 0 16px; }
+  h2 .no { color: var(--accent); margin-right: 8px; }
+  p { margin: 14px 0; }
+  code {
+    font-family: "SF Mono", Consolas, "Courier New", monospace;
+    font-size: 0.86em;
+    background: #f2efe8;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    background: #2b2b2b; color: #e8e6e3; padding: 16px 18px;
+    border-radius: 6px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+    margin: 18px 0;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .src { font-size: 12.5px; color: var(--muted); margin-top: -10px; margin-bottom: 18px; font-family: Consolas, monospace; }
+  .aside {
+    font-size: 13.5px; color: var(--muted); border-left: 3px solid var(--accent);
+    padding: 4px 14px; margin: 20px 0; font-style: italic;
+  }
+  .aside b { color: var(--accent); font-style: normal; }
+  .stop { display: flex; gap: 14px; margin: 26px 0; align-items: flex-start; }
+  .stop .badge {
+    flex: 0 0 30px; height: 30px; border-radius: 50%;
+    border: 1.5px solid var(--accent); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .stop h3 { font-size: 17px; margin-bottom: 4px; }
+  .flow {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 18px 22px; margin: 22px 0; font-size: 15px; line-height: 2.1;
+    font-family: Consolas, monospace;
+  }
+  details { margin: 10px 0; }
+  summary { cursor: pointer; font-size: 15.5px; }
+  summary::marker { color: var(--accent); }
+  .quiz {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 24px 26px; margin: 30px 0;
+  }
+  .quiz h2 { margin-top: 0; }
+  .q { margin: 20px 0 6px; font-weight: 600; }
+  .opts { list-style: none; margin: 8px 0; }
+  .opts li { padding: 5px 0 5px 4px; }
+  .ans { font-size: 14.5px; color: var(--accent); }
+  .next {
+    border-top: 1px solid var(--rule); margin-top: 56px; padding-top: 24px;
+    font-size: 15px; color: var(--muted);
+  }
+  a { color: var(--accent); }
+  @media print {
+    body { background: #fff; font-size: 12pt; }
+    pre { background: #f5f5f5; color: #000; border: 1px solid #ccc; }
+    .quiz { border: 1.5px solid #000; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">full-stack-mall 后端课 · Lesson 3</div>
+  <h1>事务与下单</h1>
+  <p class="goal">本课收获：能讲清"下单"这个动作为什么必须是一个不可分割的事务，以及三处并发防线（条件扣库存、状态条件迁移、订单号 uk 重试）分别挡住了什么。这是面试追问率最高的一课。</p>
+</header>
+
+<p style="font-size:14px;color:var(--muted);">承接 <a href="./0002-login-and-jwt.html">第 2 课 · 登录注册与 JWT</a>。本课主角：<code>POST /mall/orders</code>，教材 <code>order/service/impl/OrderServiceImpl.java</code>。</p>
+
+<h2><span class="no">0</span>一个思想实验：下单不能只做一半</h2>
+<p>假设下单分四步：①扣库存 ②建订单 ③写订单明细 ④建支付单。如果第 ② 步时数据库挂了，会发生什么？没有保护的话：<strong>库存扣了，订单没有</strong>——货凭空少了，用户什么都没买到。这就是"只做了一半"。</p>
+<p>事务（Transaction）就是给这一串操作套上的"要么全成、要么全不算"的契约。Spring 里只需一个注解（<code>OrderServiceImpl.java:108-110</code>）：</p>
+<pre><code>@Override
+@Transactional
+public OrderDTO create(CreateOrderRequest req) { ... }</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/order/service/impl/OrderServiceImpl.java:108-110</p>
+<p>方法内任何一处抛出异常，数据库自动把<strong>已执行的全部写入撤销</strong>（回滚）；全部顺利才落账（提交）。这就是事务的"原子性"——下单是不可分割的最小工作单元。</p>
+<div class="aside"><b>注意：</b>本项目的业务异常 BusinessException 也是 RuntimeException 子类，默认触发回滚。所以 Service 里放心抛，写了一半的脏数据不会留库。</div>
+
+<h2><span class="no">1</span>下单五步：以购物车结算为例</h2>
+<pre><code>cartCreate(userId, req):
+  1. 地址归属校验     —— 这个地址必须是"我"的（user_id 双条件查询）
+  2. 购物车行归属校验 —— id ∈ ids AND user_id=本人，行数不符=混入了他人条目
+  3. 逐行循环：商品在售校验 → 条件扣库存 → 组装快照明细行 → 累计金额
+  4. 插入订单主单（orderNo 冲突换号重试 ≤3）→ 批量插明细 → 清掉已下单购物车行
+  5. 同事务建支付单 Payment（CREATED，前端拿它发起支付）</code></pre>
+<p class="src">据 OrderServiceImpl.java:126-170 整理</p>
+
+<h2><span class="no">2</span>并发防线一：条件 UPDATE 扣库存</h2>
+<p>两人同时买最后 1 件，怎么保证只有一人成功？关键在一条 SQL（<code>OrderServiceImpl.java:218-227</code>）：</p>
+<pre><code>// UPDATE product_item
+//   SET stock = stock - 1, version = version + 1
+//   WHERE id = ? AND stock >= 1        ← 条件在 WHERE 里
+int rows = productItemMapper.update(null, Wrappers.&lt;ProductItem&gt;update()
+        .setSql("stock = stock - " + quantity + ", version = version + 1")
+        .eq("id", itemId)
+        .ge("stock", quantity));
+if (rows == 0) {
+    throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH);  // 整体回滚
+}</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/order/service/impl/OrderServiceImpl.java:218-227</p>
+<p>MySQL 执行 UPDATE 时会给该行<strong>上锁</strong>，两个请求排队执行：第一人把 1 改成 0，第二人的 <code>WHERE stock &gt;= 1</code> 已经匹配不到任何行——影响行数 0——直接抛异常回滚。<strong>"影响行数"就是这次扣减是否成立的裁判</strong>。这就是"乐观"以外的"条件更新"防线：不靠锁等待靠条件断言，行数即真相。</p>
+
+<h2><span class="no">3</span>并发防线二：状态条件迁移</h2>
+<p>取消订单、发货、确认收货都要改状态。裸写法是"查出来判断状态再 update"，两个并发请求会同时通过判断。本项目统一走条件迁移（<code>OrderServiceImpl.java:462-471</code>）：</p>
+<pre><code>// UPDATE orders SET status = 'CANCELLED'
+//   WHERE id = ? AND status = 'PENDING_PAYMENT'   ← 旧状态写进 WHERE
+int rows = orderMapper.update(null, Wrappers.&lt;Order&gt;update()
+        .set("status", to.name())
+        .eq("id", orderId)
+        .in("status", fromNames));
+if (rows == 0) throw new BusinessException(ResultCode.ORDER_STATE_ILLEGAL);</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/order/service/impl/OrderServiceImpl.java:462-471</p>
+<p>重复点"确认收货"、并发点"取消"——第二次执行时旧状态已变，WHERE 命中 0 行，被拒。数据库行锁保证同一时刻只有一个迁移能赢。<strong>读-改-写三步合成一条 UPDATE，中间没有缝隙可钻。</strong></p>
+
+<h2><span class="no">4</span>并发防线三：订单号唯一键 + 重试</h2>
+<p>订单号 = <code>M + 时间戳到秒 + 4位随机</code>（<code>OrderNoGenerator.java:28-31</code>），同一秒最多 1 万个号，理论可能撞车。数据库给 orderNo 建了唯一键（uk），撞了就抛 <code>DuplicateKeyException</code>——Service 捕获换号重试 ≤3 次（<code>OrderServiceImpl.java:261-271</code>）：</p>
+<pre><code>for (int attempt = 0; attempt &lt; 3; attempt++) {
+    order.setOrderNo(OrderNoGenerator.orderNo());
+    try {
+        orderMapper.insert(order);
+        return order;
+    } catch (DuplicateKeyException e) {
+        if (attempt == 2) throw e;   // 第三次还撞，真异常，向上抛
+    }
+}</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/order/service/impl/OrderServiceImpl.java:261-271</p>
+<div class="aside"><b>面试点：</b>uk 是数据库层的最终裁判——应用层任何生成器的"不冲突承诺"都可能失效，唯一键兜住最后底线；重试把极低概率的冲突变成透明重试，而不是用户可见的失败。</div>
+
+<h2><span class="no">5</span>两个设计彩蛋：快照铁律与惰性关单</h2>
+<div class="stop"><div class="badge">1</div><div>
+<h3>快照铁律——订单明细存 JSON，不 join 商品表</h3>
+<p>下单瞬间把标题/图/成色/规格/品牌/成交价定格进 <code>itemSnapshot</code>（<code>OrderServiceImpl.java:229-250</code>）。半年后商品改价、下架、卖家改名，历史订单展示纹丝不动。<strong>订单是法律凭证，商品表是活数据</strong>——用活数据渲染凭证，等于允许篡改历史。</p>
+</div></div>
+<div class="stop"><div class="badge">2</div><div>
+<h3>惰性关单——不用定时任务的取消</h3>
+<p>订单 15 分钟不支付要取消+还库存。常规做法是起个定时任务每秒扫表；本项目是"查询触发"：你查订单列表/详情时，顺手把已过期的批量关掉（<code>OrderServiceImpl.java:322-326</code>）。没有调度器、没有轮询空转，代价是"过期订单可能晚几分钟才显式关闭"——但没人看它的时候它关没关，根本无所谓。</p>
+</div></div>
+
+<h2><span class="no">6</span>30 秒面试版（背下来）</h2>
+<p>"下单是一个 <code>@Transactional</code> 事务：地址和购物车行先做归属校验防越权，然后逐行<strong>条件 UPDATE 扣库存</strong>——<code>SET stock=stock-1 WHERE stock&gt;=1</code>，影响行数为 0 就说明被抢先或不足，整体回滚；库存 1 的寄卖直购同理。订单状态变更全部走条件迁移，旧状态写进 WHERE，行数守卫让并发重复操作只放行一个。订单号是时间戳+随机数，撞 uk 就换号重试三次。明细和地址都存 JSON 快照，商品后续怎么改都不牵连历史订单。超时关单不做定时任务，查询时惰性触发，还库存同事务完成。"</p>
+
+<div class="quiz">
+<h2>自检测验</h2>
+<p style="color:var(--muted);font-size:14px;">先在心里作答，再点开答案。</p>
+
+<p class="q">1. create 方法标了 @Transactional，执行到一半抛出 BusinessException，数据库会怎样？</p>
+<ul class="opts">
+<li>A · 已执行的写入全部撤销，恢复到方法执行前状态</li>
+<li>B · 已执行的写入全部保留，仅中断后续语句不再执行</li>
+<li>C · 事务挂起并等待人工介入，再决定提交还是回滚</li>
+<li>D · 异常被自动捕获并吞掉，方法返回默认值继续走</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>这是事务的原子性：要么全成，要么全不算。BusinessException 是 RuntimeException 子类，默认触发回滚，已扣的库存、已插的草稿行全部撤销。B 是最危险的误解（只做一半）；C/D 描述的不是 Spring 声明式事务的行为。</p></details>
+
+<p class="q">2. 条件 UPDATE（WHERE stock &gt;= q）执行后影响行数为 0，意味着什么？</p>
+<ul class="opts">
+<li>A · 库存不足或已被他人抢先，本次下单整体回滚</li>
+<li>B · 数据库连接已中断，需要重试该语句才能继续</li>
+<li>C · 商品已下架，应立即删除该商品的全部数据</li>
+<li>D · 查询条件书写有误，属于必须修复的程序缺陷</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>行数 0 只有两个合法含义：当前库存 &lt; q（不足），或并发下已被别人扣走（抢先）。两种情况对调用方等价：库存不够，抛 STOCK_NOT_ENOUGH 回滚。B/C/D 都是把"业务结果"误读为"系统故障"。这正是行数守卫的思维方式：<strong>行数是业务裁判，不是错误信号</strong>。</p></details>
+
+<p class="q">3. 订单明细把标题/图片/价格存成 itemSnapshot JSON，根本原因是什么？</p>
+<ul class="opts">
+<li>A · 商品日后改价或下架，历史订单展示不被牵连</li>
+<li>B · JSON 查询速度远快于关联商品表做 join 查询</li>
+<li>C · 减少数据库表数量从而节约磁盘存储的开销</li>
+<li>D · 前端可直接解析渲染快照而无需做字段转换</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>订单是凭证，凭证必须定格成交瞬间的事实。商品表是活数据——半年后改价、改名、下架都会发生。若订单展示靠 join 商品表，历史订单就会"跟着变"，等于默许篡改凭证。B 恰恰相反（join 通常更快）；C/D 可能是顺带效果，但都不是设计动机。</p></details>
+</div>
+
+<h2>主推荐来源</h2>
+<p>Spring 官方文档 <a href="https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html">Declarative Transaction Management（@Transactional）</a>——rollback 规则、代理机制、传播行为的权威定义，本课第 0 节的出处。</p>
+
+<div class="next">
+<p><strong>想追问？</strong>把下面这段贴给 AI 智能体：</p>
+<p style="font-family:Consolas,monospace;font-size:13px;background:#f2efe8;padding:10px 14px;border-radius:6px;">我读完了 full-stack-mall 后端第 3 课（事务与下单：条件扣库存/状态条件迁移/uk 重试/快照/惰性关单）。请基于 backend/ 真实代码继续讲：支付回调是怎么验签和做幂等的，以及 FakeProvider 如何模拟支付宝异步通知。</p>
+<p><strong>下一课预告：</strong>支付与幂等——"支付宝"回调来了，怎么证明它是真的、怎么保证重复通知不重复加钱。</p>
+</div>
+
+</div>
+</body>
+</html>
