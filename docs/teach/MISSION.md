@@ -15,6 +15,11 @@
 - 第 3 课（事务与下单）：已交付 → `lessons/0003-transactions-and-ordering.html`
 - 第 4 课（支付与幂等）：已交付 → `lessons/0004-payments-and-idempotency.html`
 - 第 5 课（秒杀三策略对照）：已交付 → `lessons/0005-seckill-strategies.html`
+- 第 6 课（寄卖与结算闭环 · 收官）：已交付 → `lessons/0006-consignment-and-settlement.html`
+
+## 状态：六课全交付，主线课程完结
+
+待用户做完全部测验并反馈后，可进入"模拟面试追问"环节或按需开进阶专题（限流/搜索/部署）。
 
 ## 教学约束
 

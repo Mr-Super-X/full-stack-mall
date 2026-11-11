@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 6 课 · 寄卖与结算闭环 — full-stack-mall 后端课</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --accent: #8c2f2f;
+    --muted: #666;
+    --rule: #d9d9d9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Palatino Linotype", Palatino, Georgia, "Songti SC", "SimSun", serif;
+    color: var(--ink);
+    background: #fdfcf9;
+    line-height: 1.75;
+    font-size: 17px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 64px 24px 120px; }
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 40px; }
+  .kicker { font-size: 13px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; }
+  h1 { font-size: 30px; font-weight: 600; margin-top: 8px; }
+  .goal { color: var(--muted); font-style: italic; margin-top: 10px; }
+  h2 { font-size: 22px; font-weight: 600; margin: 48px 0 16px; }
+  h2 .no { color: var(--accent); margin-right: 8px; }
+  p { margin: 14px 0; }
+  code {
+    font-family: "SF Mono", Consolas, "Courier New", monospace;
+    font-size: 0.86em;
+    background: #f2efe8;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    background: #2b2b2b; color: #e8e6e3; padding: 16px 18px;
+    border-radius: 6px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+    margin: 18px 0;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .src { font-size: 12.5px; color: var(--muted); margin-top: -10px; margin-bottom: 18px; font-family: Consolas, monospace; }
+  .aside {
+    font-size: 13.5px; color: var(--muted); border-left: 3px solid var(--accent);
+    padding: 4px 14px; margin: 20px 0; font-style: italic;
+  }
+  .aside b { color: var(--accent); font-style: normal; }
+  .stop { display: flex; gap: 14px; margin: 26px 0; align-items: flex-start; }
+  .stop .badge {
+    flex: 0 0 30px; height: 30px; border-radius: 50%;
+    border: 1.5px solid var(--accent); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .stop h3 { font-size: 17px; margin-bottom: 4px; }
+  .flow {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 18px 22px; margin: 22px 0; font-size: 15px; line-height: 2.1;
+    font-family: Consolas, monospace;
+  }
+  table.data {
+    width: 100%; border-collapse: collapse; margin: 22px 0; font-size: 14.5px;
+  }
+  table.data th, table.data td {
+    border: 1px solid var(--rule); padding: 7px 10px; text-align: left;
+  }
+  table.data th { background: #f2efe8; }
+  details { margin: 10px 0; }
+  summary { cursor: pointer; font-size: 15.5px; }
+  summary::marker { color: var(--accent); }
+  .quiz {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 24px 26px; margin: 30px 0;
+  }
+  .quiz h2 { margin-top: 0; }
+  .q { margin: 20px 0 6px; font-weight: 600; }
+  .opts { list-style: none; margin: 8px 0; }
+  .opts li { padding: 5px 0 5px 4px; }
+  .ans { font-size: 14.5px; color: var(--accent); }
+  .next {
+    border-top: 1px solid var(--rule); margin-top: 56px; padding-top: 24px;
+    font-size: 15px; color: var(--muted);
+  }
+  a { color: var(--accent); }
+  @media print {
+    body { background: #fff; font-size: 12pt; }
+    pre { background: #f5f5f5; color: #000; border: 1px solid #ccc; }
+    .quiz { border: 1.5px solid #000; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">full-stack-mall 后端课 · Lesson 6 · 收官</div>
+  <h1>寄卖与结算闭环</h1>
+  <p class="goal">本课收获：讲清一个闲置如何变成在售商品、成交后平台怎么按比例与卖家分钱。你会看到前 5 课所有范式（状态条件迁移、事务、幂等、行数裁判）在一条完整业务链上协同工作——这是"全局观"的一课。</p>
+</header>
+
+<p style="font-size:14px;color:var(--muted);">承接 <a href="./0005-seckill-strategies.html">第 5 课 · 秒杀三策略对照</a>。</p>
+
+<h2><span class="no">0</span>两条线：货在走，钱在等</h2>
+<p>寄卖（C2C）业务的本质：<strong>货的所有权在卖家，平台只撮合与结算</strong>。所以系统里永远有两条并行的线：</p>
+<div class="flow">
+<b>货流线</b>：寄卖单状态机 SUBMITTED → PRICED → LISTED → SOLD → SETTLED（↘ REJECTED）<br>
+<b>资金线</b>：确认收货时生成 Payout（PENDING）→ 平台确认（CONFIRMED）→ 打款（PAID）<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;规则：<b>收货才结算</b>——买家没确认收到货之前，钱不进入打款流程
+</div>
+<p class="src">ConsignmentStatus.java:4-6（"钱的两条线"设计见设计文档 §4.5）</p>
+
+<h2><span class="no">1</span>货流五步</h2>
+<div class="stop"><div class="badge">1</div><div>
+<h3>① 提交（SUBMITTED）</h3>
+<p>卖家提交闲置：标题/描述/成色/期望价/类目/图片。<code>ConsignmentServiceImpl.submit</code> 落库即入审核池。</p>
+</div></div>
+<div class="stop"><div class="badge">2</div><div>
+<h3>② 平台审核定价（SUBMITTED → PRICED / REJECTED）</h3>
+<p><code>review</code>（<code>ConsignmentServiceImpl.java:164-186</code>）：管理员定一个平台售价 + 佣金率。驳回必须给原因。条件迁移——重复审核第二次命中 0 行被拒。</p>
+</div></div>
+<div class="stop"><div class="badge">3</div><div>
+<h3>③ 卖家接受定价：铸造商品（PRICED → LISTED）</h3>
+<p>全课最重的一个事务（<code>ConsignmentServiceImpl.java:97-140</code>）：</p>
+<pre><code>@Transactional
+public ConsignmentDTO accept(Long id) {
+    // 原子迁移占位：并发下只有一个请求能把 PRICED 改为 LISTED
+    migrateStatus(id, ConsignmentStatus.LISTED, ConsignmentStatus.PRICED);
+    // 1. 铸造商品（寄卖身份 + 卖家归属）  2. 铸造 SKU（stock 恒 1）
+    // 3. 复制图片                         4. 回写寄卖单状态 + 铸造产物 id
+    // 四写任一失败整体回滚，不留半截商品
+}</code></pre>
+<p><strong>"先迁移占位、再干活"的顺序</strong>：并发双击"接受定价"时，只有第一个请求能占位成功，第二个在第一步就撞行数 0 回滚——天然防重复铸造。四张表（寄卖单/商品/SKU/图片）要么全部出现，要么全部不出现。</p>
+</div></div>
+<div class="stop"><div class="badge">4</div><div>
+<h3>④ 售出（LISTED → SOLD）</h3>
+<p>发生在第 4 课的支付回调里（<code>PaymentServiceImpl.markConsignmentsSold</code>）：订单转 PAID 时，寄卖明细对应的寄卖单条件迁移 SOLD。行数 0 只记 debug——幂等容忍，不影响支付主流程。</p>
+</div></div>
+<div class="stop"><div class="badge">5</div><div>
+<h3>⑤ 结算归档（SOLD → SETTLED）</h3>
+<p>发生在下面资金线第三步打款时联动完成。</p>
+</div></div>
+
+<h2><span class="no">2</span>资金线三步：Payout 审批</h2>
+<pre><code>// PayoutServiceImpl.java:62-87 —— 每步都是条件迁移（第 3 课范式）
+confirm(id):  PENDING   → CONFIRMED   // 财务核对金额
+pay(id):      CONFIRMED → PAID
+              // 同事务联动寄卖单 SOLD → SETTLED（PayoutServiceImpl.java:74-84）
+              // 打款与归档任一失败整体回滚，不留中间态</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/payout/service/impl/PayoutServiceImpl.java:60-87</p>
+<p>三步而非一步的意义：<strong>职责分离</strong>。系统算出"该给卖家多少钱"（CONFIRM 核对）与"真的把钱打出去"（PAY）是两个角色的事；状态机强制必须按序走完，跳步即撞行数 0。</p>
+
+<h2><span class="no">3</span>佣金从哪来：确认收货那一刻</h2>
+<pre><code>// OrderServiceImpl.confirm（条件迁移 SHIPPED→COMPLETED）之后：
+for (OrderItem line : lines) {
+    if (line.getSellerId() == null) continue;        // 自营明细无结算
+    // 幂等：uk(order_item_id) 已存在则跳过
+    Long exists = payoutMapper.selectCount(... .eq(Payout::getOrderItemId, line.getId()));
+    if (exists &gt; 0) continue;
+    // 佣金率回联寄卖单（经 productItem → listed_product_id 链路）
+    BigDecimal commission = gross.multiply(rate)
+            .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+    BigDecimal sellerAmount = gross.subtract(commission);   // 卖家实收 = 成交额 - 佣金
+    payoutMapper.insert(payout);   // PENDING
+}</code></pre>
+<p class="src">backend/src/main/java/com/fullstackmall/shop/order/service/impl/OrderServiceImpl.java:402-435</p>
+<div class="aside"><b>三个细节：</b>① 佣金率不存订单——订单快照存的是商品信息，费率要回联寄卖单取（审核时定下的）；② <code>HALF_UP</code> 两位小数，钱的计算必须显式指定舍入模式，否则不同 JDK 默认舍入可能不同；③ uk(order_item_id) 让重复确认收货不会产生第二张结算单——幂等又一次兜底。</div>
+
+<h2><span class="no">4</span>串起来：一件闲置的一生</h2>
+<table class="data">
+<tr><th>时刻</th><th>动作</th><th>状态变化</th><th>用到了哪课的知识</th></tr>
+<tr><td>T1</td><td>卖家提交闲置</td><td>— → SUBMITTED</td><td>第 1 课 鉴权链路</td></tr>
+<tr><td>T2</td><td>平台审核定价</td><td>SUBMITTED → PRICED</td><td>第 3 课 条件迁移</td></tr>
+<tr><td>T3</td><td>卖家接受定价</td><td>PRICED → LISTED + 铸造商品</td><td>第 3 课 事务原子性 + 占位防并发</td></tr>
+<tr><td>T4</td><td>买家支付成功</td><td>寄卖单 LISTED → SOLD</td><td>第 4 课 验签 + 幂等回调</td></tr>
+<tr><td>T5</td><td>买家确认收货</td><td>订单 → COMPLETED，生成 Payout PENDING</td><td>第 3 课 行数裁判 + uk 幂等</td></tr>
+<tr><td>T6</td><td>平台确认并打款</td><td>Payout → PAID，寄卖单 → SETTLED</td><td>第 3 课 条件迁移 + 同事务联动</td></tr>
+</table>
+<p>六步跨越了 auth/consignment/product/payment/order/payout 六个域——<strong>每个域只做自己的事，靠状态机和事件联动串成闭环</strong>。这就是"按业务分包"架构的价值：任何一步的改动都被关在自己的域里。</p>
+
+<h2><span class="no">5</span>30 秒面试版（背下来）</h2>
+<p>"寄卖是 C2C：货是卖家的，平台撮合+结算，所以系统里有两条线。货流线五个状态 SUBMITTED→PRICED→LISTED→SOLD→SETTLED：卖家提交、平台审核定价、卖家接受定价时<strong>一个事务铸造商品三表</strong>——先条件迁移占位再干活，并发双击只有一人成功，四写任一失败整体回滚不留半截商品。买家支付成功回调把寄卖单推进 SOLD，买家确认收货时按 uk(order_item_id) 幂等生成 Payout——佣金率回联寄卖单取，HALF_UP 两位小数，卖家实收等于成交额减佣金。资金线三步审批 PENDING→CONFIRMED→PAID，打款和寄卖单 SETTLED 归档在同一个事务里，不留中间态。"</p>
+
+<div class="quiz">
+<h2>自检测验</h2>
+<p style="color:var(--muted);font-size:14px;">先在心里作答，再点开答案。</p>
+
+<p class="q">1. accept 里"先条件迁移 PRICED→LISTED、再铸造商品"的顺序为什么这样设计？</p>
+<ul class="opts">
+<li>A · 并发双击只有一个能占位成功，另一个第一步就回滚</li>
+<li>B · 先迁移让审核队列页面更快显示商品已上架状态</li>
+<li>C · 状态字段建有索引可以提升后续铸造语句的速度</li>
+<li>D · 防止管理员在铸造期间把寄卖单改回 PRICED 状态</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>"占位先行"把并发竞争收敛到第一步：两个请求同时到，只有一个的 UPDATE 能命中 WHERE status=PRICED 迁成 LISTED，另一个行数 0 直接抛异常回滚——后面三张表的写入根本不会发生。如果先铸造再迁移，两人都会造出商品，兜底就难做了。B/C/D 都不是这个顺序的真实动机。</p></details>
+
+<p class="q">2. Payout 表给 order_item_id 建唯一键（uk），目的是什么？</p>
+<ul class="opts">
+<li>A · 重复确认收货不会生成两张结算单导致重复打款</li>
+<li>B · 加快按订单明细反查结算单时的检索速度表现</li>
+<li>C · 防止卖家篡改结算金额字段进行欺诈的行为</li>
+<li>D · 让数据库为结算单自动生成递增的主键编号</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>确认收货可能因网络重试/用户双击发生多次。应用层虽有"先查数再插入"的守卫，但查与插之间有缝隙；uk 让数据库兜底——第二条 INSERT 直接撞键失败。打款类数据必须数据库级幂等，不能信应用层的"先查一下"。B 是索引的顺带效果不是目的；C/D 与 uk 语义无关。</p></details>
+
+<p class="q">3. 打款（Payout→PAID）和寄卖单归档（SOLD→SETTLED）为什么必须在同一事务？</p>
+<ul class="opts">
+<li>A · 防止"钱打了但单没结"或反向的中间态残留</li>
+<li>B · 管理员连点打款按钮时依靠事务实现防重点击</li>
+<li>C · 缩短审批页面的加载时间优化管理员体验</li>
+<li>D · 卖家同时提现多笔时避免连接池被耗尽掉</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>类注释原话："打款与寄卖单 SETTLED 联动同在一个 @Transactional——任一失败整体回滚，不留中间态。"两半动作分属两条线（资金/货流），但对账时它们必须同时成立；拆成两个事务，中间崩溃就会留下"钱已打但寄卖单还挂着 SOLD"的烂账。B 靠条件迁移防（行数 0），不是靠事务；C/D 与本设计无关。</p></details>
+</div>
+
+<h2>主推荐来源</h2>
+<p>本课的最佳来源就是本仓库的设计文档 <a href="../../superpowers/specs/2026-11-06-resale-mall-design.md">docs/superpowers/specs/2026-11-06-resale-mall-design.md</a> §4.5"钱的两条线"——状态机与资金流的设计原文，面试前值得通读一遍。</p>
+
+<div class="next">
+<h2 style="margin-top:0;">全课程地图 · 面试串讲路线</h2>
+<table class="data">
+<tr><th>课</th><th>主题</th><th>一句话带走</th></tr>
+<tr><td><a href="./0001-anatomy-of-a-request.html">1</a></td><td>请求旅程</td><td>拦截器→Controller→Service→Mapper，统一信封，异常不外泄</td></tr>
+<tr><td><a href="./0002-login-and-jwt.html">2</a></td><td>登录与 JWT</td><td>BCrypt+同文案防枚举，HttpOnly 防 XSS，签名防篡改不防读取</td></tr>
+<tr><td><a href="./0003-transactions-and-ordering.html">3</a></td><td>事务与下单</td><td>@Transactional 原子性，条件 UPDATE 行数裁判，快照定格历史</td></tr>
+<tr><td><a href="./0004-payments-and-idempotency.html">4</a></td><td>支付与幂等</td><td>验签防伪造、金额只信账本、行数决定副作用，三次回调只生效一次</td></tr>
+<tr><td><a href="./0005-seckill-strategies.html">5</a></td><td>秒杀三策略</td><td>Lua 原子关口 + 受理即返 + 全路径补偿，宁可少卖不超卖</td></tr>
+<tr><td>6</td><td>寄卖与结算</td><td>货流/资金两条线，状态机联动，事务不留中间态</td></tr>
+</table>
+<p><strong>收官建议：</strong>把六段"30 秒面试版"连成三分钟的完整项目讲解——从一次请求进来（第 1 课）讲到一笔钱分完（第 6 课）。讲给 AI 智能体听，让它扮演面试官追问。</p>
+<p><strong>想追问？</strong>把下面这段贴给 AI 智能体：</p>
+<p style="font-family:Consolas,monospace;font-size:13px;background:#f2efe8;padding:10px 14px;border-radius:6px;">我学完了 full-stack-mall 后端全部六课。请扮演面试官，基于 backend/ 真实代码对我进行"你项目里最难的技术点"追问式面试，从秒杀三策略开始往深挖，每答一题给我评分和讲法改进建议。</p>
+</div>
+
+</div>
+</body>
+</html>
