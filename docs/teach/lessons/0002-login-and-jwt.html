@@ -180,6 +180,10 @@ user.setPassword(passwordEncoder.encode(req.getPassword()));</code></pre>
 <p><a href="https://jwt.io/introduction">jwt.io — Introduction to JSON Web Tokens</a>：左侧输入任意 JWT 即可实时看到三段解码结果，是本课"Base64 不加密"最直观的验证工具。</p>
 
 <div class="next">
+<p style="display:flex;justify-content:space-between;font-size:14.5px;border-bottom:1px solid var(--rule);padding-bottom:12px;margin-bottom:18px;">
+  <a href="./0001-anatomy-of-a-request.html">← 上一课 · 一次请求的完整旅程</a>
+  <a href="./0003-transactions-and-ordering.html">下一课 · 事务与下单 →</a>
+</p>
 <p><strong>想追问？</strong>把下面这段贴给 AI 智能体：</p>
 <p style="font-family:Consolas,monospace;font-size:13px;background:#f2efe8;padding:10px 14px;border-radius:6px;">我读完了 full-stack-mall 后端第 2 课（BCrypt/JWT/HttpOnly Cookie）。请基于 backend/ 真实代码继续讲：AdminInterceptor 是怎么做角色校验的，以及为什么有了 token 里的 role 还要查一次库。</p>
 <p><strong>下一课预告：</strong>事务与下单——"下单"这个动作为什么必须是一个不可分割的事务，以及条件 UPDATE 怎么防止两个人同时买走最后一件。</p>

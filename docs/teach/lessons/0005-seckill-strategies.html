@@ -226,6 +226,10 @@ return 1</code></pre>
 <p>Redis 官方文档 <a href="https://redis.io/docs/latest/develop/programmability/eval-intro/">Introduction to Lua scripting（EVAL）</a>——"脚本以原子方式执行"的权威表述，本课 Lua 关口与所有取舍声明的概念源头。</p>
 
 <div class="next">
+<p style="display:flex;justify-content:space-between;font-size:14.5px;border-bottom:1px solid var(--rule);padding-bottom:12px;margin-bottom:18px;">
+  <a href="./0004-payments-and-idempotency.html">← 上一课 · 支付与幂等</a>
+  <a href="./0006-consignment-and-settlement.html">下一课 · 寄卖与结算闭环 →</a>
+</p>
 <p><strong>想追问？</strong>把下面这段贴给 AI 智能体：</p>
 <p style="font-family:Consolas,monospace;font-size:13px;background:#f2efe8;padding:10px 14px;border-radius:6px;">我读完了 full-stack-mall 后端第 5 课（秒杀三策略对照：条件更新/FOR UPDATE/Lua 预扣+MQ 异步/压测矩阵）。请基于 backend/ 真实代码继续讲：寄卖全流程的状态机（SUBMITTED→PRICED→LISTED→SOLD→SETTLED）和佣金计算是怎么实现的。</p>
 <p><strong>下一课预告（收官）：</strong>寄卖与结算闭环——闲置如何变成在售商品，成交后平台怎么按比例与卖家分钱（Payout 三步审批）。</p>

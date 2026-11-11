@@ -212,6 +212,10 @@ if (order.getStatus() == OrderStatus.CANCELLED) {
 <p>支付宝开放平台官方文档 <a href="https://opendocs.alipay.com/open/203/105285">异步通知（notify）说明</a>——真实网关的"至少一次重发"行为、验签要求与本课三道防线一一对应，面试引用真实网关文档最有说服力。</p>
 
 <div class="next">
+<p style="display:flex;justify-content:space-between;font-size:14.5px;border-bottom:1px solid var(--rule);padding-bottom:12px;margin-bottom:18px;">
+  <a href="./0003-transactions-and-ordering.html">← 上一课 · 事务与下单</a>
+  <a href="./0005-seckill-strategies.html">下一课 · 秒杀三策略对照 →</a>
+</p>
 <p><strong>想追问？</strong>把下面这段贴给 AI 智能体：</p>
 <p style="font-family:Consolas,monospace;font-size:13px;background:#f2efe8;padding:10px 14px;border-radius:6px;">我读完了 full-stack-mall 后端第 4 课（支付回调验签/金额校验/三层幂等/资金黑洞 TODO）。请基于 backend/ 真实代码继续讲：秒杀的三种扣库存策略（optimistic/pessimistic/redis）是怎么实现和切换的，各自优缺点是什么。</p>
 <p><strong>下一课预告：</strong>秒杀三策略对照——同一套下单接口，三种扣库存实现（数据库乐观 / 悲观 / Redis+MQ），以及压测数据怎么支撑选型。这是本项目最硬的一道面试题。</p>

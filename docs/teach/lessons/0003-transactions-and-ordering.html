@@ -206,6 +206,10 @@ if (rows == 0) throw new BusinessException(ResultCode.ORDER_STATE_ILLEGAL);</cod
 <p>Spring 官方文档 <a href="https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html">Declarative Transaction Management（@Transactional）</a>——rollback 规则、代理机制、传播行为的权威定义，本课第 0 节的出处。</p>
 
 <div class="next">
+<p style="display:flex;justify-content:space-between;font-size:14.5px;border-bottom:1px solid var(--rule);padding-bottom:12px;margin-bottom:18px;">
+  <a href="./0002-login-and-jwt.html">← 上一课 · 登录注册与 JWT</a>
+  <a href="./0004-payments-and-idempotency.html">下一课 · 支付与幂等 →</a>
+</p>
 <p><strong>想追问？</strong>把下面这段贴给 AI 智能体：</p>
 <p style="font-family:Consolas,monospace;font-size:13px;background:#f2efe8;padding:10px 14px;border-radius:6px;">我读完了 full-stack-mall 后端第 3 课（事务与下单：条件扣库存/状态条件迁移/uk 重试/快照/惰性关单）。请基于 backend/ 真实代码继续讲：支付回调是怎么验签和做幂等的，以及 FakeProvider 如何模拟支付宝异步通知。</p>
 <p><strong>下一课预告：</strong>支付与幂等——"支付宝"回调来了，怎么证明它是真的、怎么保证重复通知不重复加钱。</p>
