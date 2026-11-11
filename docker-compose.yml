@@ -88,7 +88,8 @@ services:
     environment:
       API_UPSTREAM: http://backend:18080
     depends_on:
-      backend: { condition: service_started }
+      # healthy 而非 started：消 backend 启动期 /api 首访 502 窗口（终审 Minor#1 改进）
+      backend: { condition: service_healthy }
     restart: unless-stopped
 
 volumes:
