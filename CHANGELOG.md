@@ -8,6 +8,20 @@
 
 ## [Unreleased]
 
+### Added（阶段 5：部署上线 + README 作品集化，2026-11-11）
+
+#### 后端
+- **应用本体容器化**：`backend/Dockerfile`（multi-stage：maven:3.9-eclipse-temurin-17 构建可执行 JAR → eclipse-temurin:17-jre-alpine 运行，非 root + busybox wget 健康检查 `/api/mall/product/list`）；构建期不跑测试（209 用例由本地 mvn 门禁承担），可复现由 pom 锁定版本 + base image tag 锁定保障
+
+#### 部署
+- **根目录全栈 compose**：`docker compose up -d` 一键起 web(nginx 托管 6 app 产物 + /api 反代，:8080 唯一对外口) + backend(JAR) + mysql/redis/rabbitmq（基础设施仅容器网络）；RabbitMQ 首启建 mall/mall 替代 guest（loopback_users 禁远程）；教学密钥显式进 compose（生产必须经环境变量覆盖）
+- **后端容器时区修正** `JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Shanghai`——init.sql 时间窗按上海墙钟写入，JVM 默认 UTC 致秒杀时间窗误判 40001（全栈冒烟实测捕获）
+- **nginx 根 302 → /h5/h5-mall**（favicon/portal 落地页保留可访问）
+
+#### 文档
+- **README 作品集化**：黄金一页「技术亮点」区（4b 压测三层证据摘要：三实现对照数字 + 取舍金句 + 证据链接）+「功能截图」区六张全栈实截（h5 买家链路/admin/RabbitMQ 队列）+ 深读索引
+- **截图素材入库** `docs/screenshots/`（六张，全栈容器实截）
+
 ### Added（后端 · 阶段 4b：秒杀高并发演进）
 
 - **三实现配置开关** `seckill.strategy`（optimistic 条件更新 / pessimistic FOR UPDATE 对照组 / redis Lua+MQ 异步出单）：同一契约三实现，对照实验公平性由建单三步抽 `SeckillOrderAssembler` 共用保证
