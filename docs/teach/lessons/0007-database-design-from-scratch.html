@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 7 课 · 数据库从零设计 — full-stack-mall 后端课</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --accent: #8c2f2f;
+    --muted: #666;
+    --rule: #d9d9d9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Palatino Linotype", Palatino, Georgia, "Songti SC", "SimSun", serif;
+    color: var(--ink);
+    background: #fdfcf9;
+    line-height: 1.75;
+    font-size: 17px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 64px 24px 120px; }
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 40px; }
+  .kicker { font-size: 13px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; }
+  h1 { font-size: 30px; font-weight: 600; margin-top: 8px; }
+  .goal { color: var(--muted); font-style: italic; margin-top: 10px; }
+  h2 { font-size: 22px; font-weight: 600; margin: 48px 0 16px; }
+  h2 .no { color: var(--accent); margin-right: 8px; }
+  p { margin: 14px 0; }
+  code {
+    font-family: "SF Mono", Consolas, "Courier New", monospace;
+    font-size: 0.86em;
+    background: #f2efe8;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    background: #2b2b2b; color: #e8e6e3; padding: 16px 18px;
+    border-radius: 6px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+    margin: 18px 0;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .src { font-size: 12.5px; color: var(--muted); margin-top: -10px; margin-bottom: 18px; font-family: Consolas, monospace; }
+  .aside {
+    font-size: 13.5px; color: var(--muted); border-left: 3px solid var(--accent);
+    padding: 4px 14px; margin: 20px 0; font-style: italic;
+  }
+  .aside b { color: var(--accent); font-style: normal; }
+  .stop { display: flex; gap: 14px; margin: 26px 0; align-items: flex-start; }
+  .stop .badge {
+    flex: 0 0 30px; height: 30px; border-radius: 50%;
+    border: 1.5px solid var(--accent); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .stop h3 { font-size: 17px; margin-bottom: 4px; }
+  .flow {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 18px 22px; margin: 22px 0; font-size: 15px; line-height: 2.1;
+    font-family: Consolas, monospace;
+  }
+  table.data {
+    width: 100%; border-collapse: collapse; margin: 22px 0; font-size: 14.5px;
+  }
+  table.data th, table.data td {
+    border: 1px solid var(--rule); padding: 7px 10px; text-align: left;
+  }
+  table.data th { background: #f2efe8; }
+  details { margin: 10px 0; }
+  summary { cursor: pointer; font-size: 15.5px; }
+  summary::marker { color: var(--accent); }
+  .quiz {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 24px 26px; margin: 30px 0;
+  }
+  .quiz h2 { margin-top: 0; }
+  .q { margin: 20px 0 6px; font-weight: 600; }
+  .opts { list-style: none; margin: 8px 0; }
+  .opts li { padding: 5px 0 5px 4px; }
+  .ans { font-size: 14.5px; color: var(--accent); }
+  .next {
+    border-top: 1px solid var(--rule); margin-top: 56px; padding-top: 24px;
+    font-size: 15px; color: var(--muted);
+  }
+  a { color: var(--accent); }
+  @media print {
+    body { background: #fff; font-size: 12pt; }
+    pre { background: #f5f5f5; color: #000; border: 1px solid #ccc; }
+    .quiz { border: 1.5px solid #000; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">full-stack-mall 后端课 · Lesson 7 · 支线 · 构建之路 ①</div>
+  <h1>数据库从零设计：15 张表是怎么想出来的</h1>
+  <p class="goal">本课收获：拿到 init.sql 这 379 行，你能讲清每一张表为什么存在、为什么长这样——分域、公共骨架、唯一键护栏、时间快照、种子数据五步设计法；并且敢对脚本本身挑刺。SQL 不是"写出来的"，是从设计文档里"长出来的"。</p>
+</header>
+
+<p style="font-size:14px;color:var(--muted);">承接 <a href="./0006-consignment-and-settlement.html">第 6 课 · 寄卖与结算闭环</a>。主线六课讲的是"系统在运行时怎么转"，这条支线讲"系统是怎么从零被建出来的"——第 7 课先看地基（数据库），第 8 课看楼层（后端五步闭环）。</p>
+
+<h2><span class="no">0</span>先读出生证明：文件头三行</h2>
+<p>打开 <code>backend/sql/init.sql</code>，前 4 行注释就是整套数据库的"出生证明"：</p>
+<pre><code>-- 转卖商城数据库初始化：全部 MVP 核心表 + 双货源种子数据（2026-11-06 重构）
+-- 设计基准：docs/superpowers/specs/2026-11-06-resale-mall-design.md
+-- 幂等可重跑：DROP + CREATE。无物理外键（逻辑外键）。
+-- 用户种子密码为 BCrypt 哈希（admin123 / seller123 / buyer123 ...）</code></pre>
+<p class="src">sql/init.sql:1-4</p>
+<p>三行注释藏着三个关键事实：</p>
+<p>① <strong>设计先行</strong>——表结构不是边写代码边凑的，它有一份设计文档做基准（<code>docs/superpowers/specs/2026-11-06-resale-mall-design.md</code>）。DDL（数据定义语言）是设计的"编译产物"。<br>
+② <strong>声明幂等</strong>——作者的目标是"重复执行不报错、结果一致"。这是工程态度，但它只是<b>目标声明</b>，§5 你会看到它没完全做到。<br>
+③ <strong>无物理外键</strong>——表之间不靠数据库的 FOREIGN KEY 强绑，关系由应用层维护。这是面试必问题，§3 专门拆。</p>
+<div class="aside"><b>怎么学这一课：</b>把 init.sql 放在手边对照着读。每一节我都会给文件行号——你要能自己跳过去验真，不要信我，信文件。</div>
+
+<h2><span class="no">1</span>第一步：从业务域"长"出表</h2>
+<p>设计表的第一步不是想字段，是<b>分域</b>——把业务拆成几个互不相识的小王国，每个王国管自己的表。init.sql 用注释线把 15 张表分成了 5 个域：</p>
+<table class="data">
+<tr><th>域</th><th>表（init.sql 行号）</th><th>管什么</th></tr>
+<tr><td>用户域</td><td>user(25) / address(39)</td><td>账号、收货地址</td></tr>
+<tr><td>商品域</td><td>product_category(60) / product(74) / product_item(97) / product_image(113) / home_banner(123)</td><td>类目、商品、规格单件、图片、首页轮播</td></tr>
+<tr><td>寄卖域</td><td>consignment_listing(137)</td><td>卖家寄卖单与审核流</td></tr>
+<tr><td>交易域</td><td>cart_item(161) / orders(174) / order_item(192) / payment(205) / payout(219)</td><td>购物车、订单、明细、支付流水、卖家结算</td></tr>
+<tr><td>玩法域</td><td>seckill_activity(235) / seckill_order_acceptance(252)</td><td>秒杀场次、异步受理登记</td></tr>
+</table>
+<p>注意商品域的三层拆分：<code>product</code> 是"商品"（名字、卖点、归属），<code>product_item</code> 是"规格/单件"（尺码、价格、库存、乐观锁版本号），<code>product_image</code> 是"图"。一件风衣有 S/M/L 三个尺码 = 1 行 product + 3 行 product_item。<b>拆表的标准是"变化频率和归属"：名字描述很少变，库存每单都变</b>——混在一起就会互相锁死。</p>
+<p>还有一个细节：<code>orders</code> 表名带 s，因为 <code>ORDER</code> 是 MySQL 保留字（排序关键字），直接起名会语法报错（init.sql:173 有注释）。命名时要给保留字让路。</p>
+
+<h2><span class="no">2</span>第二步：每张表都套同一件"公共骨架"</h2>
+<p>把 user 表的定义和 product 表的定义并排看，会发现它们共享同一套骨架：</p>
+<pre><code>id          BIGINT       NOT NULL AUTO_INCREMENT,   -- 主键：雪花之外的朴素选择
+create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+PRIMARY KEY (id),
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='用户';</code></pre>
+<p class="src">sql/init.sql:25-37（user 表完整定义）</p>
+<p>四个约定，逐个有因：</p>
+<p>· <code>BIGINT AUTO_INCREMENT</code>：主键用 64 位整数自增。够用、好记、聚簇索引友好——MVP 阶段不上雪花 ID（分布式全局唯一 ID），因为单库足以支撑。<br>
+· <code>InnoDB</code>：MySQL 的事务引擎。本项目所有写操作依赖它的行锁与回滚（第 3 课的事务、第 5 课的 FOR UPDATE 都建立在它之上）。<br>
+· <code>utf8mb4</code>：完整的 UTF-8（一个 emoji 占 4 字节）。旧编码 utf8 是阉割版，存不了 emoji 也存不了生僻字——新项目一律 utf8mb4。<br>
+· <code>update_time ... ON UPDATE CURRENT_TIMESTAMP</code>：行被修改时自动刷新更新时间，应用层不用记得手动维护它。</p>
+
+<h2><span class="no">3</span>第三步：唯一键是业务护栏（本课灵魂）</h2>
+<p>这是面试最值钱的一节。init.sql 声明"无物理外键（逻辑外键）"，但 15 张表里塞满了 <code>UNIQUE KEY</code>。<strong>外键管"关系存在"，唯一键管"业务正确"</strong>——本项目把一致性的最后一道防线全部押在唯一键上：</p>
+<table class="data">
+<tr><th>唯一键（行号）</th><th>防什么事故</th><th>对应哪课</th></tr>
+<tr><td>user.uk_username(36)</td><td>两个同名校验请求同时通过 → 数据库拒掉第二个</td><td>第 2 课</td></tr>
+<tr><td>address.uk_default_guard(55)</td><td>并发设默认地址 → 同一用户永远只有一个默认</td><td>本课 §4</td></tr>
+<tr><td>cart_item.uk_user_item(170)</td><td>同一规格重复加购 → 只能插一行，改数量而非建行</td><td>—</td></tr>
+<tr><td>orders.uk_order_no(187)</td><td>订单号撞车 → 业务唯一性</td><td>第 3 课</td></tr>
+<tr><td>orders.uk_user_activity(188)</td><td>秒杀同一人买两单 → 第二个直接撞键失败</td><td>第 5 课</td></tr>
+<tr><td>payment.uk_payment_no(215)</td><td>支付回调重试 → 同流水号只落库一次</td><td>第 4 课</td></tr>
+<tr><td>payout.uk_order_item(230)</td><td>重复确认收货 → 绝不生成两张结算单</td><td>第 6 课</td></tr>
+</table>
+<p>回看主线六课：<b>第 3 课的 uk 重试、第 4 课的三层幂等、第 5 课的一人一单、第 6 课的防重复打款——它们的物理兜底全在这一张表里。</b>应用层做的校验（先查再插）都有缝隙，唯一键没有。这就是"幂等键进表"的含义：把并发正确性从代码搬到数据库。</p>
+<div class="aside"><b>面试问答模板：</b>"为什么不用外键？"——逻辑外键由应用层维护，写入路径集中、可控；物理外键在并发写入时会引入额外的锁与级联检查，高并发下容易成为瓶颈；而业务唯一性（幂等、一人一单）靠唯一键兜底，它不防"关系断掉"，但关系断掉可以靠对账发现，重复打款不能。</div>
+
+<h2><span class="no">4</span>第四步：让表会讲"时间的故事"</h2>
+<p>两套手法，让数据库回答"当时发生了什么"，而不是只回答"现在是什么"：</p>
+<p><strong>① 快照字段（JSON）。</strong>下单瞬间把地址和商品定格：</p>
+<pre><code>address_snapshot JSON DEFAULT NULL COMMENT '下单时地址快照',
+...
+item_snapshot JSON NOT NULL COMMENT '标题/图片/成色/尺码快照，定格下单瞬间',</code></pre>
+<p class="src">sql/init.sql:181（orders）/ 196（order_item）</p>
+<p>买家半年后看订单，收货地址还是当时那个——哪怕他后来改了地址、商品后来下架改名。快照是<b>历史事实的定格</b>，这是交易系统的铁律。</p>
+<p><strong>② 状态字段 + 条件迁移。</strong>orders.status 从 PENDING_PAYMENT → PAID → SHIPPED（init.sql:179）、consignment_listing.status 七态（150）、payout.status 三态（225）。每个状态字段配一个 WHERE status=旧值 的 UPDATE，行数当裁判（第 3 课的条件迁移）。<code>product_item.version</code>（106 行）则给乐观锁留了版本号，第 5 课的对照组策略用到它。</p>
+<p><strong>③ 生成列护栏（彩蛋）。</strong>MySQL 没有"部分唯一索引"，没法直接表达"每个用户只能有一个默认地址"。init.sql 第 50 行用了一个技巧：</p>
+<pre><code>default_guard BIGINT GENERATED ALWAYS AS (IF(is_default = 1, user_id, NULL)) COMMENT '默认地址唯一护栏（勿手写）',
+...
+UNIQUE KEY uk_default_guard (default_guard)</code></pre>
+<p class="src">sql/init.sql:49-55</p>
+<p>生成列是"算出来的列，不能手写"：<code>is_default=1</code> 时它的值等于 user_id，否则是 NULL；唯一索引不约束 NULL，于是"<b>每个 user_id 最多出现一次 1</b>"被数据库强制执行。并发双击"设为默认"？两个请求都想让 user_id 出现第二次——必败一个。这是把业务规则编码进 schema 的高级手法，值得在面试里主动提。</p>
+
+<h2><span class="no">5</span>第五步：种子数据也是工程资产</h2>
+<p>init.sql 后半部（262-378 行）不是垃圾数据，是三份精心设计的测试资产：</p>
+<p>· <b>相对时间</b>：秒杀种子用 <code>DATE_SUB(NOW(), INTERVAL 1 DAY)</code> 表示"昨天开始"（263-266 行注释原话："绝对日期会过期"）。脚本今天跑、下个月再跑，活动状态依然正确——这是为"可重跑"服务的。<br>
+· <b>递归 CTE 批量造人</b>：500 个压测账号（perf001~perf500）用 6 行递归 CTE 生成（283-290 行），密码共用同一个 BCrypt 哈希（由 PasswordHashPrinter 工具生成并自校验）。手敲 500 行 INSERT 才是反工程。<br>
+· <b>双货源剧本</b>：13 件自营 + 2 件寄卖（Chanel 包、Acne 围巾）+ 各自走完 LISTED 的寄卖单（376-378 行）——种子数据本身演了一出"寄卖全链路"的小品，前端首页一打开就有完整故事可看。</p>
+<div class="aside"><b>挑刺练习（批判性阅读）：</b>文件头宣称"幂等可重跑"，但顶部 DROP 清单（8-21 行）只有 14 张表，少了 <code>seckill_order_acceptance</code>——它的 CREATE（252 行）既无 DROP 也无 IF NOT EXISTS。<b>脚本第二次执行必然在 252 行报错 table already exists。</b>结论：读任何脚本都要验真"声明"与"实现"的差距；本项目实际的兜底是 docker 删卷重建（292-293 行注释自述），不是重跑脚本。</div>
+
+<h2><span class="no">6</span>表不是一次成形的，是随阶段"长"出来的</h2>
+<p>看 git log（backend/ 目录，时间正序），init.sql 的 15 张表分了三个批次才长齐：</p>
+<div class="flow">
+阶段 1-3（9c35cc8 起）：用户/商品/寄卖/交易 13 张表——先让主链路能跑<br>
+阶段 4（bd06d43 起）：+ seckill_activity 秒杀场次、orders 挂 uk_user_activity<br>
+阶段 4 搜索（d1dd46d）：product 挂 FULLTEXT ft_search(name,selling_point,tag) ngram<br>
+阶段 4b（8c06144）：+ seckill_order_acceptance 受理登记表（本地消息表简化形态）
+</div>
+<p>这揭示了 schema 设计的真实节奏：<b>先让最小闭环跑起来，玩法域的表后置</b>。每加一张表，都有对应的业务闭环（第 8 课把这条线完整展开）。也正因为后置，才出现了 §5 的 DROP 漏网——增量修改最容易漏改头部清单。</p>
+
+<div class="quiz">
+<h2>自检测验</h2>
+<p style="color:var(--muted);font-size:14px;">先在心里作答，再点开答案。</p>
+
+<p class="q">1. init.sql 声明"无物理外键"，表之间的引用关系靠什么保持一致？</p>
+<ul class="opts">
+<li>A · 应用层逻辑外键加唯一键兜底</li>
+<li>B · 数据库触发器自动联动两边</li>
+<li>C · 夜间定时任务扫描修复差异</li>
+<li>D · 跨表视图把关系物化约束</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>引用关系（product_item.product_id → product.id）由应用层代码维护，而业务唯一性由唯一键强制（uk_username、uk_payment_no 等）。B/C/D 这个文件里都不存在。面试展开见 §3 的问答模板。</p></details>
+
+<p class="q">2. address 表的 default_guard 生成列解决什么问题？</p>
+<ul class="opts">
+<li>A · 保证同一用户只有一个默认地址</li>
+<li>B · 加速按用户编号查询的速度</li>
+<li>C · 防止收货人姓名字段超长溢出</li>
+<li>D · 为每行自动生成默认地址编号</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>MySQL 无部分唯一索引，用生成列把"is_default=1 时等于 user_id"编码进 schema，配唯一键强制"每个用户最多一个默认"。并发双击必败一个。B 是索引顺带效果；C/D 与生成列无关。</p></details>
+
+<p class="q">3. 秒杀种子时间为什么用 DATE_SUB(NOW(), INTERVAL 1 DAY) 而不是写死日期？</p>
+<ul class="opts">
+<li>A · 脚本重跑后活动仍处于正确状态</li>
+<li>B · 减少种子数据的总行数规模</li>
+<li>C · 让插入语句执行得更快一些</li>
+<li>D · 避免日期字段索引发生碎片</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>init.sql:263 注释原话："时间用 NOW() 相对表达式——init.sql 幂等重跑后活动仍处对应状态（绝对日期会过期）。"写死 2026-11-01，下个月重跑活动就"过期"了。B/C/D 都不是动机。</p></details>
+
+<p class="q">4. orders 存 address_snapshot JSON 而不是只存 address_id，为什么？</p>
+<ul class="opts">
+<li>A · 地址日后被改删历史订单仍准确</li>
+<li>B · JSON 比整数编号占用空间更小</li>
+<li>C · 前端可以直接渲染省去了解析</li>
+<li>D · 可以少建一张地址关联中间表</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>交易系统的铁律：历史事实必须定格。只存 id，买家改地址后旧订单就"失忆"了。B 明显错误（JSON 更大）；C 是顺带好处；D 答非所问。</p></details>
+
+<p class="q">5. （挑刺）照原样重跑 init.sql，会在哪张表直接报错？</p>
+<ul class="opts">
+<li>A · seckill_order_acceptance 缺 DROP</li>
+<li>B · orders 保留字导致建表失败</li>
+<li>C · address 生成列写法不合法</li>
+<li>D · product 全文索引语法错误</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>顶部 DROP 清单（8-21 行）14 张表，没有 seckill_order_acceptance；252 行的 CREATE 又无 IF NOT EXISTS——二次执行必在 252 行报 table already exists。B 已被 173 行注释绕开（表名用 orders）；C/D 语法均合法。这就是"声明幂等"与"真幂等"的差距。</p></details>
+</div>
+
+<h2>主推荐来源</h2>
+<p>本课的最佳来源是本仓库的设计文档 <a href="../../superpowers/specs/2026-11-06-resale-mall-design.md">docs/superpowers/specs/2026-11-06-resale-mall-design.md</a>——init.sql 头注释自述的"设计基准"，表的出生证明。面试前通读设计文档的域划分与"钱的两条线"两节，你会看到设计文档如何一段段"编译"成 DDL。</p>
+
+<div class="next">
+<p style="display:flex;justify-content:space-between;font-size:14.5px;border-bottom:1px solid var(--rule);padding-bottom:12px;margin-bottom:18px;">
+  <a href="./0006-consignment-and-settlement.html">← 上一课 · 寄卖与结算闭环</a>
+  <span>下一课 · 后端五步闭环（待交付）</span>
+</p>
+<h2 style="margin-top:0;">课程地图 · 面试串讲路线</h2>
+<table class="data">
+<tr><th>课</th><th>主题</th><th>一句话带走</th></tr>
+<tr><td><a href="./0001-anatomy-of-a-request.html">1</a></td><td>请求旅程</td><td>拦截器→Controller→Service→Mapper，统一信封，异常不外泄</td></tr>
+<tr><td><a href="./0002-login-and-jwt.html">2</a></td><td>登录与 JWT</td><td>BCrypt+同文案防枚举，HttpOnly 防 XSS，签名防篡改不防读取</td></tr>
+<tr><td><a href="./0003-transactions-and-ordering.html">3</a></td><td>事务与下单</td><td>@Transactional 原子性，条件 UPDATE 行数裁判，快照定格历史</td></tr>
+<tr><td><a href="./0004-payments-and-idempotency.html">4</a></td><td>支付与幂等</td><td>验签防伪造、金额只信账本、行数决定副作用，三次回调只生效一次</td></tr>
+<tr><td><a href="./0005-seckill-strategies.html">5</a></td><td>秒杀三策略</td><td>Lua 原子关口 + 受理即返 + 全路径补偿，宁可少卖不超卖</td></tr>
+<tr><td><a href="./0006-consignment-and-settlement.html">6</a></td><td>寄卖与结算</td><td>货流/资金两条线，状态机联动，事务不留中间态</td></tr>
+<tr><td>7</td><td>数据库从零设计</td><td>分域→骨架→唯一键护栏→快照→种子，声明幂等要验真</td></tr>
+</table>
+<p><strong>下一课预告：</strong>第 8 课「后端五步闭环」——git log 里 12 个实施计划、5 个阶段，怎么把这份数据库一点点"点亮"成能跑的系统：每个阶段交付什么、怎么验收、为什么是这个顺序。</p>
+<p><strong>想追问？</strong>把下面这段贴给 AI 智能体：</p>
+<p style="font-family:Consolas,monospace;font-size:13px;background:#f2efe8;padding:10px 14px;border-radius:6px;">我学完了 full-stack-mall 第 7 课（数据库从零设计）。请基于 backend/sql/init.sql 原始代码考我：为什么无物理外键、每个唯一键防什么事故、快照为什么用 JSON，并出 2 道我答错概率最高的变体题。</p>
+</div>
+
+</div>
+</body>
+</html>

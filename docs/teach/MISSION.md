@@ -15,9 +15,16 @@
 - 第 3 课（事务与下单）：已交付 → `lessons/0003-transactions-and-ordering.html`
 - 第 4 课（支付与幂等）：已交付 → `lessons/0004-payments-and-idempotency.html`
 - 第 5 课（秒杀三策略对照）：已交付 → `lessons/0005-seckill-strategies.html`
-- 第 6 课（寄卖与结算闭环 · 收官）：已交付 → `lessons/0006-consignment-and-settlement.html`
+- 第 6 课（寄卖与结算闭环 · 主线收官）：已交付 → `lessons/0006-consignment-and-settlement.html`
 
-## 状态：六课全交付，主线课程完结
+## 支线 B · 构建之路（2026-11-11 开启）
+
+用户新诉求：搞清"后端怎么一步步搭建完成闭环"+"SQL 怎么创建的"，仍服务于面试总目标。
+
+- 第 7 课（数据库从零设计 · 构建之路①）：已交付 → `lessons/0007-database-design-from-scratch.html`
+- 第 8 课（后端五步闭环 · 构建之路②）：待交付——素材已调研（git log 12 实施计划 / 5 阶段、docs/superpowers/plans/01-12）
+
+## 状态：主线六课完结，支线 B 推进中
 
 待用户做完全部测验并反馈后，可进入"模拟面试追问"环节或按需开进阶专题（限流/搜索/部署）。
 
