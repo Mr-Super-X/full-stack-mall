@@ -11,7 +11,19 @@
 
 ## 功能截图
 
-<!-- T4 嵌入六张实截：h5-home / h5-product-detail / h5-seckill / admin-home / admin-seckill / rabbitmq-console（docs/screenshots/） -->
+> 全部来自 `docker compose up` 全栈实截（2026-11-11），点击可放大。
+
+| h5 买家端首页 | 寄卖商品详情（库存唯一） |
+|---|---|
+| ![h5 首页](docs/screenshots/h5-home.png) | ![h5 商品详情](docs/screenshots/h5-product-detail.png) |
+
+| 秒杀确认订单（收银台） | admin 秒杀场次管理 |
+|---|---|
+| ![h5 秒杀收银台](docs/screenshots/h5-seckill.png) | ![admin 秒杀管理](docs/screenshots/admin-seckill.png) |
+
+| admin 寄卖审核工作台 | RabbitMQ 异步出单队列（TTL + DLX） |
+|---|---|
+| ![admin 寄卖审核](docs/screenshots/admin-home.png) | ![RabbitMQ 队列](docs/screenshots/rabbitmq-console.png) |
 
 ## 快速开始
 
