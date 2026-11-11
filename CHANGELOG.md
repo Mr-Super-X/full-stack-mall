@@ -27,6 +27,7 @@
 - **修复：分类页搜索面板 focus 竞态（4c 回归）**——容器 `@focusout` 无条件置 false，点击历史/热搜 chip 与清空时面板先于 click 卸载（事件被吃）；改为 relatedTarget 判定（焦点出容器才退输入态），chip/取消选中后主动收面板展示结果态
 - **修复：分类页浏览态点击全失效（4c 回归）**——容器 `@focusin` 无条件置 true，浏览态点击排序/商品链接等可聚焦元素即触发输入态（v-if 面板插入 + v-else 列表卸载把 click 吃掉）；改为仅 `.van-search` 内聚焦进入输入态。Playwright 实测：商品进详情/排序切换/chip 搜索全通
 - **修复：生产 CSP 拦截外链资源**——img-src 放开 picsum.photos + fastly.picsum.photos（种子商品图，此前全部裂图）；font-src 放开 at.alicdn.com（vant 图标字体走 http，此前图标全空白）
+- **修复：list 页滚到底白色割裂**——shell 占位 padding（307px）无背景色透出 body 白底；`.vv-h5-mall` 外壳补 `background: var(--mall-bg-page)`（全模块底色统一），list.vue 删与 shell 重复的 padding-bottom（消除 400px 空滚区）。截图实测滚到底视觉连续
 
 #### 文档
 - **README 作品集化**：黄金一页「技术亮点」区（4b 压测三层证据摘要：三实现对照数字 + 取舍金句 + 证据链接）+「功能截图」区六张全栈实截（h5 买家链路/admin/RabbitMQ 队列）+ 深读索引

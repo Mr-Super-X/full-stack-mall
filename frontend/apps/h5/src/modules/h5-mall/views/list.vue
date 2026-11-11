@@ -217,7 +217,6 @@ function showConditionTag(item: MallGoodsItem): boolean {
 .#{$BEM_PREFIX}-mall-list {
   min-height: 100vh;
   min-height: 100dvh;
-  padding-bottom: 307px;
   font-family: var(--mall-font-body);
   font-size: 34px;
   color: var(--mall-ink-1);

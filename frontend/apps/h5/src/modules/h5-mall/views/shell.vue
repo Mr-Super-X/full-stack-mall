@@ -79,6 +79,9 @@ function onTabSelect(key: string): void {
   min-height: 100vh;
   // 100dvh 渐进增强：规避 iOS Safari 地址栏收缩溢出（与 layouts/h5 同策略）
   min-height: 100dvh;
+  // 应用外壳底色 = 页面米色：fixed tabbar 占位区（下方 padding）与各页滚到底的
+  // 内容间隙均由此承接，否则透出 body 白底造成视觉割裂（2026-11-11 用户截图实证）
+  background: var(--mall-bg-page);
   // 为 fixed tabbar 留出底部空间：容器高 TB_H(134)@362 稿 × (828/362) ≈ 307 稿 px；
   // 该留白随 tabbar 上移自首页迁至此（首页原 padding-bottom 已删）
   padding-bottom: 307px;
