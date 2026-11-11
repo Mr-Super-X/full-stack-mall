@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 8 课 · 后端五步闭环 — full-stack-mall 后端课</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --accent: #8c2f2f;
+    --muted: #666;
+    --rule: #d9d9d9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Palatino Linotype", Palatino, Georgia, "Songti SC", "SimSun", serif;
+    color: var(--ink);
+    background: #fdfcf9;
+    line-height: 1.75;
+    font-size: 17px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 64px 24px 120px; }
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 40px; }
+  .kicker { font-size: 13px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; }
+  h1 { font-size: 30px; font-weight: 600; margin-top: 8px; }
+  .goal { color: var(--muted); font-style: italic; margin-top: 10px; }
+  h2 { font-size: 22px; font-weight: 600; margin: 48px 0 16px; }
+  h2 .no { color: var(--accent); margin-right: 8px; }
+  p { margin: 14px 0; }
+  code {
+    font-family: "SF Mono", Consolas, "Courier New", monospace;
+    font-size: 0.86em;
+    background: #f2efe8;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    background: #2b2b2b; color: #e8e6e3; padding: 16px 18px;
+    border-radius: 6px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+    margin: 18px 0;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .src { font-size: 12.5px; color: var(--muted); margin-top: -10px; margin-bottom: 18px; font-family: Consolas, monospace; }
+  .aside {
+    font-size: 13.5px; color: var(--muted); border-left: 3px solid var(--accent);
+    padding: 4px 14px; margin: 20px 0; font-style: italic;
+  }
+  .aside b { color: var(--accent); font-style: normal; }
+  .stop { display: flex; gap: 14px; margin: 26px 0; align-items: flex-start; }
+  .stop .badge {
+    flex: 0 0 30px; height: 30px; border-radius: 50%;
+    border: 1.5px solid var(--accent); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .stop h3 { font-size: 17px; margin-bottom: 4px; }
+  .flow {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 18px 22px; margin: 22px 0; font-size: 15px; line-height: 2.1;
+    font-family: Consolas, monospace;
+  }
+  table.data {
+    width: 100%; border-collapse: collapse; margin: 22px 0; font-size: 14.5px;
+  }
+  table.data th, table.data td {
+    border: 1px solid var(--rule); padding: 7px 10px; text-align: left;
+  }
+  table.data th { background: #f2efe8; }
+  details { margin: 10px 0; }
+  summary { cursor: pointer; font-size: 15.5px; }
+  summary::marker { color: var(--accent); }
+  .quiz {
+    background: #f5f2ea; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 24px 26px; margin: 30px 0;
+  }
+  .quiz h2 { margin-top: 0; }
+  .q { margin: 20px 0 6px; font-weight: 600; }
+  .opts { list-style: none; margin: 8px 0; }
+  .opts li { padding: 5px 0 5px 4px; }
+  .ans { font-size: 14.5px; color: var(--accent); }
+  .next {
+    border-top: 1px solid var(--rule); margin-top: 56px; padding-top: 24px;
+    font-size: 15px; color: var(--muted);
+  }
+  a { color: var(--accent); }
+  @media print {
+    body { background: #fff; font-size: 12pt; }
+    pre { background: #f5f5f5; color: #000; border: 1px solid #ccc; }
+    .quiz { border: 1.5px solid #000; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">full-stack-mall 后端课 · Lesson 8 · 支线 · 构建之路 ② · 支线收官</div>
+  <h1>后端五步闭环：从空目录到能跑钱的系统</h1>
+  <p class="goal">本课收获：把 git log 的 60+ 提交折叠成一张路线图——5 个阶段、12 份实施计划，每阶段交付什么、怎么验收、为什么是这个顺序。学完你能向面试官完整讲述"这个项目是怎么从零建起来的"，而不只是"它现在长什么样"。</p>
+</header>
+
+<p style="font-size:14px;color:var(--muted);">承接 <a href="./0007-database-design-from-scratch.html">第 7 课 · 数据库从零设计</a>。第 7 课看了地基（15 张表），本课看楼层——楼是怎么一层层盖起来的。</p>
+
+<h2><span class="no">0</span>先定义闭环：钱货两讫</h2>
+<p>"闭环"这个词在建项目时经常被滥用。本课的闭环定义只有一个：<b>买家能付钱拿到货，卖家能交货收到钱，平台能按比例抽佣</b>——钱货两讫，三方各得其所。</p>
+<p>这个定义直接决定了构建顺序：<strong>凡是让"钱货两讫"成立的功能优先，凡是让系统更热闹的功能（秒杀、搜索）后置</strong>。第 7 课你已经看到表是按三个批次长出来的；本课的五个阶段，同样遵守这条纪律。</p>
+<div class="flow">
+路线总览（证据：git log -- backend/ 时间正序 + docs/superpowers/plans/ 01-12）<br>
+阶段 1 · 通路　　plan 01-03　提交 9c35cc8　→ 链路点亮：能登录、能看商品<br>
+阶段 2 · 交易　　plan 04-05　提交 1dec09c / 0866bc9　→ 半条闭环：买家能付钱<br>
+阶段 3 · 履约　　plan 06-08　提交 9cd9862　→ <b>闭环成立</b>：卖家能收到钱<br>
+阶段 4/4b · 玩法　plan 09-11　提交 21 个　→ 增量与加固：秒杀 / 搜索 / 高并发<br>
+阶段 5 · 交付　　plan 12　　提交 9dc871e　→ 工程闭环：镜像可部署
+</div>
+
+<h2><span class="no">1</span>阶段 1 · 打通通路（plan 01-03）</h2>
+<p>第一个提交 9c35cc8 干了两件事：商品域按新模型重构（Product / ProductItem / ProductImage 三层，第 7 课拆过）、user 包实现 JWT 鉴权四接口（register/login/logout/me，第 2 课）。计划 02 的 Goal 原文：<b>"curl 可独立验收"</b>，收尾任务是"端到端验收（真 MySQL + curl）"。</p>
+<p><b>顺序之理：</b>这一阶段的交付物里没有一件是"业务功能"，全是<b>地基</b>——统一信封、全局异常、拦截器（第 1 课）、公共骨架、init.sql 全量重写。因为后面四个阶段都建立在"请求能进来、身份能识别、数据能落库"这条通路上；通路不通，写业务就是空中楼阁。启动类 <code>ShopApplication.java</code> 一个 main 方法拉起整个系统——阶段 1 结束时，它已经能被 curl 打到。</p>
+
+<h2><span class="no">2</span>阶段 2 · 交易闭环上半场（plan 04-05）</h2>
+<p>两个提交分上下半场：<b>上半场</b>（1dec09c）寄卖全流程 + 地址 CRUD——卖家能把货交给平台；<b>下半场</b>（0866bc9）购物车 + 下单 + <b>模拟支付</b>——买家能把钱付出去。</p>
+<p>注意"模拟支付（FAKE provider）"这个决策：资金流闭环<b>可以先假后真</b>。payment 表从建表起就留了 provider 字段（init.sql:210，FAKE/ALIPAY_SANDBOX 双值），第 4 课的支付路由就是踩在这个扩展点上。真实渠道要签约、要沙箱、要对账，但它只是"换一个 provider 实现"——主链路（下单→回调→改单状态）不需要等它。</p>
+<div class="aside"><b>此时闭环还差半条腿：</b>买家付了钱、卖家交了货，但钱停在平台账上，没分出去。阶段 2 结束时，"钱货两讫"只有"货"和"收钱"成立，"付钱给卖家"还不成立。</div>
+
+<h2><span class="no">3</span>阶段 3 · 履约分钱——闭环成立（plan 06-08）</h2>
+<p>9cd9862 一单提交做了订单流转 + Payout 结算；随后 admin 后台、h5 订单、卖家工作台补齐管理面。这阶段穿插着真实的毛边修复：支付回调跳转 404（3cf61d9）、CORS 缺 PATCH 方法导致购物车改量 403（93db790）——<b>端到端联调才会暴露的问题</b>，单元测试时代它们都隐身。</p>
+<p>闭环在这里成立：买家确认收货 → 生成结算单 → admin 打款。第 6 课的两条线（货流/资金）在 PayoutServiceImpl 收拢。如果你只能向面试官讲一个"闭环"时刻，就是这里：<b>一笔钱从买家的支付流水，变成卖家的应得和平台的佣金，全程有状态机、有事务、有唯一键兜底</b>。</p>
+
+<h2><span class="no">4</span>阶段 4 · 玩法与搜索（plan 09-10，11 个提交）</h2>
+<p>秒杀从 bd06d43 的基建（orders 挂 uk_user_activity、四错误码、种子数据）开始，经 admin 场次管理、C 端 live/upcoming 查询、下单事务（独立池条件更新防超卖）、惰性关单回补，到 d1dd46d 顺手挂上 ngram 全文索引、ae4fea3 升级搜索、f1e7933 加热搜词——<b>玩法是一条完整的子闭环</b>，也遵守"基建→管理面→C 端→事务→补偿"的小顺序。</p>
+<p><b>为什么后置？</b>秒杀是营销玩法，不是闭环前提。主链路如果会丢单，秒杀流量越大死得越惨——"宁可少卖不超卖"（第 5 课）这句口号，只有在主链路可信的前提下才有资格谈。</p>
+
+<h2><span class="no">5</span>阶段 4b · 高并发演进（plan 11，约 17 个提交）</h2>
+<p>4b 是本项目最"贵"的阶段，演进链一步一个台阶：</p>
+<div class="flow">
+803275d　基建：docker-compose 加 Redis/RabbitMQ + starter 依赖<br>
+e854806　strategy 配置开关 + 悲观锁 FOR UPDATE <b>对照组</b><br>
+07cb2b5　Redis Lua 预扣 + key 自愈重建（TDD 捕获占位失效 bug）<br>
+8c06144　受理登记表（本地消息表简化形态，Testcontainers 真库验证）<br>
+78f5e8a　RabbitMQ 异步出单：拓扑/生产/消费（幂等+DLX+故障注入）<br>
+0647fc7　令牌桶限流（@RateLimit 注解 + AOP 双层桶）<br>
+c1a09ae　压测入库：三实现 15 组对照矩阵 + 一致性四场景
+</div>
+<p><b>纪律是"先正确后快"</b>：每个演进点都留了可切换的对照组（第 5 课三策略能并排压测，靠的就是 e854806 的开关）；4b 结束后还有一轮"终审修复"提交（a057add，修掉 yml 缩进失效、sold_count 断裂自愈超卖等 Critical 问题）——<b>压测不是走过场，是把系统打坏再修好的过程</b>。500 个压测账号的种子（第 7 课讲过）也是在这个阶段入库的。</p>
+
+<h2><span class="no">6</span>阶段 5 · 交付闭环（plan 12）</h2>
+<p>最后一个后端提交 9dc871e：multi-stage Dockerfile（maven build → jre-alpine，非 root 运行 + wget 健康检查）。代码 → 镜像 → 可部署制品，工程链路闭环。至此，从空目录到一个<b>能跑钱、能扛压、能部署</b>的系统，五个阶段全部收拢。</p>
+
+<h2><span class="no">7</span>把 60+ 提交折叠成五条纪律</h2>
+<table class="data">
+<tr><th>纪律</th><th>在本项目的体现</th></tr>
+<tr><td>先通路后业务</td><td>阶段 1 只做地基，curl 可独立验收</td></tr>
+<tr><td>先主链路后边缘</td><td>下单付款优先；地址 CRUD、轮播图靠后</td></tr>
+<tr><td>先闭环后玩法</td><td>钱货两讫（阶段 3）先于秒杀搜索（阶段 4）</td></tr>
+<tr><td>先正确后快</td><td>4b 每步留对照组，15 组压测矩阵证明"快"没牺牲"对"</td></tr>
+<tr><td>每阶段可验收</td><td>真库+curl / e2e / 对账 SQL / 健康检查，都是可演示的证据</td></tr>
+</table>
+<p>这五条就是"一步步搭建"的真正答案——面试官问"你怎么规划这个项目"，你要讲的不是技术清单，而是<b>顺序的决策理由</b>。</p>
+
+<div class="quiz">
+<h2>自检测验</h2>
+<p style="color:var(--muted);font-size:14px;">先在心里作答，再点开答案。</p>
+
+<p class="q">1. 为什么"模拟支付（FAKE provider）"出现在阶段 2，而不是等真实渠道接入？</p>
+<ul class="opts">
+<li>A · 资金流闭环可先假后真，主链路先行打通</li>
+<li>B · 真实支付渠道阶段二时尚未完成审批</li>
+<li>C · 模拟支付的实现代码量更少更省事</li>
+<li>D · 前端页面必须有假数据才能渲染页面</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>payment.provider 从建表就预留双值（init.sql:210），第 4 课的支付路由踩在这个扩展点上。主链路（下单→回调→改单）不依赖真实渠道，接入真实支付只是"换一个 provider 实现"。B/C/D 都不是设计动机，也不是事实。</p></details>
+
+<p class="q">2. 秒杀为什么排到阶段 4，而不是阶段 2 跟交易一起做？</p>
+<ul class="opts">
+<li>A · 主链路未闭环时玩法没有承载的意义</li>
+<li>B · 秒杀需要 Redis 而 Redis 部署耗时</li>
+<li>C · 阶段二时团队尚未提出秒杀需求</li>
+<li>D · 秒杀表必须等订单表稳定后才能建</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>玩法是增长不是前提；第 7 课学过秒杀两张表就是阶段 4 才长出来的。B 本末倒置（Redis 是 4b 才需要）；C/D 无证据。面试展开：主链路不可信时，秒杀流量越大事故越大。</p></details>
+
+<p class="q">3. 4b 的演进链（同步 DB → 悲观对照组 → Lua+MQ 异步）体现哪条纪律？</p>
+<ul class="opts">
+<li>A · 先正确后快，每步留对照组可测量可回退</li>
+<li>B · 按技术难度从低到高依次实施推进</li>
+<li>C · 按提交者对技术的熟悉程度排期</li>
+<li>D · 按面试话题热度优先安排实现顺序</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>e854806 提交"strategy 配置开关与 pessimistic FOR UPDATE 对照组"——三策略可切换，第 5 课的 15 组压测矩阵才能并排跑。B 是表象：同步 DB 未必最简单，重点是"每步可回退、效果可测量"。</p></details>
+
+<p class="q">4. 本项目每阶段结束时的"验收"长什么样？</p>
+<ul class="opts">
+<li>A · 有具体可演示的端点或测试通过</li>
+<li>B · 代码提交数达到预定额度即交付</li>
+<li>C · 计划文档写完并归档进 docs 目录</li>
+<li>D · 页面在浏览器打开不报错即可</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>计划 02 Task 6"端到端验收（真 MySQL + curl）"；计划 09 Task 14"端到端验收 + 文档同步"并留下 4a 验收记录提交；4b 是 15 组压测对账矩阵 + 一致性四场景；阶段 5 是容器健康检查。B/C/D 都不是验收，是副产品或错觉。</p></details>
+
+<p class="q">5. 为什么说阶段 3 结束才是"闭环真正成立"？</p>
+<ul class="opts">
+<li>A · 此时买家付款与卖家收钱才同时成立</li>
+<li>B · 此时才完成全部数据库表的建设</li>
+<li>C · 此时 admin 后台上线可管理商品了</li>
+<li>D · 此时订单状态机覆盖了所有场景</li>
+</ul>
+<details><summary class="ans">查看答案与解析</summary>
+<p><strong>A。</strong>阶段 2 只有"买家付钱"半条腿；阶段 3 的 Payout 结算（第 6 课）让卖家收到钱，钱货两讫成立。B 错——表一直在长（第 7 课）；C/D 是过程手段，不是闭环的定义。</p></details>
+</div>
+
+<h2>主推荐来源</h2>
+<p>本课的最佳来源是 <a href="../../superpowers/plans/">docs/superpowers/plans/</a> 的 12 份实施计划原文——每份都有 Goal、Task 拆解、验收任务；重点对照 02（阶段 1 的 curl 验收）与 09（阶段 4a 的端到端验收）两节，你会看到"可验收"三个字是如何落到具体命令的。</p>
+
+<div class="next">
+<p style="display:flex;justify-content:space-between;font-size:14.5px;border-bottom:1px solid var(--rule);padding-bottom:12px;margin-bottom:18px;">
+  <a href="./0007-database-design-from-scratch.html">← 上一课 · 数据库从零设计</a>
+  <span>支线 B 已完结 →</span>
+</p>
+<h2 style="margin-top:0;">课程地图 · 八课全景</h2>
+<table class="data">
+<tr><th>课</th><th>主题</th><th>视角</th><th>一句话带走</th></tr>
+<tr><td><a href="./0001-anatomy-of-a-request.html">1</a></td><td>请求旅程</td><td>运行</td><td>拦截器→Controller→Service→Mapper，统一信封，异常不外泄</td></tr>
+<tr><td><a href="./0002-login-and-jwt.html">2</a></td><td>登录与 JWT</td><td>运行</td><td>BCrypt+同文案防枚举，HttpOnly 防 XSS，签名防篡改不防读取</td></tr>
+<tr><td><a href="./0003-transactions-and-ordering.html">3</a></td><td>事务与下单</td><td>运行</td><td>@Transactional 原子性，条件 UPDATE 行数裁判，快照定格历史</td></tr>
+<tr><td><a href="./0004-payments-and-idempotency.html">4</a></td><td>支付与幂等</td><td>运行</td><td>验签防伪造、金额只信账本、行数决定副作用，三次回调只生效一次</td></tr>
+<tr><td><a href="./0005-seckill-strategies.html">5</a></td><td>秒杀三策略</td><td>运行</td><td>Lua 原子关口 + 受理即返 + 全路径补偿，宁可少卖不超卖</td></tr>
+<tr><td><a href="./0006-consignment-and-settlement.html">6</a></td><td>寄卖与结算</td><td>运行</td><td>货流/资金两条线，状态机联动，事务不留中间态</td></tr>
+<tr><td><a href="./0007-database-design-from-scratch.html">7</a></td><td>数据库从零设计</td><td>构建</td><td>分域→骨架→唯一键护栏→快照→种子，声明幂等要验真</td></tr>
+<tr><td>8</td><td>后端五步闭环</td><td>构建</td><td>通路→交易→履约→玩法→交付，每阶段可验收</td></tr>
+</table>
+<p><strong>支线收官建议：</strong>现在你有两个视角——"运行时怎么转"（第 1-6 课）和"构建时怎么建"（第 7-8 课）。面试时它们能互证：讲完一个运行时机制，立刻能补一句"这是阶段 X 引入的，当时的验收方式是 Y"。这种"机制 + 演进 + 验收"的三段式讲法，是"做过项目"和"只会背八股"的分水岭。</p>
+<p><strong>想追问？</strong>把下面这段贴给 AI 智能体：</p>
+<p style="font-family:Consolas,monospace;font-size:13px;background:#f2efe8;padding:10px 14px;border-radius:6px;">我学完了 full-stack-mall 全部八课。请扮演面试官，交替从"运行视角"（如秒杀三策略细节）和"构建视角"（如为什么先阶段 3 后阶段 4）对我追问，每题按"机制 + 演进 + 验收"三段式给我评分和讲法改进建议。</p>
+</div>
+
+</div>
+</body>
+</html>
