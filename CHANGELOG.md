@@ -8,6 +8,25 @@
 
 ## [Unreleased]
 
+### Added（后端 · 阶段 4b：秒杀高并发演进）
+
+- **三实现配置开关** `seckill.strategy`（optimistic 条件更新 / pessimistic FOR UPDATE 对照组 / redis Lua+MQ 异步出单）：同一契约三实现，对照实验公平性由建单三步抽 `SeckillOrderAssembler` 共用保证
+- **Redis Lua 预扣**：`seckill:stock:{id}` 关口三分支原子脚本（1 成功/0 抢完/-1 缺失/-2 占位；SET NX 失败返 Lua false 非 0，`== 0` 判断会让限购失效——TDD 捕获已修）+ key 缺失 DB 自愈重建 + 占位 key TTL 900s 对齐订单超时 + 生命周期挂接（激活 SET/关单 INCR/结束与取消 DEL，失败仅 warn 不阻断）
+- **RabbitMQ 完全异步出单**：受理即返（Controller 预生成 orderNo）→ 受理表同事务落库（本地消息表简化形态）→ `afterCommit` 发 MQ（防幽灵订单）→ 消费者幂等查重重试（x-retry-count 重新发布——requeue 不保留 header）→ DLX 死信由 DlxMonitor 自动回补（受理置 FAILED + Redis INCR，不动 DB：消费端未 +1，-1 会误减他人售出）；发送失败/事务回滚双路 INCR 补偿
+- **令牌桶限流** `@RateLimit` + AOP 双层桶（全局+用户，Lua 原子），超限 40006/HTTP 429；Redis 挂了限流放行（warn——限流非正确性关卡）
+- **错误码 40005/40006 + HTTP 语义映射**（503/429；存量业务码维持 200+body code 信封契约）；`GET /mall/seckill/orders/{orderNo}` 轮询端点（订单优先→受理表回退→404，归属校验防越权探测）
+- **故障注入开关** `consumer-simulated-failure-rate`（启动 warn + 消费 warn；一致性对照表"落库失败"场景）
+- 一致性对照表四场景实测（spec §8）：正常 15 组全绿 / Redis 挂=503+40005 零写入（`spring.data.redis.timeout=3s` 快速失败——默认无超时会挂起到 TCP 超时，实测修正）/ 落库失败=DLX 回补收敛（受理 FAILED+关口复原+sold_count 恒 0）/ 重复消费×3=订单恒 1
+- 三实现对压测矩阵（JMeter，20/50/100/200/500 线程 × 10 件库存，策略指纹验证）：redis 趟受理即返优势显著（T=50 成功单 avg 24ms vs pessimistic 91/optimistic 96），15 组超卖/少卖全 0；`benchmark/` 资产入库（jmx/users.csv/reconcile.sql/README 含实测数据与取舍声明）
+
+### Added（前端 · h5 买家端 · 阶段 4b）
+
+- **秒杀异步出单轮询**：`useSeckillOrderPolling`（setInterval 1s/上限 15s/卸载自动清理/stop 以 TIMEOUT 收尾防 Promise 泄漏）；结算页受理态分支（paymentNo 缺失→「排队出单中…」→ 轮询到 CREATED 携 paymentNo 跳既有收银台，FAILED 提示库存已回补）；40005/40006 局部特判文案（shared 层按 HTTP 状态取消息不含业务语义，不改全局）
+
+### Fixed（前端 · h5 买家端）
+
+- **列表页输入态误吞浏览态（4c 回归）**：4c 以「keyword 为空」判定输入态，tabbar「分类」入口进列表页（keyword 恒空）只见历史/热搜面板、商品列表不可见——改为搜索框 focus 判定（focusin/focusout 冒泡监听），失焦 + keyword 空回全量列表，回车提交主动 blur 出结果态
+
 ### Added（后端 · 阶段 4c：列表搜索优化）
 
 - **ngram 全文索引**：product 表 `FULLTEXT KEY ft_search (name, selling_point, tag) WITH PARSER ngram`；`selectSummaryPage` 的 keyword 条件由 `LIKE '%kw%'`（前导模糊不走索引）改 `MATCH ... AGAINST (? IN BOOLEAN MODE)`

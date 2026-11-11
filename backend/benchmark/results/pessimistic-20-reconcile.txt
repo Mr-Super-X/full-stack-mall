@@ -1,0 +1,8 @@
+项	值
+① 活动库存口径	sold_count=10 / seckill_stock=10
+项	值
+② 成功订单数（type=SECKILL 且挂活动 18）	10
+项	值
+④ 少卖口径：ACCEPTED 且无对应订单	0
+项	值
+⑤ 超卖守卫（sold_count > stock 的违规行数，应恒 0）	0
