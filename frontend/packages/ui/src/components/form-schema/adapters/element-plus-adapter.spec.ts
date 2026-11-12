@@ -3,6 +3,7 @@ import {
   resolveElComponentName,
   DEFAULT_COMPONENT_MAP,
   DEFAULT_COMPONENT_PROPS,
+  CONDITIONAL_COMPONENT_PROPS,
 } from './element-plus-adapter'
 import { EL_COMPONENT_MAP } from '../composables/resolve-component'
 
@@ -71,6 +72,16 @@ describe('resolveElComponentName(name, userComponentKeys?)', () => {
     expect(DEFAULT_COMPONENT_PROPS.ColorPicker).toBeUndefined()
     expect(DEFAULT_COMPONENT_PROPS.Mention).toBeUndefined()
     expect(DEFAULT_COMPONENT_PROPS.Rate).toBeUndefined()
+  })
+
+  it('CONDITIONAL_COMPONENT_PROPS：textarea 组合含 Input 及其 El 别名展开', () => {
+    const textareaEntries = CONDITIONAL_COMPONENT_PROPS.filter(
+      (e) => e.whenProps.type === 'textarea'
+    )
+    // Input → ElInput 自动展开（expandConditionalProps），表项无需手写 El 别名
+    expect(textareaEntries.map((e) => e.component)).toEqual(['Input', 'ElInput'])
+    expect(textareaEntries[0]?.props).toEqual({ showWordLimit: true })
+    expect(CONDITIONAL_COMPONENT_PROPS.length).toBe(2)
   })
 
   it('DEFAULT_COMPONENT_MAP is exported and contains expected keys', () => {

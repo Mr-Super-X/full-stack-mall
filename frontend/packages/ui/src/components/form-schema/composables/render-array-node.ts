@@ -13,7 +13,7 @@ import type { SchemaNode } from '../types'
 import { resolveLabel } from '../utils/resolve-label'
 import { mergeColResponsive } from './barrel'
 import { applyReactions, createBudget } from './use-reaction'
-import type { RenderSchemaNodeOptions } from './render-schema-node'
+import type { RenderSchemaNodeOptions, RenderFieldContext } from './render-schema-node'
 import { rowKeyOf, rewriteNamePath } from './array-row-key'
 
 /**
@@ -62,7 +62,8 @@ function stopRowReaction(bucket: Map<string, RowReactionEntry>, key: string): vo
 /** renderArrayNode —— 数组节点渲染（kind='array'，ElCard + 行 + 行内控件） */
 export function renderArrayNode(
   node: SchemaNode,
-  opts: RenderSchemaNodeOptions
+  opts: RenderSchemaNodeOptions,
+  parentFieldCtx?: RenderFieldContext
 ): VNode | undefined {
   if (!node.array) return undefined
   const listName = node.name
@@ -140,18 +141,41 @@ export function renderArrayNode(
     return rewritten
   }
 
+  /**
+   * array 节点的 labelWidth / labelPosition 合并进行内字段渲染上下文（字段自身配置优先，
+   * 与顶层-字段级双层语义一致）；嵌套 array 时内层节点合并外层值，逐层退回。
+   * 经 RenderFn 第二参数逐行传递 —— 容器型 itemSchema 的 children 渲染在 ElRow/ElCol
+   * slot 闭包里延迟执行，闭包捕获参数天然正确（共享状态的设置-恢复模式会因恢复时机
+   * 早于 slot 执行而失效）
+   */
+  const mergedWidth = node.labelWidth ?? parentFieldCtx?.labelWidth
+  const mergedPosition = node.labelPosition ?? parentFieldCtx?.labelPosition
+  // 全空时不传 ctx（undefined）——行内字段直接走 el-form 顶层继承，语义更清晰
+  const mergedFieldCtx: RenderFieldContext | undefined =
+    mergedWidth === undefined && mergedPosition === undefined
+      ? undefined
+      : { labelWidth: mergedWidth, labelPosition: mergedPosition }
+
   const renderRow = (row: unknown, index: number): VNode => {
     const rowKey = rowKeyOf(row, index)
     // name 前缀 = 位置路径（el-form 校验用，随 index 走）；
     // keyPrefix = 行对象身份（vnode key 用，随行数据走）——两者必须分离，
     // 否则删/移行后内部 form-item 的 key（fi-items[0].qty）漂移，整行重挂载
     const rewritten = resolveRowRewritten(row, rowKey, index)
-    const inner = rewritten
-      ? opts.render({
-          ...(rewritten as object),
-          col: mergeColResponsive((rewritten as SchemaNode).col, opts.currentBreakpoint?.value),
-        } as SchemaNode)
-      : undefined
+    // ⭐ 数组形态 itemSchema（SchemaNode[]）直接传数组让 renderToComponent 按元素分发；
+    // 原 `{ ...rewritten }` 展开会把数组变成数字 key 伪对象（{0: n0, 1: n1}），
+    // 后续渲染分支全部不命中导致行内容渲染为空 —— 行坍缩只剩操作按钮
+    const inner = Array.isArray(rewritten)
+      ? (opts.render(rewritten, mergedFieldCtx) as VNode | VNode[] | undefined)
+      : rewritten
+        ? opts.render(
+            {
+              ...(rewritten as object),
+              col: mergeColResponsive((rewritten as SchemaNode).col, opts.currentBreakpoint?.value),
+            } as SchemaNode,
+            mergedFieldCtx
+          )
+        : undefined
     // P2-3 拖拽排序：draggable 开启时整行可拖
     // F7 增强（设计师审查）：dragover 计算鼠标在行内上半/下半 → 渲染 2px 落点指示线；
     // dragstart 给源行加 .is-dragging 半透明；drop/dragend 清状态

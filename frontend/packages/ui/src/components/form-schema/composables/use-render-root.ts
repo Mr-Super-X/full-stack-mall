@@ -20,7 +20,7 @@
  */
 import { ref, watch, type ComputedRef, type Ref, type VNode } from 'vue'
 
-import { useRenderSchemaNode, type RenderSchemaNodeOptions } from './render-schema-node'
+import { useRenderSchemaNode, type RenderSchemaNodeOptions, type RenderFieldContext } from './render-schema-node'
 import { makeDefaultBeforeChangeCtx } from './build-vmodel-bindings'
 import { withHidden } from './with-hidden'
 import { applyDirectives } from './apply-directives'
@@ -29,9 +29,10 @@ import type { FieldErrorState } from './use-form-instance'
 import type { UseFormErrorBusReturn } from './use-form-error-bus'
 import type { ExpressionScope } from './use-expression'
 
-/** 渲染闭包签名 —— 与 useRenderSchemaNode.render 一致 */
+/** 渲染闭包签名 —— 与 useRenderSchemaNode.render 一致；fieldCtx 沿调用链透传行内字段 label 布局默认值 */
 export type RenderFn = (
-  node: SchemaNode | SchemaNode[] | string | undefined | null
+  node: SchemaNode | SchemaNode[] | string | undefined | null,
+  fieldCtx?: RenderFieldContext
 ) => VNode | string | VNode[] | undefined
 
 /**
@@ -134,7 +135,8 @@ export function useRenderRoot(deps: UseRenderRootDeps): UseRenderRootReturn {
 
   /** 节点渲染（外层：hidden / directives 包装） */
   function renderToComponent(
-    node: SchemaNode | SchemaNode[] | string | undefined | null
+    node: SchemaNode | SchemaNode[] | string | undefined | null,
+    fieldCtx?: RenderFieldContext
   ): VNode | string | VNode[] | undefined {
     // 订阅 optsEpoch：B4 watch 在 props 引用换代时 bump 它，字段 effect 随之失效重渲
     void optsEpoch.value
@@ -143,13 +145,13 @@ export function useRenderRoot(deps: UseRenderRootDeps): UseRenderRootReturn {
     void modelExpressionEpoch?.value
     if (node === null || node === undefined) return undefined
     if (typeof node === 'string') return node
-    if (Array.isArray(node)) return node.map(renderToComponent) as VNode[]
+    if (Array.isArray(node)) return node.map((n) => renderToComponent(n, fieldCtx)) as VNode[]
     //                                                    ^^^^^^^^^^^^^^^^
     // 类型断言安全说明：renderToComponent 返回联合含 string | undefined，但 schema
     // 约束下数组子节点只会递归出 VNode —— string 形态在上方 `typeof node === 'string'`
     // 已早退返回，不可能混入数组。断言仅为满足 TS 联合 narrow，运行时无 string 元素。
     if (node.ignore) return undefined
-    const result = renderInner(node)
+    const result = renderInner(node, fieldCtx)
     // 类型归因：renderInner 返回 VNode | string | VNode[] | undefined 联合，TS 推导为 VNode 后
     // 此处 narrow 仅 string | VNode[] 分支需要 as never 兜底（C1 根因，详见 types/TYPE-CAST-AUDIT.md）。
     if (!result || typeof result === 'string' || Array.isArray(result)) return result as never

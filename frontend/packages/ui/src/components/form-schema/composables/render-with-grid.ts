@@ -8,11 +8,19 @@
 import { h, type VNode } from 'vue'
 import { ElRow, ElCol } from 'element-plus'
 import type { SchemaNode } from '../types'
+import type { RenderFieldContext } from './render-schema-node'
 
-type RenderFn = (node: SchemaNode) => VNode | string | VNode[] | undefined
+type RenderFn = (
+  node: SchemaNode | SchemaNode[] | string | undefined | null,
+  fieldCtx?: RenderFieldContext
+) => VNode | string | VNode[] | undefined
 
-/** 视觉容器内栅格渲染（Card 等 + row/column 时使用） */
-export function renderToComponentWithGrid(node: SchemaNode, renderToComponent: RenderFn): VNode {
+/** 视觉容器内栅格渲染（Card 等 + row/column 时使用）—— fieldCtx 透传到 children 渲染 */
+export function renderToComponentWithGrid(
+  node: SchemaNode,
+  renderToComponent: RenderFn,
+  fieldCtx?: RenderFieldContext
+): VNode {
   const cs = node.column ? Math.floor(24 / node.column) : 24
   const arr = Array.isArray(node.children)
     ? (node.children as SchemaNode[])
@@ -24,7 +32,7 @@ export function renderToComponentWithGrid(node: SchemaNode, renderToComponent: R
   return h(ElRow as never, { ...node.row } as never, {
     default: () =>
       arr.map((c, i) => {
-        const inner = renderToComponent(c)
+        const inner = renderToComponent(c, fieldCtx)
         return h(
           ElCol as never,
           { span: cs, key: (c as Record<string, unknown>).key ?? i } as never,

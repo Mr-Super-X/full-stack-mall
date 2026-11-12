@@ -46,8 +46,23 @@ import { resolvePermission, renderViewPlaceholder } from './use-field-permission
 import { validateSchemaProps } from './validate-component-props'
 import type { ExpressionScope } from './use-expression'
 
+/**
+ * 渲染字段上下文 —— 沿 render 调用链显式传递的字段 label 布局默认值。
+ *
+ * array 节点上配置的 labelWidth / labelPosition 在行渲染时合并进 ctx（字段自身配置优先，
+ * 与顶层-字段级双层语义一致），经 RenderFn 第二参数逐层透传到行内字段的 renderWithFormItem；
+ * 嵌套 array 时内层节点合并外层值，逐层退回。传递方式是显式参数而非共享状态 —— 容器型
+ * itemSchema 的 children 渲染在 ElRow/ElCol 的 slot 闭包里延迟执行，闭包捕获参数天然正确，
+ * 共享状态的设置-恢复模式在该场景会因恢复时机过早而失效
+ */
+export interface RenderFieldContext {
+  labelWidth?: string | number | undefined
+  labelPosition?: 'left' | 'right' | 'top' | undefined
+}
+
 type RenderFn = (
-  node: SchemaNode | SchemaNode[] | string | undefined | null
+  node: SchemaNode | SchemaNode[] | string | undefined | null,
+  fieldCtx?: RenderFieldContext
 ) => VNode | string | VNode[] | undefined
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -211,37 +226,43 @@ export function useRenderSchemaNode(opts: RenderSchemaNodeOptions) {
   function renderVisualBranch(
     node: SchemaNode,
     Comp: ReturnType<typeof resolveComponentFor>,
-    asyncProps: Record<string, unknown>
+    asyncProps: Record<string, unknown>,
+    fieldCtx?: RenderFieldContext
   ): VNode | string | VNode[] | undefined {
     if (!Comp || (!node.slots && node.children === undefined) || node.name) return undefined
-    return renderVisualContainer(node, Comp as object, opts, asyncProps)
+    return renderVisualContainer(node, Comp as object, opts, asyncProps, fieldCtx)
   }
 
   /** 分支 2b：Tabs / Steps 视觉容器（children 每项 → ElTabPane / ElStep 面板） */
   function renderTabsStepsBranch(
     node: SchemaNode,
     Comp: ReturnType<typeof resolveComponentFor>,
-    asyncProps: Record<string, unknown>
+    asyncProps: Record<string, unknown>,
+    fieldCtx?: RenderFieldContext
   ): VNode | string | VNode[] | undefined {
     if (!Comp) return undefined
-    return renderTabsStepsNode(node, Comp as object, opts, asyncProps) ?? undefined
+    return renderTabsStepsNode(node, Comp as object, opts, asyncProps, fieldCtx) ?? undefined
   }
 
   /** 分支 3：FormItem 包装（含 name 或 formItem: true）—— 有 fall-through（result 为空时继续） */
   function renderFormItemBranch(
     node: SchemaNode,
-    Comp: ReturnType<typeof resolveComponentFor>
+    Comp: ReturnType<typeof resolveComponentFor>,
+    fieldCtx?: RenderFieldContext
   ): VNode | string | VNode[] | undefined {
     const shouldWrap =
       (node.name !== undefined && node.formItem !== false) || node.formItem === true
     if (!shouldWrap) return undefined
-    return renderWithFormItem(node, Comp as object, opts) ?? undefined
+    return renderWithFormItem(node, Comp as object, opts, fieldCtx) ?? undefined
   }
 
   /** 分支 4：纯 row+column 布局（无 formItem） */
-  function renderRowColumnBranch(node: SchemaNode): VNode | string | VNode[] | undefined {
+  function renderRowColumnBranch(
+    node: SchemaNode,
+    fieldCtx?: RenderFieldContext
+  ): VNode | string | VNode[] | undefined {
     if (node.row === undefined && node.column === undefined) return undefined
-    return renderWithRowColumn(node, opts)
+    return renderWithRowColumn(node, opts, fieldCtx)
   }
 
   /** 分支 5：默认——直接渲染 Comp + wrapWithElCol */
@@ -276,7 +297,10 @@ export function useRenderSchemaNode(opts: RenderSchemaNodeOptions) {
   // 主调度：权限 gate + view 态提前 return；下方 5 分支按顺序尝试
   // ──────────────────────────────────────────────────────────────────────
 
-  function renderToComponentInner(node: SchemaNode): VNode | string | VNode[] | undefined {
+  function renderToComponentInner(
+    node: SchemaNode,
+    fieldCtx?: RenderFieldContext
+  ): VNode | string | VNode[] | undefined {
     // 权限 gate（位于最前面，所有渲染分支前）
     // - hidden: 不渲染，DOM 中不出现
     // - view: 纯文本占位，跳过 formItem 包装与校验
@@ -296,25 +320,27 @@ export function useRenderSchemaNode(opts: RenderSchemaNodeOptions) {
     }
 
     // 数组节点独立分支：进入即截断，即使 renderArrayNode 返回 undefined
-    if (node.kind === 'array') return renderArrayNode(node, { ...opts, rowReactionStoppers })
+    if (node.kind === 'array') {
+      return renderArrayNode(node, { ...opts, rowReactionStoppers }, fieldCtx)
+    }
 
     // 共享上下文准备（dev mode 白名单校验 + Comp + eventBindings + asyncProps）
     const { Comp, eventBindings, asyncProps } = resolveNodeContext(node)
 
     // 2) Tabs / Steps 视觉容器（children 即面板）——先于 Card 视觉容器判定
-    const tabsStepsResult = renderTabsStepsBranch(node, Comp, asyncProps)
+    const tabsStepsResult = renderTabsStepsBranch(node, Comp, asyncProps, fieldCtx)
     if (tabsStepsResult !== undefined) return tabsStepsResult
 
     // 2b) 视觉容器（Card 等带 row/column，无 name）
-    const visualResult = renderVisualBranch(node, Comp, asyncProps)
+    const visualResult = renderVisualBranch(node, Comp, asyncProps, fieldCtx)
     if (visualResult !== undefined) return visualResult
 
     // 3) FormItem 包装（含 name 或 formItem: true）—— 有 fall-through
-    const formItemResult = renderFormItemBranch(node, Comp)
+    const formItemResult = renderFormItemBranch(node, Comp, fieldCtx)
     if (formItemResult !== undefined) return formItemResult
 
     // 4) 纯 row+column 布局（无 formItem）
-    const rowColumnResult = renderRowColumnBranch(node)
+    const rowColumnResult = renderRowColumnBranch(node, fieldCtx)
     if (rowColumnResult !== undefined) return rowColumnResult
 
     // 5) 默认分支：直接渲染 Comp

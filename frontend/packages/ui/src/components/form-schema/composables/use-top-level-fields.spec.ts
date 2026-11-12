@@ -345,25 +345,25 @@ describe('useTopLevelFields', () => {
   })
 
   describe('labelPosition', () => {
-    it('数组 → "left"（默认）', () => {
+    it('数组 → "right"（默认，对齐 element-plus 原生默认）', () => {
       const { deps, reactiveSchema } = makeDeps()
       reactiveSchema.value = [{ component: 'Input' }]
       const api = useTopLevelFields(deps)
-      expect(api.labelPosition.value).toBe('left')
+      expect(api.labelPosition.value).toBe('right')
     })
 
-    it('无 children → "left"', () => {
+    it('无 children → "right"', () => {
       const { deps, reactiveSchema } = makeDeps()
       reactiveSchema.value = { component: 'Input' }
       const api = useTopLevelFields(deps)
-      expect(api.labelPosition.value).toBe('left')
+      expect(api.labelPosition.value).toBe('right')
     })
 
-    it('有 children 未设置 → "left"', () => {
+    it('有 children 未设置 → "right"', () => {
       const { deps, reactiveSchema } = makeDeps()
       reactiveSchema.value = { children: [] }
       const api = useTopLevelFields(deps)
-      expect(api.labelPosition.value).toBe('left')
+      expect(api.labelPosition.value).toBe('right')
     })
 
     it('labelPosition="top" → "top"', () => {

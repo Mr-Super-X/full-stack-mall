@@ -40,7 +40,6 @@ import {
 import { useAsyncOptions, resolveAsyncOptionsProp } from './use-async-options'
 import type { ExpressionScope } from './use-expression'
 import { walkSchema } from '../utils/walk-schema'
-import { inheritContainerLabelWidth } from '../utils/inherit-container-labelwidth'
 
 interface UseSchemaRendererOptions {
   schema: Ref<SchemaNode | SchemaNode[]>
@@ -89,11 +88,7 @@ export function useSchemaRenderer(opts: UseSchemaRendererOptions) {
       const hasAsync = containsAsyncOptions(normalized)
       // 用 reactive 包装 cloned：reaction / asyncOptions 会修改 cloned.ignore / label / props 等内部属性，
       // vue 才能追踪到变化触发模板重渲染（plain object 不响应）
-      const clonedRaw = cloneSchema(normalized)
-      // 容器级 labelWidth 向子树字段继承拍平（如数组 itemSchema 根的 55px → 行内字段）——
-      // 必须在 reactive 包装前完成；cloned 已隔离用户对象，原地写无副作用
-      inheritContainerLabelWidth(clonedRaw)
-      const cloned = hasRx || hasAsync ? reactive(clonedRaw) : clonedRaw
+      const cloned = hasRx || hasAsync ? reactive(cloneSchema(normalized)) : cloneSchema(normalized)
       // 注册异步选项 watcher（在 reaction traverse 之前，避免 reaction 覆盖 props）
       registerAsyncOptions(cloned, opts.formData, asyncStoppers)
       if (hasRx) {

@@ -171,8 +171,9 @@ export function useTopLevelFields(deps: UseTopLevelFieldsDeps): UseTopLevelField
 
   const labelPosition = computed<'left' | 'right' | 'top'>(() => {
     const s = readTopLevelNode(reactiveSchema)
-    if (!s || s.children === undefined) return 'left'
-    return s.labelPosition ?? 'left'
+    // 默认 right（对齐 element-plus 原生默认）；顶层 / 字段级 / array 节点级均可覆盖
+    if (!s || s.children === undefined) return 'right'
+    return s.labelPosition ?? 'right'
   })
 
   const scrollToError = computed<boolean>(() => {

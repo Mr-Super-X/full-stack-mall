@@ -209,6 +209,29 @@ describe('getComponentDefaultProps', () => {
     const result = getComponentDefaultProps(node, { Select: { clearable: true } })
     expect(result).toEqual({})
   })
+
+  it('Input + props.type=textarea → 默认注入 showWordLimit（节点未显式配置时）', () => {
+    const node: SchemaNode = { component: 'Input', props: { type: 'textarea', rows: 4 } }
+    expect(getComponentDefaultProps(node)).toEqual({ showWordLimit: true })
+  })
+
+  it('Input + props.type=textarea + componentProps 有 Input 默认 → 合并且 componentProps 优先', () => {
+    const node: SchemaNode = { component: 'Input', props: { type: 'textarea' } }
+    const result = getComponentDefaultProps(node, { Input: { clearable: true } })
+    expect(result).toEqual({ showWordLimit: true, clearable: true })
+  })
+
+  it('ElInput + props.type=textarea → 同样注入 showWordLimit', () => {
+    const node: SchemaNode = { component: 'ElInput', props: { type: 'textarea' } }
+    expect(getComponentDefaultProps(node)).toEqual({ showWordLimit: true })
+  })
+
+  it('Input 无 type=textarea（普通输入）→ 不注入 showWordLimit', () => {
+    const node: SchemaNode = { component: 'Input' }
+    expect(getComponentDefaultProps(node, { Input: { clearable: true } })).toEqual({
+      clearable: true,
+    })
+  })
 })
 
 describe('buildAsyncProps', () => {

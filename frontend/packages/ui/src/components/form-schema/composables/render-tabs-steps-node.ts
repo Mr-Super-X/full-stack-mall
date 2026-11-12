@@ -23,7 +23,7 @@ import { ElStep, ElSteps, ElTabPane, ElTabs } from 'element-plus'
 import type { SchemaNode } from '../types'
 import { getComponentDefaultProps } from './barrel'
 import { renderToComponentWithGrid } from './render-with-grid'
-import type { RenderSchemaNodeOptions } from './render-schema-node'
+import type { RenderSchemaNodeOptions, RenderFieldContext } from './render-schema-node'
 
 /** 判定 component 是否为 Tabs 容器（短名 / 全名 / 组件对象三形态） */
 export function isTabsNode(node: SchemaNode): boolean {
@@ -45,17 +45,26 @@ function paneLabel(child: SchemaNode, index: number): string {
   return `面板 ${index + 1}`
 }
 
-/** 单面板内容渲染：child.row/column → 栅格；缺省直接 render children */
-function renderPaneContent(child: SchemaNode, opts: RenderSchemaNodeOptions): () => unknown {
+/** 单面板内容渲染：child.row/column → 栅格；缺省直接 render children（fieldCtx 透传） */
+function renderPaneContent(
+  child: SchemaNode,
+  opts: RenderSchemaNodeOptions,
+  fieldCtx?: RenderFieldContext
+): () => unknown {
   return () => {
     const useGrid = !!(child.row || child.column !== undefined)
-    if (useGrid) return renderToComponentWithGrid(child, opts.render as never)
-    return opts.render(child.children as never) as never
+    if (useGrid) return renderToComponentWithGrid(child, opts.render as never, fieldCtx)
+    return opts.render(child.children as never, fieldCtx) as never
   }
 }
 
 /** 面板 child → ElTabPane / ElStep 节点（label/title + name + 内容插槽） */
-function renderPanes(node: SchemaNode, opts: RenderSchemaNodeOptions, kind: 'tabs' | 'steps') {
+function renderPanes(
+  node: SchemaNode,
+  opts: RenderSchemaNodeOptions,
+  kind: 'tabs' | 'steps',
+  fieldCtx?: RenderFieldContext
+) {
   const arr = Array.isArray(node.children) ? node.children : []
   const Pane = kind === 'tabs' ? ElTabPane : ElStep
   return arr.map((child, i) => {
@@ -75,7 +84,7 @@ function renderPanes(node: SchemaNode, opts: RenderSchemaNodeOptions, kind: 'tab
         key: (child as Record<string, unknown>).key ?? i,
       } as never,
       // ElStep 的内容走 default slot；ElTabPane 同理
-      { default: renderPaneContent(child, opts) } as never
+      { default: renderPaneContent(child, opts, fieldCtx) } as never
     ) as VNode
   })
 }
@@ -93,12 +102,13 @@ export function renderTabsStepsNode(
   node: SchemaNode,
   Comp: object,
   opts: RenderSchemaNodeOptions,
-  asyncProps: Record<string, unknown>
+  asyncProps: Record<string, unknown>,
+  fieldCtx?: RenderFieldContext
 ): VNode | undefined {
   const kind = isTabsNode(node) ? 'tabs' : isStepsNode(node) ? 'steps' : null
   if (!kind) return undefined
   if (node.name !== undefined || !Array.isArray(node.children)) return undefined
-  const panes = renderPanes(node, opts, kind)
+  const panes = renderPanes(node, opts, kind, fieldCtx)
   if (panes.length === 0) return undefined
   return h(
     Comp as never,

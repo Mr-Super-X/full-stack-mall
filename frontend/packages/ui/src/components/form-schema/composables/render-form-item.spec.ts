@@ -274,6 +274,87 @@ describe('renderWithFormItem', () => {
     expect(vnodeProps.labelPosition).toBeUndefined()
   })
 
+  it('无 label 字段 → 注入 labelWidth: 0（EP 无 label 仍 margin-left 继承 labelWidth，归零让内容占满）', () => {
+    const node: SchemaNode = { component: 'Input', name: 'remark' }
+    const opts = makeOpts()
+    const vnode = renderWithFormItem(node, 'Input' as never, opts)
+    const vnodeProps = (vnode as unknown as { props: { labelWidth?: number } }).props
+    expect(vnodeProps.labelWidth).toBe(0)
+  })
+
+  it('有 label 字段 → 不传 labelWidth prop（走 el-form 顶层继承）', () => {
+    const node: SchemaNode = { component: 'Input', name: 'email', label: '邮箱' }
+    const opts = makeOpts()
+    const vnode = renderWithFormItem(node, 'Input' as never, opts)
+    const vnodeProps = (vnode as unknown as { props: { labelWidth?: number } }).props
+    expect(vnodeProps.labelWidth).toBeUndefined()
+  })
+
+  it('无 label 但字段显式 labelWidth → 尊重显式值（不归零）', () => {
+    const node: SchemaNode = { component: 'Input', name: 'remark', labelWidth: '80px' }
+    const opts = makeOpts()
+    const vnode = renderWithFormItem(node, 'Input' as never, opts)
+    const vnodeProps = (vnode as unknown as { props: { labelWidth?: string } }).props
+    expect(vnodeProps.labelWidth).toBe('80px')
+  })
+
+  it('无 label 但 formItem.props.label 显式传 label → 豁免归零（尊重 EP label prop）', () => {
+    const node: SchemaNode = {
+      component: 'Input',
+      name: 'remark',
+      formItem: { props: { label: '备注' } },
+    }
+    const opts = makeOpts()
+    const vnode = renderWithFormItem(node, 'Input' as never, opts)
+    const vnodeProps = (vnode as unknown as { props: { labelWidth?: number } }).props
+    expect(vnodeProps.labelWidth).toBeUndefined()
+  })
+
+  it('fieldDefaults 注入：字段未配置 labelWidth/labelPosition → 用 fieldDefaults', () => {
+    const node: SchemaNode = { component: 'Input', name: 'qty', label: '数量' }
+    const opts = makeOpts()
+    const vnode = renderWithFormItem(node, 'Input' as never, opts, {
+      labelWidth: '72px',
+      labelPosition: 'top',
+    })
+    const vnodeProps = (vnode as unknown as {
+      props: { labelWidth?: string; labelPosition?: string }
+    }).props
+    expect(vnodeProps.labelWidth).toBe('72px')
+    expect(vnodeProps.labelPosition).toBe('top')
+  })
+
+  it('fieldDefaults 注入：字段自身配置优先于 fieldDefaults', () => {
+    const node: SchemaNode = {
+      component: 'Input',
+      name: 'qty',
+      label: '数量',
+      labelWidth: '96px',
+      labelPosition: 'left',
+    }
+    const opts = makeOpts()
+    const vnode = renderWithFormItem(node, 'Input' as never, opts, {
+      labelWidth: '72px',
+      labelPosition: 'top',
+    })
+    const vnodeProps = (vnode as unknown as {
+      props: { labelWidth?: string; labelPosition?: string }
+    }).props
+    expect(vnodeProps.labelWidth).toBe('96px')
+    expect(vnodeProps.labelPosition).toBe('left')
+  })
+
+  it('fieldDefaults 未注入 → 不传 labelWidth/labelPosition prop（维持原继承行为）', () => {
+    const node: SchemaNode = { component: 'Input', name: 'qty', label: '数量' }
+    const opts = makeOpts()
+    const vnode = renderWithFormItem(node, 'Input' as never, opts)
+    const vnodeProps = (vnode as unknown as {
+      props: { labelWidth?: string; labelPosition?: string }
+    }).props
+    expect(vnodeProps.labelWidth).toBeUndefined()
+    expect(vnodeProps.labelPosition).toBeUndefined()
+  })
+
   it('key 优先级：node.key > node.name', () => {
     const node: SchemaNode = {
       component: 'Input',

@@ -76,6 +76,50 @@ export const DEFAULT_COMPONENT_PROPS: Record<
 > = expandComponentProps(BASE_DEFAULT_COMPONENT_PROPS)
 
 /**
+ * 组合条件默认 props —— 与 BASE_DEFAULT_COMPONENT_PROPS（按组件名无条件）互补：
+ * 表达「组件 + props 组合」形态的默认值（如 Input 声明 type: 'textarea' 即 textarea 语义，
+ * 默认开启字数统计，与 InputTextArea 快捷名默认值对齐）。数据驱动 —— 新增组合只加表项。
+ *
+ * 经 expandConditionalProps 展开 El 别名（Input → ElInput），与 DEFAULT_COMPONENT_PROPS
+ * 的消费形态一致。优先级（低 → 高）：条件默认 < 组件表默认 < 节点显式 props
+ * @see ../composables/build-slots.ts getComponentDefaultProps 消费侧
+ */
+const BASE_CONDITIONAL_COMPONENT_PROPS: ReadonlyArray<{
+  component: string
+  whenProps: Record<string, unknown>
+  props: Record<string, unknown>
+}> = [
+  // textarea 组合（xTextarea builder 产物 / 手写 Input + type: 'textarea'）
+  { component: 'Input', whenProps: { type: 'textarea' }, props: { showWordLimit: true } },
+]
+
+/** 条件表 El 别名展开（复用 DEFAULT_COMPONENT_MAP 派生规则） */
+function expandConditionalProps(
+  base: ReadonlyArray<{
+    component: string
+    whenProps: Record<string, unknown>
+    props: Record<string, unknown>
+  }>
+): ReadonlyArray<{
+  component: string
+  whenProps: Record<string, unknown>
+  props: Record<string, unknown>
+}> {
+  const result = [...base]
+  for (const entry of base) {
+    const elName = DEFAULT_COMPONENT_MAP[entry.component]
+    if (elName && elName !== entry.component) {
+      result.push({ ...entry, component: elName })
+    }
+  }
+  return result
+}
+
+export const CONDITIONAL_COMPONENT_PROPS = expandConditionalProps(
+  BASE_CONDITIONAL_COMPONENT_PROPS
+)
+
+/**
  * 解析 schema.component 字符串到最终组件名（供 resolveComponent 查找）
  *
  * 解析顺序：

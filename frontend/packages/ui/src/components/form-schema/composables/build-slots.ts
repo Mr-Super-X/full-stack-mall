@@ -12,9 +12,16 @@ import { createNamespace } from '@vv/shared'
 import type { SchemaNode, SchemaSlot } from '../types'
 import { isElUpload, isPictureCardUpload, isDragUpload } from './resolve-component'
 import { buildAutocompleteFetcher } from './use-async-options'
+import type { RenderFieldContext } from './render-schema-node'
+// 默认 props 单一真源在 adapters/element-plus-adapter.ts（无条件表 + 条件表），此处仅消费
+import { CONDITIONAL_COMPONENT_PROPS } from '../adapters/element-plus-adapter'
 
+// fieldCtx 语义边界：本文件的 slot/children 工具（renderChildren / buildSlotFn /
+// buildUploadDefaultSlot）属于「字段内部自定义内容」渲染路径，刻意不透传 array 注入的
+// RenderFieldContext —— slots 内嵌节点不受行内字段 labelWidth 管辖，走 el-form 顶层继承
 type RenderFn = (
-  node: SchemaNode | SchemaNode[] | string | undefined | null
+  node: SchemaNode | SchemaNode[] | string | undefined | null,
+  fieldCtx?: RenderFieldContext
 ) => VNode | string | VNode[] | undefined
 
 const bem = createNamespace('x-form') // 与 XForm.vue 同一 block，保证注入的类名落在 XForm 命名空间下
@@ -32,7 +39,9 @@ export function renderChildren(
 ): VNode | string | VNode[] | undefined {
   if (children === undefined) return undefined
   if (typeof children === 'string') return children
-  if (Array.isArray(children)) return children.map(render) as VNode[]
+  // 必须包一层箭头函数：Array.map 会把 index 作为第二参传给 render，而 render 的
+  // 第二参是 RenderFieldContext —— 裸传 render 会让 index 泄漏成 fieldCtx
+  if (Array.isArray(children)) return children.map((c) => render(c)) as VNode[]
   return render(children)
 }
 
@@ -125,13 +134,28 @@ export function buildUploadTipSlot(
   return () => renderChildren(value as SchemaNode['children'], render)
 }
 
+/** whenProps 匹配：节点 props 的对应键值全部相等才算命中 */
+function matchesWhenProps(nodeProps: unknown, whenProps: Record<string, unknown>): boolean {
+  if (!nodeProps || typeof nodeProps !== 'object') return false
+  const np = nodeProps as Record<string, unknown>
+  return Object.entries(whenProps).every(([k, v]) => np[k] === v)
+}
+
 /** 取节点对应组件的默认 props；仅对 string component 生效 */
 export function getComponentDefaultProps(
   node: SchemaNode,
   componentProps?: Record<string, Record<string, unknown>>
 ): Record<string, unknown> {
   if (typeof node.component !== 'string') return {}
-  return componentProps?.[node.component] ?? {}
+  let result = componentProps?.[node.component] ?? {}
+  // 命中组合条件时合并条件默认（条件默认被 componentProps 表默认覆盖，节点显式 props 最后覆盖）
+  for (const cond of CONDITIONAL_COMPONENT_PROPS) {
+    if (cond.component !== node.component) continue
+    if (matchesWhenProps(node.props, cond.whenProps)) {
+      result = { ...cond.props, ...result }
+    }
+  }
+  return result
 }
 
 /**

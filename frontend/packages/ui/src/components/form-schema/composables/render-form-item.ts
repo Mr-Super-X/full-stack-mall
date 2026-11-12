@@ -20,13 +20,21 @@ import {
   getComponentDefaultProps,
 } from './barrel'
 import { compileRules, resolveComponentFor, wrapWithElCol, mergeRowResponsive } from './barrel'
-import type { RenderSchemaNodeOptions } from './render-schema-node'
+import type { RenderSchemaNodeOptions, RenderFieldContext } from './render-schema-node'
+
+/**
+ * 行内字段 label 布局默认值 —— RenderFieldContext 的别名（render-array-node 经 RenderFn
+ * 第二参数注入）。语义与顶层-字段级双层一致：字段自身 labelWidth/labelPosition 优先，
+ * 未配置时退回本默认值，再未配置时走 el-form 顶层继承（EP 原生行为）
+ */
+export type FieldLabelDefaults = RenderFieldContext
 
 /** renderWithFormItem —— FormItem 包装渲染（含 name 或 formItem:true 的节点） */
 export function renderWithFormItem(
   node: SchemaNode,
   Comp: object | string | null,
-  opts: RenderSchemaNodeOptions
+  opts: RenderSchemaNodeOptions,
+  fieldDefaults?: FieldLabelDefaults
 ): VNode | undefined {
   // 即使 Comp = null（未映射组件），仍渲染 formItem —— 内部 v-if="Comp" 跳过子节点
   // 保证 formItem 的 v-model/rules/onFocusout 等 prop 路径不被打断
@@ -91,23 +99,33 @@ export function renderWithFormItem(
   // label 在 render effect 内 resolveLabel 求值（i18n 函数式收 props.t；compileRules 的
   // 默认「<label>必填」消息同样用求值后文案，函数式 label 不会漏成 undefined）
   const resolvedLabel = resolveLabel(node.label, opts.t)
+
+  /**
+   * label 布局解析 —— 优先级：字段自身 > array 节点注入的 fieldDefaults > el-form 顶层继承
+   * （EP 原生行为：不传时 el-form-item 自动继承 el-form）。
+   *
+   * 无 label 归零（EP 源码 form-item.vue contentStyle 实锤）：EP 对无 label 的 form-item
+   * 仍施加 margin-left: 继承的 labelWidth（其「无 label 字段与其他字段内容对齐」设计），
+   * label div 不渲染但空白占位压缩内容区（array 行内等窄容器尤为明显）；此处显式归零让
+   * 内容占满容器。字段自身显式 labelWidth 优先于归零（尊重用户矛盾配置的显式意图）。
+   */
+  const hasCustomLabelSlot = fi?.slots !== undefined && 'label' in fi.slots
+  // formItem.props.label 显式传 label 的冷门路径同样豁免归零 —— EP 的 label prop 有值即
+  // 渲染 label div，误归零会把 label 压扁成 width: 0px
+  const hasFormItemPropLabel = fiProps.label !== undefined
+  const effectiveLabelWidth =
+    !resolvedLabel && !hasCustomLabelSlot && !hasFormItemPropLabel && node.labelWidth === undefined
+      ? 0
+      : (node.labelWidth ?? fieldDefaults?.labelWidth)
+  const effectiveLabelPosition = node.labelPosition ?? fieldDefaults?.labelPosition
+
   const formItem = h(
     FormItemComp as never,
     {
       label: resolvedLabel,
       prop: node.name,
-      // ⭐ 字段级 label 配置 override 顶层（el-form-item 与 el-form 共享 labelPosition/labelWidth）
-      // 字段级未设置时 el-form-item 自动继承 el-form 顶层（element-plus 原生行为）
-      ...(node.labelPosition !== undefined ? { labelPosition: node.labelPosition } : {}),
-      // 无 label 字段强制 labelWidth '0px'：否则 el-form 的 labelWidth（如顶层 90px）会让
-      // 空 label 槽仍占宽、content 被 margin-left 顶出大片空白（mall-admin 规格行实证）——
-      // 从渲染层消除"无 label 字段被顶层 labelWidth 殃及"，业务侧无需逐字段打补丁。
-      // 例外：formItem.slots 自定义了 label 插槽时 label 内容由插槽承载，不视为无 label
-      ...(node.labelWidth !== undefined
-        ? { labelWidth: node.labelWidth }
-        : (resolvedLabel == null || resolvedLabel === '') && !(fi?.slots && 'label' in fi.slots)
-          ? { labelWidth: '0px' }
-          : {}),
+      ...(effectiveLabelPosition !== undefined ? { labelPosition: effectiveLabelPosition } : {}),
+      ...(effectiveLabelWidth !== undefined ? { labelWidth: effectiveLabelWidth } : {}),
       // hidden 字段剥离 rules：隐藏必填项若参与校验会让 validate 恒 false，
       // 且 scrollToError 会滚动到 display:none 的元素（用户看不到任何错误）。
       // 保留 prop 注册（el-form-item 挂载时注册时机固定，动态增删 prop 不可靠），
@@ -174,8 +192,12 @@ export function renderWithFormItem(
   return wrapWithElCol(node, formItem, opts.currentBreakpoint?.value)
 }
 
-/** 纯 row + column 布局（无 formItem 包装） */
-export function renderWithRowColumn(node: SchemaNode, opts: RenderSchemaNodeOptions): VNode {
+/** 纯 row + column 布局（无 formItem 包装）—— fieldCtx 透传到 children 渲染 */
+export function renderWithRowColumn(
+  node: SchemaNode,
+  opts: RenderSchemaNodeOptions,
+  fieldCtx?: RenderFieldContext
+): VNode {
   const colSpan =
     node.col && typeof node.col === 'object'
       ? (node.col.span ?? 24)
@@ -207,7 +229,7 @@ export function renderWithRowColumn(node: SchemaNode, opts: RenderSchemaNodeOpti
             h(
               ElCol as never,
               { span: cs, key: (c as Record<string, unknown>).key ?? i } as Record<string, unknown>,
-              { default: () => opts.render(c) }
+              { default: () => opts.render(c, fieldCtx) }
             )
           ),
       }
@@ -229,7 +251,7 @@ export function renderWithRowColumn(node: SchemaNode, opts: RenderSchemaNodeOpti
             ...(node.key !== undefined && { key: node.key }),
           } as Record<string, unknown>,
           {
-            default: () => opts.render(node.children as never),
+            default: () => opts.render(node.children as never, fieldCtx),
           }
         ),
     }

@@ -509,3 +509,150 @@ describe('renderArrayNode / 行级 reaction 生命周期（A5）', () => {
     expect(bucketB.size).toBe(1)
   })
 })
+
+describe('renderArrayNode / label 布局注入 + 数组形态 itemSchema', () => {
+  /** 复用 H8 测试的 slot 强求值手法：walk vnode 树调用 slot，让 renderRow 实际执行 */
+  function forceSlots(vnode: VNode | undefined): void {
+    const walk = (v: unknown): void => {
+      if (!v || typeof v !== 'object') return
+      if (Array.isArray(v)) {
+        v.forEach(walk)
+        return
+      }
+      const ch = (v as unknown as Record<string, unknown>).children
+      if (Array.isArray(ch)) ch.forEach(walk)
+      else if (ch && typeof ch === 'object') {
+        for (const slot of Object.values(ch)) {
+          if (typeof slot === 'function') walk((slot as () => unknown)())
+        }
+      }
+    }
+    walk(vnode)
+  }
+
+  it('数组形态 itemSchema（SchemaNode[]）→ render 收到数组本身并按元素分发（原 {...数组} 展开伪对象导致行空白）', () => {
+    const model: Record<string, unknown> = { items: [{ a: 1, b: 2 }] }
+    const seen: Array<{ isArray: boolean; name: string | undefined }> = []
+    const opts = {
+      model,
+      render: (n: SchemaNode | SchemaNode[]) => {
+        if (Array.isArray(n)) {
+          seen.push({ isArray: true, name: undefined })
+          return n.map((x) => {
+            seen.push({ isArray: false, name: (x as SchemaNode).name })
+            return h('div')
+          })
+        }
+        seen.push({ isArray: false, name: (n as SchemaNode).name })
+        return h('div')
+      },
+      arrayActions: { addItem: () => {}, removeItem: () => {}, moveItem: () => {} },
+    } as never
+    const node = {
+      name: 'items',
+      kind: 'array',
+      array: {
+        itemSchema: [
+          { name: 'a', component: 'Input' },
+          { name: 'b', component: 'Input' },
+        ],
+      },
+    } as SchemaNode
+    forceSlots(renderArrayNode(node, opts))
+    // 数组被原样传给 render（isArray: true），随后按元素分发且 name 已前缀化
+    expect(seen).toEqual([
+      { isArray: true, name: undefined },
+      { isArray: false, name: 'items[0].a' },
+      { isArray: false, name: 'items[0].b' },
+    ])
+  })
+
+  it('array 节点 labelWidth/labelPosition → 经 RenderFn 第二参数传递给行内字段渲染', () => {
+    const model: Record<string, unknown> = { items: [{ qty: 1 }] }
+    const seenCtx: Array<unknown> = []
+    const opts = {
+      model,
+      render: (_n: unknown, fieldCtx?: unknown) => {
+        seenCtx.push(fieldCtx ?? null)
+        return h('div')
+      },
+      arrayActions: { addItem: () => {}, removeItem: () => {}, moveItem: () => {} },
+    }
+    const node = {
+      name: 'items',
+      kind: 'array',
+      labelWidth: '88px',
+      labelPosition: 'top',
+      array: { itemSchema: { name: 'qty', component: 'Input' } },
+    } as SchemaNode
+    forceSlots(renderArrayNode(node, opts as never))
+    expect(seenCtx).toEqual([{ labelWidth: '88px', labelPosition: 'top' }])
+  })
+
+  it('array 节点未配置 label 布局 → 传 undefined ctx（行内字段走顶层继承）', () => {
+    const model: Record<string, unknown> = { items: [{ qty: 1 }] }
+    const seenCtx: Array<unknown> = []
+    const opts = {
+      model,
+      render: (_n: unknown, fieldCtx?: unknown) => {
+        seenCtx.push(fieldCtx ?? null)
+        return h('div')
+      },
+      arrayActions: { addItem: () => {}, removeItem: () => {}, moveItem: () => {} },
+    }
+    const node = {
+      name: 'items',
+      kind: 'array',
+      array: { itemSchema: { name: 'qty', component: 'Input' } },
+    } as SchemaNode
+    forceSlots(renderArrayNode(node, opts as never))
+    expect(seenCtx).toEqual([null])
+  })
+
+  it('嵌套 array：parentFieldCtx 未配置字段合并外层值（内层继承）', () => {
+    const model: Record<string, unknown> = { items: [{ qty: 1 }] }
+    const seenCtx: Array<unknown> = []
+    const opts = {
+      model,
+      render: (_n: unknown, fieldCtx?: unknown) => {
+        seenCtx.push(fieldCtx ?? null)
+        return h('div')
+      },
+      arrayActions: { addItem: () => {}, removeItem: () => {}, moveItem: () => {} },
+    }
+    // 内层 array 自身不配 labelWidth/labelPosition
+    const node = {
+      name: 'items',
+      kind: 'array',
+      array: { itemSchema: { name: 'qty', component: 'Input' } },
+    } as SchemaNode
+    forceSlots(
+      renderArrayNode(node, opts as never, { labelWidth: '96px', labelPosition: 'top' })
+    )
+    expect(seenCtx).toEqual([{ labelWidth: '96px', labelPosition: 'top' }])
+  })
+
+  it('嵌套 array：内层节点自身 labelWidth 优先于 parentFieldCtx，未配置字段继承外层', () => {
+    const model: Record<string, unknown> = { items: [{ qty: 1 }] }
+    const seenCtx: Array<unknown> = []
+    const opts = {
+      model,
+      render: (_n: unknown, fieldCtx?: unknown) => {
+        seenCtx.push(fieldCtx ?? null)
+        return h('div')
+      },
+      arrayActions: { addItem: () => {}, removeItem: () => {}, moveItem: () => {} },
+    }
+    const node = {
+      name: 'items',
+      kind: 'array',
+      labelWidth: '64px',
+      array: { itemSchema: { name: 'qty', component: 'Input' } },
+    } as SchemaNode
+    forceSlots(
+      renderArrayNode(node, opts as never, { labelWidth: '96px', labelPosition: 'top' })
+    )
+    // labelWidth 内层 64px 优先；labelPosition 内层未配置 → 继承外层 top
+    expect(seenCtx).toEqual([{ labelWidth: '64px', labelPosition: 'top' }])
+  })
+})
