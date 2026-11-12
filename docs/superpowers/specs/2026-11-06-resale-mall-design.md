@@ -243,9 +243,9 @@ stateDiagram-v2
 | 购物车 | `GET /mall/cart` · `POST /mall/cart/items` · `PATCH /mall/cart/items/{id}` · `DELETE /mall/cart/items/{id}` | 2 |
 | 订单 | `POST /mall/orders` · `GET /mall/orders?status=` · `GET /mall/orders/sold`（卖家视角，plan-06 新增）· `GET /mall/orders/{id}` · `POST /mall/orders/{id}/cancel` · `POST /mall/orders/{id}/ship`（卖家发寄卖件 / admin 发自营件）· `POST /mall/orders/{id}/confirm`（确认收货→生成 Payout PENDING） | 2-3 |
 | 结算管理 | `GET /mall/admin/payouts?status=PENDING` · `POST /mall/admin/payouts/{id}/confirm`（初审）· `POST /mall/admin/payouts/{id}/pay`（打款→寄卖单 SETTLED）——plan-06 从"挂在寄卖单上的 settle"调整为"挂在结算单资源上"（审批对象是 Payout，REST 归属更准确） | 3 |
-| 支付 | `POST /mall/payments/{paymentNo}/pay`（返回沙箱跳转 URL）· `POST /mall/payments/alipay/notify`（异步回调）· `GET /mall/payments/{paymentNo}`（前端轮询） | 2 |
+| 支付 | `POST /mall/payments/{paymentNo}/pay`（返回沙箱跳转 URL）· `POST /mall/payments/fake/notify`（异步回调；契约原文写 alipay/notify，实现落为 fake/notify = FakeProvider 形态命名，2026-11-12 注明）· `GET /mall/payments/{paymentNo}`（前端轮询）· `GET /mall/payments/fake/checkout`（FakeProvider 沙箱收银台页，实现期新增） | 2 |
 | 秒杀 | `GET /mall/seckill/active` · `POST /mall/seckill/{activityId}/orders` | 4 |
-| 自营后台 | `POST /mall/admin/products` · `PATCH /mall/admin/products/{id}` · `POST /mall/admin/seckill-activities` | 3-4 |
+| 自营后台 | `GET /mall/admin/products`（分页，status/keyword 筛选）· `POST /mall/admin/products` · `PATCH /mall/admin/products/{id}`（PATCH 语义，含上下架——下架受未结束秒杀活动挂载保护）· `POST /mall/admin/seckill-activities` | 3-4（商品管理 2026-11-12 补齐落地，阶段4 spec §11「留 v2」裁决经用户裁决提前实现） |
 
 ### 精讲契约 1：`POST /mall/seckill/{activityId}/orders` —— 错误码最丰富的一个
 
@@ -297,7 +297,7 @@ C 端页面按 `saleMode` 变形，这是本项目最出彩的设计点：
 | h5 买家端 | 首页 / 列表 / 详情 / 登录注册 | 1 |
 | h5 买家端 | 寄卖提交、我的寄卖（含定价确认）、购物车、下单、支付、订单列表/详情、确认收货 | 2-3 |
 | admin 管理端 | 寄卖审核队列、定价、结算审批 | 3 |
-| admin 管理端 | 自营商品管理、秒杀场次管理 | 3-4 |
+| admin 管理端 | 自营商品管理 ✅ 2026-11-12（列表/新建/编辑/上下架）、秒杀场次管理 | 3-4 |
 | h5 买家端 | 秒杀会场页、详情页秒杀插件 | 4 |
 
 ---

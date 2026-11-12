@@ -8,6 +8,38 @@
 
 ## [Unreleased]
 
+### Added（设计偏差补齐 · admin 自营商品管理，2026-11-12）
+
+> 背景：设计文档对照审计发现基准 spec §6/§8 承诺的「自营商品管理」未实现（阶段4 spec §11 曾裁「留 v2」但基准未回改）。经用户裁决提前落地，偏差消除。
+
+#### 后端
+- **自营商品管理三接口**（`/mall/admin/products`，挂 AdminInterceptor）：`GET` 分页（status/keyword 筛选，只查 PLATFORM 货源——寄卖商品生命周期归寄卖单驱动）· `POST` 创建（product+items+images 单事务，固化 PLATFORM/NORMAL/NEW/sales=0/status=1；size 判重含 null、sort 缺省按提交顺序补位）· `PATCH /{id}`（PATCH 语义 null 不更新；规格/库存编辑不做——无运营场景，YAGNI）
+- **下架秒杀挂载保护**：挂载 PENDING/ACTIVE 秒杀活动的商品禁止下架（新错误码 `SECKILL_ACTIVE_ON_PRODUCT`），落实 4a spec §10#11 未做的 admin 关口，与下单事务 status 校验互为双保险
+- 测试 +17（Service 单测 10 + Controller 契约 7：403/401 走真实拦截链），后端全量 226 用例绿
+
+#### 前端
+- **admin 自营商品页**（mall-admin 模块）：ProTable + 状态 Tab + 关键词搜索（:key 重挂载对齐 SeckillActivities 先例）；新建 dialog（规格动态行 ≥1 + 图片 URL 逐行输入）/ 编辑 dialog（基础字段回填，规格与库存不可改已注明）/ 行内上下架（下架二次确认，后端保护文案透传）；类目树复用 C 端匿名 `GET /mall/product/category/tree`；`useProductManage` composable + spec（4 用例，mall-admin 模块单测 17 全绿）
+
+### Changed（管理后台弹窗表单统一 ProDialogForm + label 右对齐 · 2026-11-12）
+
+- **mall-admin 五个 dialog 迁移 @vv/ui ProDialogForm**（ProDialog + XForm + 提交 footer 三件套，用户架构决策）：商品新建/编辑组件自包含化（API 调用内置，父子协议 `emit submit` 简化为 `v-model + @success`）；寄卖通过/秒杀新建走内置 submit（校验→API→成功自动关窗）；寄卖驳回用 footer 作用域插槽保留「validate → useConfirm → API」编排；秒杀限购固定文案走默认插槽。每处删除手动 submitting/validate/关窗样板
+- **五个 XForm schema 顶层 `labelPosition: 'right'`**：规格行 label（55px）随 el-form 全局继承同样右对齐
+- `CategoryTreeNode` 类型收敛至 `apis/products.ts`（消除两 dialog 组件重复定义）
+
+### Fixed（管理后台写操作后表格不刷新 · 2026-11-12）
+
+- **根因**：四个页面 ProTable 各自经 request-api 拉数据，composable 的 `load()` 数据无消费者——所有「写后 load 对齐真态」是无效刷新（上下架/审核/打款/取消后列表显示旧数据）
+- **修复**：composable 纯化为纯写操作（删 list/loading/page/total/load 死状态）；视图持 `tableRef`（`ProTableExpose` 类型）写成功后 `refresh()`；新建类操作后 key 重挂载回第 1 页（ProTable 未暴露 setPage）；Payouts 保留 Review Focus #6 语义——finally 刷新（400 状态已变迁也对齐真态）。四个 composable spec 同步重写（16 用例全绿）
+
+### Changed（管理后台表单统一 XForm · 2026-11-12）
+
+- **mall-admin 全部 dialog 表单迁移 XForm**（用户架构决策）：寄卖审核（通过定价/驳回原因）、秒杀新建场次、自营商品（新建/编辑）四处手写 el-form → XForm schema 驱动——手写 if 校验（~20 处 ElMessage toast）改为 rules + 字段红字；商品规格动态行手写增删改 xArray 数组节点（内置增删/上移/下移/minItems）；秒杀候选商品手写加载缓存改 asyncOptions 声明式数据源（source+transform）。Payouts 纯确认操作无表单不动。XForm 首次从 demo 站落地真实业务页
+
+### Fixed（存量问题修复 · 2026-11-12）
+
+- **admin 全量 type-check 归零（4 处）**：Consignments/Payouts 的 el-tabs（`@ts-expect-error` 实证失败的旧压制）换原生按钮组（对齐 SeckillActivities.vue 既定模式）；UserInfo/LocaleDropdown 的 el-dropdown `popper-class` EpProp 构造器联合摩擦（Vue 3.6.0-beta.17 + EP 2.14 字面量 assignability 失败）用 `@vue-ignore` 官方元素级豁免——不依赖 `@ts-expect-error` 的生成代码行映射（项目既有教训）
+- **check:routes 双向一致性缺口消除**：移除 whitelist 中从未实现的 `MallAdminLogin` 残留条目——P4 已拍板跨应用统一登录协议（守卫 `redirectToAuthLogin` 整页跳 apps/auth，引用实证无依赖），条目为方案 A 规划残留，删除而非补造页面
+
 ### Changed（代码风格 · 2026-11-11）
 
 - **测试方法名全量英文化**：backend/src/test 下 31 个文件约 172 处中文测试方法名改为英文（`shouldXxx_whenYyy` / `testXxx` 句式），用户规则「禁止中文方法名」（含测试方法名）；@DisplayName 中文值保留（展示文案不受规则约束），测试逻辑零改动，209 用例全绿
