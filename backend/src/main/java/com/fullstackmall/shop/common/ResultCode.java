@@ -19,6 +19,8 @@ public enum ResultCode {
     PAYMENT_STATE_ILLEGAL(400, "当前支付状态不允许回调"),
     CONSIGNMENT_DIRECT_ONLY(400, "寄卖商品请直接购买"),
     PAYOUT_STATE_ILLEGAL(400, "当前结算状态不允许该操作"),
+    PRODUCT_STATE_ILLEGAL(400, "当前商品状态不允许该操作"),
+    SECKILL_ACTIVE_ON_PRODUCT(400, "商品挂载未结束的秒杀活动，禁止下架"),
     UNAUTHORIZED(401, "未登录或登录已过期"),
     FORBIDDEN(403, "无权限访问"),
     PRODUCT_NOT_FOUND(404, "商品不存在"),

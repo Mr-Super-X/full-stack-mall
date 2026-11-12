@@ -16,6 +16,16 @@ const routes: RouteRecordRaw[] = [
     },
     children: [
       {
+        path: 'products',
+        name: 'MallAdminProducts',
+        component: () => import('../views/Products.vue'),
+        meta: {
+          title: '自营商品',
+          requiresAuth: true,
+          permissions: ['mall:admin'],
+        },
+      },
+      {
         path: 'consignments',
         name: 'MallAdminConsignments',
         component: () => import('../views/Consignments.vue'),
