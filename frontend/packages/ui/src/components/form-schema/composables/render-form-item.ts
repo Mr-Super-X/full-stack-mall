@@ -99,7 +99,15 @@ export function renderWithFormItem(
       // ⭐ 字段级 label 配置 override 顶层（el-form-item 与 el-form 共享 labelPosition/labelWidth）
       // 字段级未设置时 el-form-item 自动继承 el-form 顶层（element-plus 原生行为）
       ...(node.labelPosition !== undefined ? { labelPosition: node.labelPosition } : {}),
-      ...(node.labelWidth !== undefined ? { labelWidth: node.labelWidth } : {}),
+      // 无 label 字段强制 labelWidth '0px'：否则 el-form 的 labelWidth（如顶层 90px）会让
+      // 空 label 槽仍占宽、content 被 margin-left 顶出大片空白（mall-admin 规格行实证）——
+      // 从渲染层消除"无 label 字段被顶层 labelWidth 殃及"，业务侧无需逐字段打补丁。
+      // 例外：formItem.slots 自定义了 label 插槽时 label 内容由插槽承载，不视为无 label
+      ...(node.labelWidth !== undefined
+        ? { labelWidth: node.labelWidth }
+        : (resolvedLabel == null || resolvedLabel === '') && !(fi?.slots && 'label' in fi.slots)
+          ? { labelWidth: '0px' }
+          : {}),
       // hidden 字段剥离 rules：隐藏必填项若参与校验会让 validate 恒 false，
       // 且 scrollToError 会滚动到 display:none 的元素（用户看不到任何错误）。
       // 保留 prop 注册（el-form-item 挂载时注册时机固定，动态增删 prop 不可靠），

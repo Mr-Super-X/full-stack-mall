@@ -17,6 +17,9 @@
  * P4 变更：auth 模块物理独立到 apps/auth（连同 'Login' 白名单行）——
  * admin 无任何公开页：未登录访问一律由守卫经 `redirectToAuthLogin` 整页跳
  * apps/auth（跨应用统一登录协议，@vv/shared auth/redirect.ts）。
+ * P5 变更（2026-11-12）：移除 'MallAdminLogin' 残留条目——P4 已拍板统一登录协议，
+ * mall-admin 方案 A 应用级登录页从未实现（check:routes 双向一致性校验实证缺口），
+ * 条目为规划残留，删除而非补造页面。
  *
  * @see [`./guards/auth.ts`](./guards/auth.ts) `isWhiteListed` 调用点
  * @group 路由：白名单
@@ -37,7 +40,6 @@ export const ROUTE_WHITE_LIST: ReadonlySet<string> = new Set<string>([
   'Forbidden', // 403 无权限
   'NotFound', // 404 页面
   'ServerError', // 500 页面
-  'MallAdminLogin', // 商城后台登录页（modules/mall-admin，方案 A 应用级接入）
 ])
 
 /**

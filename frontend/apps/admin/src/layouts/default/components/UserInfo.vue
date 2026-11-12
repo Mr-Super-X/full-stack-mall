@@ -32,6 +32,7 @@ function onVisibleChange(visible: boolean) {
 </script>
 
 <template>
+  <!-- @vue-ignore element-plus popper-class 的 EpProp 构造器联合（ClassValue）在 Vue 3.6.0-beta.17 + EP 2.14 下字面量 assignability 失败（运行时正确，type-check 实证）；官方元素级豁免，不依赖 @ts-expect-error 的生成代码行映射 -->
   <el-dropdown
     :class="bem.b()"
     trigger="click"
