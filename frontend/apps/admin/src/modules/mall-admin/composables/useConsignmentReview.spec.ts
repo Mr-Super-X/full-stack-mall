@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// mock 模块内 API 层（@api/http 经 request 由 apis/consignments.ts 消费）
 vi.mock('../apis/consignments', () => ({
   adminConsignmentApi: {
     list: vi.fn(),
@@ -10,9 +9,6 @@ vi.mock('../apis/consignments', () => ({
 
 import { adminConsignmentApi } from '../apis/consignments'
 import { useConsignmentReview } from './useConsignmentReview'
-
-const mockList = vi.mocked(adminConsignmentApi.list)
-const mockReview = vi.mocked(adminConsignmentApi.review)
 
 const SAMPLE_ITEM = {
   id: 7,
@@ -37,55 +33,49 @@ describe('useConsignmentReview', () => {
     vi.clearAllMocks()
   })
 
-  it('load_defaultStatus_SUBMITTED_andMapsList', async () => {
-    mockList.mockResolvedValue([SAMPLE_ITEM])
-    const { list, loading, status, load } = useConsignmentReview()
-
-    await load()
-
-    expect(mockList).toHaveBeenCalledWith('SUBMITTED')
-    expect(list.value).toEqual([SAMPLE_ITEM])
+  it('status 默认 SUBMITTED（待审核队列）', () => {
+    const { status } = useConsignmentReview()
     expect(status.value).toBe('SUBMITTED')
-    expect(loading.value).toBe(false)
   })
 
-  it('load_statusSwitch_refetches', async () => {
-    mockList.mockResolvedValue([])
-    const { load } = useConsignmentReview()
-
-    await load('PRICED')
-
-    expect(mockList).toHaveBeenCalledWith('PRICED')
-  })
-
-  it('approve_sendsPayloadAndReloads', async () => {
-    mockList.mockResolvedValue([SAMPLE_ITEM])
-    mockReview.mockResolvedValue({ ...SAMPLE_ITEM, status: 'PRICED', platformPrice: 12800, commissionRate: 15 })
+  it('approve 发送定价 + 佣金率', async () => {
+    vi.mocked(adminConsignmentApi.review).mockResolvedValue({
+      ...SAMPLE_ITEM,
+      status: 'PRICED',
+      platformPrice: 12800,
+      commissionRate: 15,
+    } as never)
     const { approve } = useConsignmentReview()
 
     await approve(7, 12800, 15)
 
-    expect(mockReview).toHaveBeenCalledWith(7, { approve: true, platformPrice: 12800, commissionRate: 15 })
-    expect(mockList).toHaveBeenCalled()
+    expect(adminConsignmentApi.review).toHaveBeenCalledWith(7, {
+      approve: true,
+      platformPrice: 12800,
+      commissionRate: 15,
+    })
   })
 
-  it('reject_sendsReasonAndReloads', async () => {
-    mockList.mockResolvedValue([])
-    mockReview.mockResolvedValue({ ...SAMPLE_ITEM, status: 'REJECTED', rejectReason: '图片不清晰' })
+  it('reject 发送驳回原因', async () => {
+    vi.mocked(adminConsignmentApi.review).mockResolvedValue({
+      ...SAMPLE_ITEM,
+      status: 'REJECTED',
+      rejectReason: '图片不清晰',
+    } as never)
     const { reject } = useConsignmentReview()
 
     await reject(7, '图片不清晰')
 
-    expect(mockReview).toHaveBeenCalledWith(7, { approve: false, rejectReason: '图片不清晰' })
-    expect(mockList).toHaveBeenCalled()
+    expect(adminConsignmentApi.review).toHaveBeenCalledWith(7, {
+      approve: false,
+      rejectReason: '图片不清晰',
+    })
   })
 
-  it('review_error_propagatesAndNoReload', async () => {
-    mockList.mockResolvedValue([])
-    mockReview.mockRejectedValue(new Error('非法状态迁移'))
+  it('review 错误向上抛（视图层 toast）', async () => {
+    vi.mocked(adminConsignmentApi.review).mockRejectedValue(new Error('非法状态迁移'))
     const { approve } = useConsignmentReview()
 
     await expect(approve(7, 12800, 15)).rejects.toThrow('非法状态迁移')
-    expect(mockList).not.toHaveBeenCalled()
   })
 })

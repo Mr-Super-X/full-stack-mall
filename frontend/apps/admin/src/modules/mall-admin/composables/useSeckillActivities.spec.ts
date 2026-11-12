@@ -17,67 +17,41 @@ describe('useSeckillActivities', () => {
     vi.clearAllMocks()
   })
 
-  it('load 按 status 与页码请求并回填列表', async () => {
-    vi.mocked(adminSeckillApi.page).mockResolvedValue({
-      list: [
-        {
-          id: 1,
-          productId: 16,
-          productTitle: '复古做旧牛仔夹克',
-          seckillPrice: 299.4,
-          seckillStock: 5,
-          soldCount: 0,
-          startTime: '2026-11-10T12:00:00',
-          endTime: '2026-11-17T12:00:00',
-          limitPerUser: 1,
-          status: 'PENDING',
-        },
-      ],
-      total: 1,
-      page: 2,
-      pageSize: 10,
-    })
-
-    const { status, list, total, load } = useSeckillActivities()
-    status.value = 'PENDING'
-    await load(2)
-
-    expect(adminSeckillApi.page).toHaveBeenCalledWith({ status: 'PENDING', page: 2, pageSize: 10 })
-    expect(list.value).toHaveLength(1)
-    expect(total.value).toBe(1)
+  it('status 初值为全部', () => {
+    const { status } = useSeckillActivities()
+    expect(status.value).toBe('')
   })
 
-  it('create 成功后回第 1 页 reload', async () => {
-    vi.mocked(adminSeckillApi.page).mockResolvedValue({ list: [], total: 0, page: 1, pageSize: 10 })
+  it('create 透传创建参数', async () => {
     vi.mocked(adminSeckillApi.create).mockResolvedValue({} as never)
-
     const { create } = useSeckillActivities()
-    await create({
+    const payload = {
       productId: 16,
       seckillPrice: 299.4,
       seckillStock: 5,
       startTime: '2026-11-10T14:00:00',
       endTime: '2026-11-10T20:00:00',
       limitPerUser: 1,
-    })
+    }
 
-    expect(adminSeckillApi.create).toHaveBeenCalledTimes(1)
-    expect(adminSeckillApi.page).toHaveBeenCalledWith(
-      expect.objectContaining({ page: 1 })
-    )
+    await create(payload)
+
+    expect(adminSeckillApi.create).toHaveBeenCalledWith(payload)
   })
 
-  it('cancel 成功后 reload 当前页', async () => {
-    vi.mocked(adminSeckillApi.page).mockResolvedValue({ list: [], total: 0, page: 3, pageSize: 10 })
+  it('cancel 透传场次 id', async () => {
     vi.mocked(adminSeckillApi.cancel).mockResolvedValue(undefined as never)
+    const { cancel } = useSeckillActivities()
 
-    const { load, cancel } = useSeckillActivities()
-    await load(3)
     await cancel(9)
 
     expect(adminSeckillApi.cancel).toHaveBeenCalledWith(9)
-    expect(adminSeckillApi.page).toHaveBeenLastCalledWith(
-      expect.objectContaining({ page: 3 })
-    )
+  })
+
+  it('cancel 错误向上抛（视图层 toast）', async () => {
+    vi.mocked(adminSeckillApi.cancel).mockRejectedValue(new Error('仅 PENDING 可取消'))
+    const { cancel } = useSeckillActivities()
+
+    await expect(cancel(9)).rejects.toThrow('仅 PENDING 可取消')
   })
 })

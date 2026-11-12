@@ -1,34 +1,22 @@
-// 寄卖审核队列 composable：状态筛选 + 通过（定价/佣金率）/驳回（原因）。
-// 审核成功后自动 reload 对齐真态；错误向上抛（视图层 toast，Review Focus #5：不静默吞错）。
+// 寄卖审核队列 composable：状态筛选 + 纯写操作（通过定价/驳回原因）。
+// 数据流：列表归 ProTable request-api 拉取，写成功后由视图 tableRef.refresh() 对齐真态
+// （审核后行状态变迁，原 load 数据无消费者属无效刷新，2026-11-12 修复）。
+// 错误向上抛（视图层 toast，Review Focus #5：不静默吞错）；失败不刷新（与 Payouts 的
+// 防幻觉成功语义不同：审核 400 时行状态未变，无需对齐）。
 
 import { ref } from 'vue'
 import { adminConsignmentApi } from '../apis/consignments'
-import type { AdminConsignmentItem } from '../apis/consignments'
 
 export function useConsignmentReview() {
-  const list = ref<AdminConsignmentItem[]>([])
-  const loading = ref(false)
   const status = ref('SUBMITTED')
-
-  async function load(s?: string): Promise<void> {
-    if (s) status.value = s
-    loading.value = true
-    try {
-      list.value = await adminConsignmentApi.list(status.value)
-    } finally {
-      loading.value = false
-    }
-  }
 
   async function approve(id: number, platformPrice: number, commissionRate: number): Promise<void> {
     await adminConsignmentApi.review(id, { approve: true, platformPrice, commissionRate })
-    await load()
   }
 
   async function reject(id: number, reason: string): Promise<void> {
     await adminConsignmentApi.review(id, { approve: false, rejectReason: reason })
-    await load()
   }
 
-  return { list, loading, status, load, approve, reject }
+  return { status, approve, reject }
 }

@@ -11,8 +11,10 @@
 defineOptions({ name: 'MallAdminConsignments' })
 
 import { reactive, ref } from 'vue'
-// ProColumn 类型：@vv/ui ProTable 组件配套列定义类型（组件本体自动注册，类型显式 import——CLAUDE.md §1.7）
-import type { ProColumn, ProTableResponse } from '@vv/ui/components/ProTable'
+// ProColumn/ProTableExpose 类型：@vv/ui ProTable 配套类型（组件本体自动注册，类型显式 import——CLAUDE.md §1.7）
+import type { ProColumn, ProTableExpose, ProTableResponse } from '@vv/ui/components/ProTable'
+// XForm 类型：@vv/ui form-schema 包内导出（demo 同款路径，带 .ts 后缀对齐模块解析约定）
+import type { SchemaNode, XFormExpose } from '@vv/ui/components/form-schema/types.ts'
 import { useConsignmentReview } from '../index'
 import { adminConsignmentApi } from '../apis/consignments'
 import type { AdminConsignmentItem } from '../index'
@@ -20,6 +22,9 @@ import type { AdminConsignmentItem } from '../index'
 const bem = createNamespace('mall-admin-consignments')
 
 const { status, approve, reject } = useConsignmentReview()
+
+/** 表格刷新：列表数据由 ProTable request-api 自管，审核成功后经实例 refresh 对齐真态（行状态已变迁） */
+const tableRef = ref<ProTableExpose | null>(null)
 
 const STATUS_TABS = [
   { label: '待审核', value: 'SUBMITTED' },
@@ -52,69 +57,103 @@ const columns: ProColumn<AdminConsignmentItem>[] = [
   { prop: 'operation', label: '操作', width: 160, type: 'operation', fixed: 'right' },
 ]
 
-// ── 通过 dialog ──────────────────────────────────────────────
+// ── 通过 dialog（ProDialogForm：校验/loading/成功关窗内置；label 右对齐） ──
 const approveDialogVisible = ref(false)
 const approveTarget = ref<AdminConsignmentItem | null>(null)
-const approveForm = reactive({ platformPrice: '', commissionRate: '' })
-const approveSubmitting = ref(false)
+const approveFormRef = ref<XFormExpose | null>(null)
+
+const approveSchema: SchemaNode = {
+  labelWidth: '100px',
+  labelPosition: 'right',
+  children: [
+    {
+      component: 'InputNumber',
+      name: 'platformPrice',
+      label: '平台定价',
+      props: { min: 0.01, precision: 2, controlsPosition: 'right', placeholder: '大于 0' },
+      rules: [{ required: true, message: '请输入大于 0 的平台定价', trigger: 'blur' }],
+    },
+    {
+      component: 'InputNumber',
+      name: 'commissionRate',
+      label: '佣金率 %',
+      props: { min: 1, max: 100, controlsPosition: 'right', placeholder: '1-100' },
+      rules: [{ required: true, message: '请输入 1-100 的佣金率', trigger: 'blur' }],
+    },
+  ],
+}
+
+const approveModel = reactive<Record<string, unknown>>({
+  platformPrice: undefined,
+  commissionRate: undefined,
+})
 
 function openApprove(row: AdminConsignmentItem): void {
   approveTarget.value = row
-  approveForm.platformPrice = row.expectedPrice ? String(row.expectedPrice) : ''
-  approveForm.commissionRate = '15'
+  // 回填卖家期望价 + 默认佣金率 15%（原手写表单同语义）
+  approveModel.platformPrice = row.expectedPrice ?? undefined
+  approveModel.commissionRate = 15
   approveDialogVisible.value = true
 }
 
 async function onApproveSubmit(): Promise<void> {
-  if (!approveTarget.value || approveSubmitting.value) return
-  const price = Number(approveForm.platformPrice)
-  const rate = Number(approveForm.commissionRate)
-  if (!(price > 0)) {
-    ElMessage.error('平台定价必须大于 0')
-    return
-  }
-  if (!(rate > 0 && rate <= 100)) {
-    ElMessage.error('佣金率必须在 0-100 之间')
-    return
-  }
-  approveSubmitting.value = true
-  try {
-    await approve(approveTarget.value.id, price, rate)
-    ElMessage.success('已通过并定价')
-    approveDialogVisible.value = false
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '审核失败')
-  } finally {
-    approveSubmitting.value = false
-  }
+  if (!approveTarget.value) throw new Error('审核目标缺失')
+  await approve(
+    approveTarget.value.id,
+    Number(approveModel.platformPrice),
+    Number(approveModel.commissionRate)
+  )
 }
 
-// ── 驳回 dialog ──────────────────────────────────────────────
+function onApproveSuccess(): void {
+  ElMessage.success('已通过并定价')
+  tableRef.value?.refresh()
+}
+
+function onApproveFailed(err: unknown): void {
+  ElMessage.error(err instanceof Error ? err.message : '审核失败')
+}
+
+// ── 驳回 dialog（footer 自定义：useConfirm 二次确认插在 validate 与 API 之间） ──
 const rejectDialogVisible = ref(false)
 const rejectTarget = ref<AdminConsignmentItem | null>(null)
-const rejectReason = ref('')
 const rejectSubmitting = ref(false)
+const rejectFormRef = ref<XFormExpose | null>(null)
+
+const rejectSchema: SchemaNode = {
+  labelWidth: '90px',
+  labelPosition: 'right',
+  children: [
+    {
+      component: 'InputTextArea',
+      name: 'rejectReason',
+      label: '驳回原因',
+      props: { rows: 3, maxlength: 200, showWordLimit: true, placeholder: '请填写驳回原因' },
+      rules: [{ required: true, message: '请填写驳回原因', trigger: 'blur' }],
+    },
+  ],
+}
+
+const rejectModel = reactive<Record<string, unknown>>({ rejectReason: '' })
 
 function openReject(row: AdminConsignmentItem): void {
   rejectTarget.value = row
-  rejectReason.value = ''
+  rejectModel.rejectReason = ''
   rejectDialogVisible.value = true
 }
 
-async function onRejectSubmit(): Promise<void> {
+async function onRejectClick(): Promise<void> {
   if (!rejectTarget.value || rejectSubmitting.value) return
-  const reason = rejectReason.value.trim()
-  if (!reason) {
-    ElMessage.error('请填写驳回原因')
-    return
-  }
+  const valid = await rejectFormRef.value?.validate()
+  if (!valid) return
   // useConfirm 函数形态：调用即弹窗，返回 Promise<boolean>（取消 resolve false，无须 try/catch）
   const confirmed = await useConfirm(`确认驳回「${rejectTarget.value.title}」？`)
   if (!confirmed) return
   rejectSubmitting.value = true
   try {
-    await reject(rejectTarget.value.id, reason)
+    await reject(rejectTarget.value.id, String(rejectModel.rejectReason ?? '').trim())
     ElMessage.success('已驳回')
+    tableRef.value?.refresh()
     rejectDialogVisible.value = false
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '驳回失败')
@@ -130,14 +169,23 @@ function formatMoney(v: number | null): string {
 
 <template>
   <div :class="bem.b()">
-    <!-- @ts-expect-error element-plus el-tabs v-model 的 EpProp 泛型与 string 状态在 Vue 3.6 beta SFC 模板里类型摩擦（运行时行为正确），对齐项目 RichTextEditor 对第三方库类型缺口的既定模式 -->
-    <el-tabs v-model="status">
-      <el-tab-pane v-for="t in STATUS_TABS" :key="t.value" :label="t.label" :name="t.value" />
-    </el-tabs>
+    <!-- 状态筛选用原生按钮组：el-tabs 的 @ts-expect-error 压制依赖 vue-tsc 生成代码行映射（本页曾实证失败），原生按钮零类型风险（SeckillActivities.vue 既定模式） -->
+    <div :class="bem.e('tabs')">
+      <button
+        v-for="t in STATUS_TABS"
+        :key="t.value"
+        type="button"
+        :class="[bem.e('tab'), bem.is('active', status === t.value)]"
+        @click="status = t.value"
+      >
+        {{ t.label }}
+      </button>
+    </div>
 
     <!-- :key=status：切 Tab 强制重挂载 ProTable，触发 onMounted 重新拉取当前状态的列表
          （ProTable 靠分页参数变化触发重取，不会因 request-api 闭包里的 status 变化自动刷新） -->
     <ProTable
+      ref="tableRef"
       :key="status"
       :columns="columns"
       :request-api="requestApi"
@@ -204,43 +252,65 @@ function formatMoney(v: number | null): string {
       </template>
     </ProTable>
 
-    <!-- 通过 dialog -->
-    <el-dialog v-model="approveDialogVisible" title="审核通过并定价" width="420px">
-      <el-form label-width="90px">
-        <el-form-item label="平台定价" required>
-          <el-input v-model="approveForm.platformPrice" type="number" placeholder="大于 0" />
-        </el-form-item>
-        <el-form-item label="佣金率 %" required>
-          <el-input v-model="approveForm.commissionRate" type="number" placeholder="0-100" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="approveDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="approveSubmitting" @click="onApproveSubmit">确认通过</el-button>
-      </template>
-    </el-dialog>
+    <!-- 通过 dialog：@opened 清校验残留（dialog 懒挂载，opened 后 formRef 必可用） -->
+    <ProDialogForm
+      v-model="approveDialogVisible"
+      title="审核通过并定价"
+      width="420px"
+      :schema="approveSchema"
+      :model="approveModel"
+      submit-button-text="确认通过"
+      :on-submit="onApproveSubmit"
+      @opened="approveFormRef?.clearValidate()"
+      @success="onApproveSuccess"
+      @submit-failed="onApproveFailed"
+    />
 
-    <!-- 驳回 dialog -->
-    <el-dialog v-model="rejectDialogVisible" title="驳回寄卖单" width="420px">
-      <el-input
-        v-model="rejectReason"
-        type="textarea"
-        :rows="3"
-        placeholder="请填写驳回原因（必填）"
-        maxlength="200"
-        show-word-limit
-      />
+    <!-- 驳回 dialog：footer 自定义（validate → useConfirm → API，loading 手动） -->
+    <ProDialogForm
+      v-model="rejectDialogVisible"
+      title="驳回寄卖单"
+      width="420px"
+      :schema="rejectSchema"
+      :model="rejectModel"
+      :on-submit="async () => { throw new Error('footer 自定义流程，不走内置 submit') }"
+      @opened="rejectFormRef?.clearValidate()"
+    >
       <template #footer>
         <el-button @click="rejectDialogVisible = false">取消</el-button>
-        <el-button type="danger" :loading="rejectSubmitting" @click="onRejectSubmit">确认驳回</el-button>
+        <el-button type="danger" :loading="rejectSubmitting" @click="onRejectClick">
+          确认驳回
+        </el-button>
       </template>
-    </el-dialog>
+    </ProDialogForm>
   </div>
 </template>
 
 <style lang="scss">
 .#{$BEM_PREFIX}-mall-admin-consignments {
   padding: 16px;
+
+  &__tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  &__tab {
+    padding: 8px 16px;
+    font: inherit;
+    color: var(--el-text-color-regular);
+    background: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color);
+    border-radius: var(--el-border-radius-base);
+    cursor: pointer;
+
+    &.is-active {
+      color: var(--el-color-primary);
+      background: var(--el-color-primary-light-9);
+      border-color: var(--el-color-primary);
+    }
+  }
 
   &__table {
     width: 100%;

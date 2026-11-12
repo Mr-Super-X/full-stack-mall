@@ -9,8 +9,10 @@
  */
 defineOptions({ name: 'MallAdminSeckillActivities' })
 
-import { reactive, ref } from 'vue'
-import type { ProColumn, ProTableResponse } from '@vv/ui/components/ProTable'
+import { nextTick, reactive, ref, watch } from 'vue'
+import type { ProColumn, ProTableExpose, ProTableResponse } from '@vv/ui/components/ProTable'
+// XForm 类型：@vv/ui form-schema 包内导出（demo 同款路径，带 .ts 后缀对齐模块解析约定）
+import type { SchemaNode, XFormExpose } from '@vv/ui/components/form-schema/types.ts'
 import { adminSeckillApi } from '../apis/seckill'
 import type { AdminSeckillActivity, AdminSeckillCandidate } from '../apis/seckill'
 import { useSeckillActivities } from '../composables/useSeckillActivities'
@@ -18,6 +20,10 @@ import { useSeckillActivities } from '../composables/useSeckillActivities'
 const bem = createNamespace('mall-admin-seckill')
 
 const { status, create, cancel } = useSeckillActivities()
+
+/** 表格刷新：cancel 成功后留当前页 refresh；create 成功后 reloadKey 重挂载回第 1 页（ProTable 未暴露 setPage） */
+const tableRef = ref<ProTableExpose | null>(null)
+const reloadKey = ref(0)
 
 const STATUS_TABS = [
   { label: '全部', value: '' },
@@ -52,72 +58,114 @@ const columns: ProColumn<AdminSeckillActivity>[] = [
   { prop: 'operation', label: '操作', width: 110, type: 'operation', fixed: 'right' },
 ]
 
-// ── 新建 dialog ──────────────────────────────────────────────
+// ── 新建 dialog（ProDialogForm 三件套：校验/loading/成功关窗内置；候选商品 asyncOptions；label 右对齐） ──
 const createDialogVisible = ref(false)
-const candidates = ref<AdminSeckillCandidate[]>([])
-const createForm = reactive({
-  productId: null as number | null,
-  seckillPrice: '',
-  seckillStock: '',
-  // value-format 固定为本地 naive 字符串（YYYY-MM-DDTHH:mm:ss）——直接传后端 LocalDateTime，
-  // 禁用 toISOString：UTC 转换会让场次窗口偏移浏览器时区小时数（终审 IMPORTANT 修复）
-  timeRange: null as [string, string] | null,
-})
-const createSubmitting = ref(false)
+const formRef = ref<XFormExpose | null>(null)
 
-async function openCreate(): Promise<void> {
-  createDialogVisible.value = true
-  if (candidates.value.length === 0) {
-    try {
-      candidates.value = await adminSeckillApi.candidates()
-    } catch (err) {
-      ElMessage.error(err instanceof Error ? err.message : '候选商品加载失败')
-    }
-  }
+const schema: SchemaNode = {
+  labelWidth: '90px',
+  labelPosition: 'right',
+  children: [
+    {
+      component: 'Select',
+      name: 'productId',
+      label: '商品',
+      props: { placeholder: '仅单 SKU 自营且有库存的商品' },
+      asyncOptions: {
+        source: () => adminSeckillApi.candidates(),
+        // transform 框架签名是 unknown[]（无法从 source 泛型推断），source 返回已确定为候选数组——as 收窄安全
+        transform: (raw: unknown[]) =>
+          (raw as AdminSeckillCandidate[]).map((c) => ({
+            value: c.productId,
+            label: `${c.title}（可划拨 ${c.stock} 件 · ¥${c.price}）`,
+          })),
+      },
+      rules: [{ required: true, message: '请选择商品', trigger: 'change' }],
+    },
+    {
+      component: 'InputNumber',
+      name: 'seckillPrice',
+      label: '秒杀价',
+      props: { min: 0.01, precision: 2, controlsPosition: 'right', placeholder: '大于 0' },
+      rules: [{ required: true, message: '请输入秒杀价', trigger: 'blur' }],
+    },
+    {
+      component: 'InputNumber',
+      name: 'seckillStock',
+      label: '划拨库存',
+      props: { min: 1, precision: 0, controlsPosition: 'right', placeholder: '≥1，从商品库存划拨' },
+      rules: [{ required: true, message: '请输入划拨库存', trigger: 'blur' }],
+    },
+    {
+      component: 'DatePicker',
+      name: 'timeRange',
+      label: '起止时间',
+      // valueFormat 固定为本地 naive 字符串（YYYY-MM-DDTHH:mm:ss）——直接传后端 LocalDateTime，
+      // 禁用 toISOString：UTC 转换会让场次窗口偏移浏览器时区小时数（终审 IMPORTANT 修复）
+      props: {
+        type: 'datetimerange',
+        valueFormat: 'YYYY-MM-DDTHH:mm:ss',
+        rangeSeparator: '至',
+        startPlaceholder: '开始时间',
+        endPlaceholder: '结束时间',
+      },
+      rules: [{ required: true, message: '请选择起止时间', trigger: 'change' }],
+    },
+  ],
 }
 
+const model = reactive<Record<string, unknown>>({
+  productId: null,
+  seckillPrice: undefined,
+  seckillStock: undefined,
+  timeRange: null,
+})
+
+function resetModel(): void {
+  Object.assign(model, {
+    productId: null,
+    seckillPrice: undefined,
+    seckillStock: undefined,
+    timeRange: null,
+  })
+}
+
+/** 打开即重置为干净表单（asyncOptions immediate 默认 true，打开时自动拉候选） */
+watch(
+  () => createDialogVisible.value,
+  (v) => {
+    if (!v) return
+    resetModel()
+    void nextTick(() => formRef.value?.clearValidate())
+  }
+)
+
+function openCreate(): void {
+  createDialogVisible.value = true
+}
+
+/** ProDialogForm 契约：resolve = 成功（自动关窗 + success），reject = 保持打开（submit-failed） */
 async function onCreateSubmit(): Promise<void> {
-  if (createSubmitting.value) return
-  const productId = createForm.productId
-  const price = Number(createForm.seckillPrice)
-  const stock = Number(createForm.seckillStock)
-  if (!productId) {
-    ElMessage.error('请选择商品')
-    return
-  }
-  if (!(price > 0)) {
-    ElMessage.error('秒杀价必须大于 0')
-    return
-  }
-  if (!Number.isInteger(stock) || stock < 1) {
-    ElMessage.error('划拨库存至少 1 件')
-    return
-  }
-  if (!createForm.timeRange || !createForm.timeRange[0] || !createForm.timeRange[1]) {
-    ElMessage.error('请选择起止时间')
-    return
-  }
-  createSubmitting.value = true
-  try {
-    await create({
-      productId,
-      seckillPrice: price,
-      seckillStock: stock,
-      startTime: createForm.timeRange[0],
-      endTime: createForm.timeRange[1],
-      limitPerUser: 1,
-    })
-    ElMessage.success('已创建（库存已划拨）')
-    createDialogVisible.value = false
-    createForm.productId = null
-    createForm.seckillPrice = ''
-    createForm.seckillStock = ''
-    createForm.timeRange = null
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '创建失败')
-  } finally {
-    createSubmitting.value = false
-  }
+  const range = model.timeRange as [string, string] | null
+  if (!range || !range[0] || !range[1]) throw new Error('请选择起止时间')
+  await create({
+    productId: Number(model.productId),
+    seckillPrice: Number(model.seckillPrice),
+    seckillStock: Number(model.seckillStock),
+    startTime: range[0],
+    endTime: range[1],
+    limitPerUser: 1,
+  })
+}
+
+function onCreateSuccess(): void {
+  ElMessage.success('已创建（库存已划拨）')
+  reloadKey.value++ // 新场次按 id DESC 在首行，回第 1 页展示
+  resetModel()
+}
+
+function onCreateFailed(err: unknown): void {
+  ElMessage.error(err instanceof Error ? err.message : '创建失败')
 }
 
 // ── 取消 ─────────────────────────────────────────────────────
@@ -127,6 +175,7 @@ async function onCancel(row: AdminSeckillActivity): Promise<void> {
   try {
     await cancel(row.id)
     ElMessage.success('已取消并归还库存')
+    tableRef.value?.refresh()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '取消失败')
   }
@@ -152,7 +201,8 @@ async function onCancel(row: AdminSeckillActivity): Promise<void> {
     </div>
 
     <ProTable
-      :key="status"
+      ref="tableRef"
+      :key="`${status}-${reloadKey}`"
       :columns="columns"
       :request-api="requestApi"
       row-key="id"
@@ -193,49 +243,21 @@ async function onCancel(row: AdminSeckillActivity): Promise<void> {
       </template>
     </ProTable>
 
-    <!-- 新建场次 dialog -->
-    <el-dialog v-model="createDialogVisible" title="新建秒杀场次" width="480px">
-      <el-form label-width="100px">
-        <el-form-item label="商品" required>
-          <!-- 原生 select：el-option 的 EpProp 泛型在 element-plus 2.14 + Vue 3.6.0-beta.17 下
-               类型层不兼容（本项目首个 el-option 用法实证，模板 @ts-expect-error 无法稳定压制），
-               运营低频场景原生 select 功能等价（候选量级小，无需 filterable） -->
-          <select
-            v-model.number="createForm.productId"
-            :class="bem.e('select')"
-          >
-            <option :value="null" disabled>仅单 SKU 自营且有库存的商品</option>
-            <option v-for="c in candidates" :key="c.productId" :value="c.productId">
-              {{ c.title }}（可划拨 {{ c.stock }} 件 · ¥{{ c.price }}）
-            </option>
-          </select>
-        </el-form-item>
-        <el-form-item label="秒杀价" required>
-          <el-input v-model="createForm.seckillPrice" type="number" placeholder="大于 0" />
-        </el-form-item>
-        <el-form-item label="划拨库存" required>
-          <el-input v-model="createForm.seckillStock" type="number" placeholder="从商品库存划拨，≥1" />
-        </el-form-item>
-        <el-form-item label="起止时间" required>
-          <el-date-picker
-            v-model="createForm.timeRange"
-            type="datetimerange"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            range-separator="至"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            :class="bem.e('picker')"
-          />
-        </el-form-item>
-        <el-form-item label="限购">
-          <span :class="bem.e('limit')">1 件（本期固定，放开限购是 v2 话题）</span>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="createSubmitting" @click="onCreateSubmit">创建</el-button>
-      </template>
-    </el-dialog>
+    <!-- 新建场次：ProDialogForm 三件套；限购固定 1（spec §3.1）以默认插槽说明文字放在表单后 -->
+    <ProDialogForm
+      v-model="createDialogVisible"
+      title="新建秒杀场次"
+      width="480px"
+      :schema="schema"
+      :model="model"
+      submit-button-text="创建"
+      :on-submit="onCreateSubmit"
+      @opened="formRef?.clearValidate()"
+      @success="onCreateSuccess"
+      @submit-failed="onCreateFailed"
+    >
+      <div :class="bem.e('limit')">每人限购 1 件（本期固定，放开限购是 v2 话题）</div>
+    </ProDialogForm>
   </div>
 </template>
 
@@ -275,16 +297,10 @@ async function onCancel(row: AdminSeckillActivity): Promise<void> {
     width: 100%;
   }
 
-  &__select {
-    width: 100%;
-  }
-
-  &__picker {
-    width: 100%;
-  }
-
   &__limit {
+    margin-top: 4px;
     color: var(--el-text-color-secondary);
+    font-size: 12px;
   }
 }
 </style>

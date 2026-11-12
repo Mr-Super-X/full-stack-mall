@@ -11,7 +11,7 @@
  */
 defineOptions({ name: 'MallAdminPayouts' })
 
-import type { ProColumn, ProTableResponse } from '@vv/ui/components/ProTable'
+import type { ProColumn, ProTableExpose, ProTableResponse } from '@vv/ui/components/ProTable'
 import { usePayoutApproval } from '../index'
 import { adminPayoutApi } from '../apis/payouts'
 import type { AdminPayoutItem } from '../index'
@@ -19,6 +19,9 @@ import type { AdminPayoutItem } from '../index'
 const bem = createNamespace('mall-admin-payouts')
 
 const { status, confirm, pay } = usePayoutApproval()
+
+/** 表格刷新：列表数据由 ProTable request-api 自管，审批后由视图经实例 refresh 对齐真态 */
+const tableRef = ref<ProTableExpose | null>(null)
 
 const STATUS_TABS = [
   { label: '待初审', value: 'PENDING' },
@@ -66,6 +69,9 @@ async function onConfirm(row: AdminPayoutItem): Promise<void> {
     ElMessage.success('已初审通过')
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '初审失败')
+  } finally {
+    // 防幻觉成功（Review Focus #6）：失败（400 状态已变迁）也刷新对齐后端真态——finally 保证
+    tableRef.value?.refresh()
   }
 }
 
@@ -77,20 +83,32 @@ async function onPay(row: AdminPayoutItem): Promise<void> {
     ElMessage.success('已打款')
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '打款失败')
+  } finally {
+    // 防幻觉成功（Review Focus #6）：失败（400 状态已变迁）也刷新对齐后端真态——finally 保证
+    tableRef.value?.refresh()
   }
 }
 </script>
 
 <template>
   <div :class="bem.b()">
-    <!-- @ts-expect-error element-plus el-tabs v-model 的 EpProp 泛型与 string 状态在 Vue 3.6 beta SFC 模板里类型摩擦（运行时行为正确），对齐项目 RichTextEditor 对第三方库类型缺口的既定模式 -->
-    <el-tabs v-model="status">
-      <el-tab-pane v-for="t in STATUS_TABS" :key="t.value" :label="t.label" :name="t.value" />
-    </el-tabs>
+    <!-- 状态筛选用原生按钮组：el-tabs 的 @ts-expect-error 压制依赖 vue-tsc 生成代码行映射（Consignments 实证失败），原生按钮零类型风险（SeckillActivities.vue 既定模式） -->
+    <div :class="bem.e('tabs')">
+      <button
+        v-for="t in STATUS_TABS"
+        :key="t.value"
+        type="button"
+        :class="[bem.e('tab'), bem.is('active', status === t.value)]"
+        @click="status = t.value"
+      >
+        {{ t.label }}
+      </button>
+    </div>
 
     <!-- :key=status：切 Tab 强制重挂载 ProTable，触发 onMounted 重新拉取当前状态的列表
          （ProTable 靠分页参数变化触发重取，不会因 request-api 闭包里的 status 变化自动刷新） -->
     <ProTable
+      ref="tableRef"
       :key="status"
       :columns="columns"
       :request-api="requestApi"
@@ -151,6 +169,28 @@ async function onPay(row: AdminPayoutItem): Promise<void> {
 <style lang="scss">
 .#{$BEM_PREFIX}-mall-admin-payouts {
   padding: 16px;
+
+  &__tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  &__tab {
+    padding: 8px 16px;
+    font: inherit;
+    color: var(--el-text-color-regular);
+    background: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color);
+    border-radius: var(--el-border-radius-base);
+    cursor: pointer;
+
+    &.is-active {
+      color: var(--el-color-primary);
+      background: var(--el-color-primary-light-9);
+      border-color: var(--el-color-primary);
+    }
+  }
 
   &__table {
     width: 100%;
