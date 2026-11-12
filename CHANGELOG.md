@@ -26,6 +26,12 @@
 - **五个 XForm schema 顶层 `labelPosition: 'right'`**：规格行 label（55px）随 el-form 全局继承同样右对齐
 - `CategoryTreeNode` 类型收敛至 `apis/products.ts`（消除两 dialog 组件重复定义）
 
+### Fixed（ngrok 公网隧道下登录 403 · 2026-11-12）
+
+- **根因**：公网演示走 ngrok 隧道后，浏览器对 POST/PATCH 携带 `Origin: https://<隧道域名>`，`app.cors.allowed-origins` 白名单（默认仅 localhost dev server 端口）不含该域名，CorsFilter 整包拒为 403；GET 请求浏览器不带 Origin 头不受影响——症状呈「登录 403 但分类/热门搜索等 GET 正常」，易误判为登录业务 bug
+- **修复**：根 `docker-compose.yml` 新增 `CORS_ALLOWED_ORIGINS` 注入（默认值含 ngrok 隧道域名 + 原 localhost 列表；换隧道域名/正式部署经环境变量整体覆盖），backend 容器重建生效
+- **验证**：OPTIONS 预检 200 且回显 `Access-Control-Allow-Origin`；真实登录 `POST /api/mall/auth/login` 200；白名单外 Origin 对照组仍 403（拦截机制未松动）；ngrok 公网端到端复测通过
+
 ### Fixed（管理后台写操作后表格不刷新 · 2026-11-12）
 
 - **根因**：四个页面 ProTable 各自经 request-api 拉数据，composable 的 `load()` 数据无消费者——所有「写后 load 对齐真态」是无效刷新（上下架/审核/打款/取消后列表显示旧数据）

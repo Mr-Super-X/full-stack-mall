@@ -73,6 +73,10 @@ services:
       RABBIT_USER: ${RABBIT_USER:-mall}
       RABBIT_PASSWORD: ${RABBIT_PASSWORD:-mall}
       SECKILL_STRATEGY: ${SECKILL_STRATEGY:-optimistic}
+      # CORS 白名单：默认含 ngrok 隧道域名。浏览器对 POST/PATCH 必带 Origin 头，缺白名单
+      # 会被 CorsFilter 整包 403，而 GET 不带 Origin 不受影响——症状是"登录 403 但分类正常"。
+      # 换隧道域名或正式部署时经 CORS_ALLOWED_ORIGINS 环境变量整体覆盖。
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://parasail-deflected-cobweb.ngrok-free.dev,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:8080}
       # 教学默认值（与 application.yml 一致）；生产部署必须经环境变量覆盖
       JWT_SECRET: ${JWT_SECRET:-dev-only-mall-jwt-secret-key-please-override-in-prod}
       PAYMENT_SECRET: ${PAYMENT_SECRET:-dev-only-mall-payment-secret-please-override-in-prod}
