@@ -6,6 +6,7 @@
 SET NAMES utf8mb4;
 
 DROP TABLE IF EXISTS seckill_activity;
+DROP TABLE IF EXISTS search_log;
 DROP TABLE IF EXISTS payout;
 DROP TABLE IF EXISTS payment;
 DROP TABLE IF EXISTS order_item;
@@ -54,6 +55,19 @@ CREATE TABLE address (
   KEY idx_user (user_id),
   UNIQUE KEY uk_default_guard (default_guard)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='收货地址';
+
+-- ========== 搜索域 ==========
+
+CREATE TABLE search_log (
+  id               BIGINT      NOT NULL AUTO_INCREMENT,
+  keyword          VARCHAR(64) NOT NULL COMMENT '搜索词（SearchQuerySupport sanitize 后）',
+  result_count     INT         DEFAULT NULL COMMENT '结果数；点击埋点场景为空',
+  click_product_id BIGINT      DEFAULT NULL COMMENT '点击的商品 id；纯搜索埋点场景为空',
+  create_time      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '埋点时间',
+  PRIMARY KEY (id),
+  KEY idx_created (create_time),
+  KEY idx_keyword (keyword)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='搜索日志（埋点 + 动态热搜数据源）';
 
 -- ========== 商品域 ==========
 

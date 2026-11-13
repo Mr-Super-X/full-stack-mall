@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
@@ -44,6 +45,30 @@ public class GlobalExceptionHandler {
     public Result<Void> handleValidation(BindException ex) {
         FieldError fieldError = ex.getBindingResult().getFieldError();
         String message = fieldError != null ? fieldError.getDefaultMessage() : ResultCode.BAD_REQUEST.getMessage();
+        return Result.error(ResultCode.BAD_REQUEST.getCode(), message);
+    }
+
+    /**
+     * 方法级参数校验双路径：类级 @Validated 走 AOP 抛 ConstraintViolationException；
+     * Spring 6.1+ 无 AOP 时抛 HandlerMethodValidationException。两者统一映射 400 码，
+     * 不处理会被兜底成 500 语义（参数错误≠系统故障）。
+     */
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public Result<Void> handleConstraintViolation(jakarta.validation.ConstraintViolationException ex) {
+        String message = ex.getConstraintViolations().stream()
+                .map(v -> v.getMessage() != null ? v.getMessage() : ResultCode.BAD_REQUEST.getMessage())
+                .findFirst()
+                .orElse(ResultCode.BAD_REQUEST.getMessage());
+        return Result.error(ResultCode.BAD_REQUEST.getCode(), message);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public Result<Void> handleMethodValidation(HandlerMethodValidationException ex) {
+        String message = ex.getAllValidationResults().stream()
+                .flatMap(r -> r.getResolvableErrors().stream())
+                .findFirst()
+                .map(org.springframework.context.MessageSourceResolvable::getDefaultMessage)
+                .orElse(ResultCode.BAD_REQUEST.getMessage());
         return Result.error(ResultCode.BAD_REQUEST.getCode(), message);
     }
 

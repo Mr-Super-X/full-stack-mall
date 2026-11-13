@@ -114,6 +114,11 @@ export interface MallListParams {
   sort?: 'newest' | 'price_asc' | 'price_desc' | 'sales_desc' | undefined
   /** 只看折扣商品（首页"限时甄选"复用列表查询用） */
   discountOnly?: boolean | undefined
+  /** 成色筛选（存在该成色的规格即命中）；非法值后端静默忽略 */
+  conditionGrade?: 'NEW' | 'LIKE_NEW' | 'GOOD' | 'FAIR' | undefined
+  /** 展示价（最低规格价）闭区间；min>max 时后端整体忽略 */
+  priceMin?: number | undefined
+  priceMax?: number | undefined
 }
 
 /** 分页响应（pageAdapter 转换后的统一结构） */

@@ -56,6 +56,18 @@ public class ProductServiceImpl implements ProductService {
         } else {
             request.setKeyword(null);
         }
+        // 成色非法值静默忽略（同 sort 回退风格）：避免拼写错误入参产生"0 结果"误导用户
+        if (StringUtils.hasText(request.getConditionGrade())
+                && java.util.Arrays.stream(com.fullstackmall.shop.product.enums.ConditionGrade.values())
+                        .noneMatch(g -> g.name().equals(request.getConditionGrade()))) {
+            request.setConditionGrade(null);
+        }
+        // 价格区间倒挂（min > max）整体忽略：入参容错，不报错不打断浏览
+        if (request.getPriceMin() != null && request.getPriceMax() != null
+                && request.getPriceMin().compareTo(request.getPriceMax()) > 0) {
+            request.setPriceMin(null);
+            request.setPriceMax(null);
+        }
         Page<ProductSummaryDTO> page = new Page<>(request.getPage(), request.getPageSize());
         productMapper.selectSummaryPage(page, request);
         return PageResult.of(page);

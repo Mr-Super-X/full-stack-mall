@@ -1,8 +1,17 @@
 <script setup lang="ts">
+import { useAppRouter } from '@vv/shared'
+
 /**
- * 吸顶栏：品牌字标 + 消息/搜索圆形 iconbtn + 搜索框（原型阶段纯展示，无提交行为）。
+ * 吸顶栏：品牌字标 + 消息/搜索圆形 iconbtn + 搜索框。
+ * 搜索框为"伪输入"：点击整区跳商品列表页并进入输入态（focus=1 由 list.vue 消费自动聚焦）——
+ * 复用列表页既有搜索面板，避免在首页再维护一套搜索状态机。
  */
 const bem = createNamespace('mall-topbar')
+const { router } = useAppRouter()
+
+function goSearch(): void {
+  void router.push({ path: '/h5-mall/list', query: { focus: '1' } })
+}
 </script>
 
 <template>
@@ -16,18 +25,21 @@ const bem = createNamespace('mall-topbar')
         <button type="button" :class="bem.e('iconbtn')" aria-label="消息通知">
           <svg :class="bem.e('ic')" aria-hidden="true"><use href="#mall-i-bell" /></svg>
         </button>
-        <button type="button" :class="bem.e('iconbtn')" aria-label="搜索">
+        <button type="button" :class="bem.e('iconbtn')" aria-label="搜索" @click="goSearch">
           <svg :class="bem.e('ic')" aria-hidden="true"><use href="#mall-i-search" /></svg>
         </button>
       </div>
     </div>
-    <div :class="bem.e('search')">
+    <!-- 整区可点（含只读 input）：点击跳搜索页；readonly 防键盘弹起，role=button 保证可访问性 -->
+    <div :class="bem.e('search')" role="button" tabindex="0" aria-label="搜索商品" @click="goSearch" @keydown.enter="goSearch">
       <svg :class="bem.e('searchic')" aria-hidden="true"><use href="#mall-i-search" /></svg>
       <input
         type="search"
         :class="bem.e('input')"
         placeholder="搜一搜：棉麻 · 陶土色 · 秋风衣"
         aria-label="搜索商品"
+        readonly
+        tabindex="-1"
       />
       <span :class="bem.e('go')">搜索</span>
     </div>

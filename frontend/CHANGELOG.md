@@ -6,6 +6,41 @@
 
 ## 未发布
 
+### ✨ Feat | h5 商城搜索全链路升级：首页入口接通 + 联想 + 筛选 + 空结果引导 + 搜索埋点闭环（2026-11-13）
+
+> 背景：h5 商城搜索体验残缺——首页吸顶栏搜索框纯展示无行为、列表页输入逐字符
+> 触发请求（无防抖）、无联想/筛选/空结果引导、热搜词为运营常量且无搜索行为回收。
+
+- 首页搜索入口接通：MallTopbar 搜索区改为"伪输入"，点击跳列表页
+  `/h5-mall/list?focus=1` 并自动聚焦进入输入态（复用列表页既有搜索面板，
+  首页零新增状态机）。
+- 输入/提交分离（P0-2）：新增 `submitted` 提交词与输入词解耦，输入过程不发
+  列表请求；useProductList 筛选参数变化统一防抖 300ms（首次立即执行，
+  onCleanup 清理 timer 防卸载 setState）。
+- 搜索联想（P1-3）：后端新增 `GET /mall/search/suggest`（FULLTEXT ngram 命中
+  商品名，去重按销量 Top10）；前端新增 useSearchSuggest composable（防抖 300ms
+  + 过期响应丢弃 + 失败静默），输入态面板联想列表优先于历史/热搜，命中片段
+  `<mark>` 高亮。
+- 筛选器（P1-6）：列表接口新增成色（NEW/LIKE_NEW/GOOD/FAIR，EXISTS 规格级匹配）
+  与价格区间（HAVING 聚合展示价闭区间，min>max 静默忽略）筛选；非法成色入参
+  静默忽略（同 sort 回退风格）；前端排序栏下新增成色 + 价格档位 chips。
+- 空结果引导（P1-4）：新增 SearchEmptyTips 组件——前 2 字换词重试建议（CJK
+  bigram 命中率高）+ 热销兜底（sales_desc Top4，失败静默）。
+- 结果高亮（P1-5）：结果列表商品名按提交词切片 `<mark>` 高亮（大小写不敏感）。
+- 搜索埋点闭环（P2-7/8）：后端新增 search_log 表（init.sql）+
+  `POST /mall/search/track`（匿名；搜索带 resultCount / 点击带 clickProductId）；
+  热搜词接口改为近 7 天有结果词 Top8 动态聚合，不足回退运营常量保证首屏非空；
+  前端搜索成功/点击结果自动埋点（失败静默）。
+- 全局异常修补：GlobalExceptionHandler 补 ConstraintViolationException /
+  HandlerMethodValidationException 分支（方法级参数校验失败显式映射 400 码，
+  原走兜底 500 语义）。
+- 测试：后端 SearchServiceImplTest 6 例 + SearchControllerTest 5 例；前端
+  useProductList.spec 重写（防抖/筛选透传/埋点时机）+ 新增
+  useSearchSuggest.spec 5 例。h5 全量 150 测试通过。
+
+> 验证：`mvn test` 全绿；`pnpm -C apps/h5 test` 25 文件 150 例全绿；
+> `pnpm -C apps/h5 type-check` 通过。
+
 ### 🔧 Chore | lint:log 脚本：lint 输出落盘回显，规避终端渲染吞输出（2026-11-13）
 
 > 背景：部分终端（PowerShell + ConPTY）下原生子进程直接写 TTY 的输出会被

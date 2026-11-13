@@ -9,6 +9,8 @@ import com.fullstackmall.shop.product.entity.Product;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 @Mapper
 public interface ProductMapper extends BaseMapper<Product> {
 
@@ -19,4 +21,10 @@ public interface ProductMapper extends BaseMapper<Product> {
      * MP 分页插件自动生成 count（GROUP BY 包装）。
      */
     IPage<ProductSummaryDTO> selectSummaryPage(Page<ProductSummaryDTO> page, @Param("q") ProductListRequest q);
+
+    /**
+     * 搜索联想词：FULLTEXT 命中的商品名（去重，按销量倒序取前 10）。
+     * keyword 必须已经 SearchQuerySupport.sanitize 清洗（调用方 SearchService 保证）。
+     */
+    List<String> selectSuggestNames(@Param("keyword") String keyword);
 }
