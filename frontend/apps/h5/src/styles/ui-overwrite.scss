@@ -27,11 +27,15 @@
  */
 
 :root:root {
-  /* 品牌色（vant 默认 #1989fa 蓝 → 本项目品牌橙） */
-  --van-primary-color: #ff6a00;
-  --van-success-color: #07c160;
-  --van-danger-color: #ee0a24;
-  --van-warning-color: #ff976a;
+  /* 品牌色（vant 默认 #1989fa 蓝 → 莫兰迪亮陶橙 #c08048，2026-11-13 由鲜橙 #ff6a00
+     降饱和迭代定稿；白字对比 ≈3.3:1 低于 WCAG AA 4.5 线——用户裁决接受，h5 demo 场景） */
+  --van-primary-color: #c08048;
+  /* 语义色莫兰迪低饱和化（2026-11-13，对齐 admin 同构修复）：vant 默认鲜绿 #07c160 /
+     鲜橙 #ff976a / 鲜红 #ee0a24 与 h5 灰阶 + mall 陶土莫兰迪语境冲突；
+     色值复用 DESIGN.md 已登记的 mall-ok / mall-warn / mall-err */
+  --van-success-color: #5e8168;
+  --van-danger-color: #a96a60;
+  --van-warning-color: #97794b;
 
   /* 圆角（vant 默认 2px → 移动端更圆润） */
   --van-border-radius-base: 4px;

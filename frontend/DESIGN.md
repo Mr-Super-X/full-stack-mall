@@ -191,14 +191,16 @@ components:
 
 ### H5 移动端 h5
 
-| Token            | 值                   | 用途                        | 实证                       |
-| ---------------- | -------------------- | --------------------------- | -------------------------- |
-| `h5-bg-page`     | `#f7f8fa`            | 页面底色                    | `src/layouts/h5/index.vue` |
-| `h5-text-title`  | `#323233`            | 卡片标题（vant 标题黑）     | h5-demo 卡片               |
-| `h5-card-bg`     | `#ffffff`            | 卡片底（暗色 `#262626`）    | h5-demo 卡片               |
-| `h5-shadow-card` | `rgba(0, 0, 0, .06)` | 卡片投影（暗色 0.3 透明度） | h5-demo 卡片               |
+| Token                           | 值                                | 用途                                                                                                        | 实证                           |
+| ------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `h5-bg-page`                    | `#f7f8fa`                         | 页面底色                                                                                                    | `src/layouts/h5/index.vue`     |
+| `h5-text-title`                 | `#323233`                         | 卡片标题（vant 标题黑）                                                                                     | h5-demo 卡片                   |
+| `h5-card-bg`                    | `#ffffff`                         | 卡片底（暗色 `#262626`）                                                                                    | h5-demo 卡片                   |
+| `h5-shadow-card`                | `rgba(0, 0, 0, .06)`              | 卡片投影（暗色 0.3 透明度）                                                                                 | h5-demo 卡片                   |
+| `vant-primary`                  | `#C08048`                         | vant 品牌色（莫兰迪亮陶橙，2026-11-13 由鲜橙 #ff6a00 降饱和迭代定稿；白字 ≈3.3:1 低于 AA 线，用户裁决接受） | `src/styles/ui-overwrite.scss` |
+| vant success / warning / danger | `#5e8168` / `#97794b` / `#a96a60` | vant 语义色莫兰迪低饱和化，复用 mall-ok / mall-warn / mall-err（2026-11-13）                                | 同上                           |
 
-> h5 tokens 已配 `[data-theme='dark']` + `prefers-color-scheme` 双主题覆盖（2026-11-03）。
+> h5 tokens 已配 `[data-theme='dark']` + `prefers-color-scheme` 双主题覆盖（2026-11-03）。vant 语义色亮色暗色同值（灰绿 / 灰褐 / 陶红暗底可读，与 admin 暗态语义色分档策略不同——h5 无布局级暗色 mixin）。
 
 ### H5 商城 h5-mall（陶土 · 莫兰迪，2026-11-04 登记）
 
@@ -274,7 +276,7 @@ components:
 | `--el-fill-color-light`                                    | `#f4f3f8`                         | 浅填充（微紫调）                                                                                                 | `default-layout-ep-light` |
 | success / warning / danger（语义色莫兰迪化，复用 mall 族） | `#5e8168` / `#97794b` / `#a96a60` | EP 语义色低饱和化：tag / 按钮 / 消息 / 表单校验统一跟随；灯阶按 EP color.mix 公式；info 中性灰不动（2026-11-12） | `default-layout-ep-light` |
 
-> 中性 slate 文字 / 边框（#526077 系）刻意不动——本就是灰调低饱和，与紫族和谐（用户裁决 2026-11-04）。teleport 弹层局部变量：`AppMenu.vue` horizontal 弹层段（`--el-color-primary: #6a6180` / `light-9: #ece9f4`）随亮色莫兰迪化同步更新。
+> 中性 slate 文字 / 边框（#526077 系）刻意不动——本就是灰调低饱和，与紫族和谐（用户裁决 2026-11-04）。teleport 弹层（含菜单弹层）统一经 `html[data-layout='default']` 变量映射跟随布局主题，无组件级补丁（2026-11-12 清理）。
 
 #### 中后台暗色 · 莫兰迪雾霾蓝（2026-11-03 登记）
 

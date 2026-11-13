@@ -41,6 +41,30 @@
 > 验证：`mvn test` 全绿；`pnpm -C apps/h5 test` 25 文件 150 例全绿；
 > `pnpm -C apps/h5 type-check` 通过。
 
+### 🎨 Style | h5 vant 主色与语义色莫兰迪化（对齐 admin 同构修复）（2026-11-13）
+
+> 背景：排查 h5 端是否存在 admin 同款「语义色高饱和显眼」问题——存在。vant 4 默认
+> 鲜绿 #07c160 / 鲜橙 #ff976a / 鲜红 #ee0a24，与 h5 灰阶 + mall 陶土莫兰迪语境冲突；
+> 暴露面为 VantTest 验证页语义按钮（全端唯一语义组件使用点）。另两路检查无问题：
+> vant 弹层变量挂 :root 天然跟随（无 admin 式容器作用域断层）；`:root:root` 双写
+> 特异性机制（2026-10-28 R2-E1）保障覆盖不被 vant 默认 base.css 压平。
+
+- `apps/h5/src/styles/ui-overwrite.scss`：
+  - `--van-success/warning/danger-color` 三值替换 vant 默认，复用 DESIGN.md 已登记的
+    mall-ok / mall-warn / mall-err（#5e8168 / #97794b / #a96a60），van-button /
+    van-tag / toast 等统一跟随；亮暗同值（h5 无布局级暗色 mixin）。
+  - 主色 `--van-primary-color` 由鲜橙 #ff6a00 降饱和迭代为莫兰迪亮陶橙 **#c08048**
+    （用户三档试色拍板：#a2683f 4.6:1 合规上限 → #b4733f 3.8:1 → #c08048 3.3:1 定稿；
+    白字对比低于 WCAG AA 4.5 线，用户裁决接受，h5 demo 场景）。
+- DESIGN.md「H5 移动端 h5」节：vant 品牌色与语义色登记；顺带修正残留的
+  「AppMenu horizontal 弹层硬编码」过时描述（上轮已删，此处漏改）。
+
+> 验证：浏览器实测 VantTest 页三按钮——主色亮陶橙 #c08048、success 灰绿 #5e8168、
+> danger 陶红 #a96a60，与 mall 族状态色同源。
+
+> 手动验证步骤：`pnpm -C apps/h5 dev` → /h5-demo/vant-test（或网关 :8080/h5/）
+> 看三按钮并置效果。
+
 ### 🔧 Chore | lint:log 脚本：lint 输出落盘回显，规避终端渲染吞输出（2026-11-13）
 
 > 背景：部分终端（PowerShell + ConPTY）下原生子进程直接写 TTY 的输出会被
