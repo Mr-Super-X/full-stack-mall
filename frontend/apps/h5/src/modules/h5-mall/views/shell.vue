@@ -27,7 +27,7 @@ import { useCartBadgeStore } from '../store/cart'
 
 const bem = createNamespace('h5-mall')
 
-const { visible, message, show } = useToast()
+const { visible, message } = useToast()
 
 const { pushByName } = useAppRouter()
 
