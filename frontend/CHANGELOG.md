@@ -6,6 +6,129 @@
 
 ## 未发布
 
+### 🔧 Chore | lint:log 脚本：lint 输出落盘回显，规避终端渲染吞输出（2026-11-13）
+
+> 背景：部分终端（PowerShell + ConPTY）下原生子进程直接写 TTY 的输出会被
+> 渲染层吞掉/清屏；「重定向到文件再 cat」的输出路径稳定可见。
+
+- 新增 scripts/lint-log.mjs：spawn `pnpm run lint`（stderr 经 shell 的 2>&1 并入
+  stdout 单一管道，保证落盘顺序 = 真实输出时序），输出写入 lint.log
+  （.gitignore 的 *.log 已覆盖）后回显终端，退出码原样透传。
+- 根 package.json 注册 `lint:log`。
+
+> 验证：Analysis.vue 带 1 警告时 `pnpm lint:log` exit=1，终端回显完整问题列表
+> 且与 lint.log 内容一致。
+
+### ✨ Feat | AI 架构遵循治理三件套：选型速查 docs/50 + prefer-wrapped-component 提醒规则 + 选型申请工序（2026-11-12）
+
+> 背景：全栈项目以本仓库为前端底座时，AI 做"加页面"类需求不消费 packages/ui
+> 既有封装，退回 EP 原始组件重复实现——现有机械防线只有 useRouter/axios 两条
+> no-restricted-imports，"该用封装却用原始组件"的语义违规零成本。
+
+- 新增 docs/50-页面开发组件选型速查.md：场景→首选封装→避免写法正面决策表
+  （样板指向 demo 站点真实示例 + 各组件使用指南）+ 合法例外清单 + 选型申请
+  需求模板 + 交付自检清单；配套登记根 AGENTS.md 速查节 / docs/AGENTS.md 篇数 /
+  check-doc-currency 文档预算 50→51。
+- 新增 local/prefer-wrapped-component（warn 级）：扫业务目录 .vue 模板的
+  el-table/el-form/el-dialog（含 PascalCase）与 ElMessageBox.confirm/alert/prompt
+  裸调，提示对应 @vv/ui 封装；豁免 demo 教学 / packages/ui 内部 / spec / test-utils。
+  实现走 vue-eslint-parser@10 的 services.defineTemplateBodyVisitor（v10 起
+  parseForESLint 不再返回 visitorKeys，且签名移除 context 第一参）；设计稿见
+  docs/superpowers/specs/2026-11-12-prefer-wrapped-component-design.md。
+- 选型申请工序（docs/50 §4）：向 AI 提"加页面"需求先要求输出组件选型说明、
+  确认后再编码——违规拦截从事后 review 前移到事前。
+
+> 验证：`node --test scripts/eslint-rules/prefer-wrapped-component.spec.mjs` 16/16 通过；
+> `pnpm check:doc-currency` 14 项全过。
+
+> 手动验证步骤：任一对 AI 提"在 admin 新增 X 列表页"，观察其是否先给选型说明。
+> lint 脚本 `--max-warnings 0` 下 warn 即阻断：存量债 3 文件（admin user/List、
+> workbench/Monitor、auth LoginForm）已集中豁免于
+> `app/prefer-wrapped-component-legacy-exempt` block，`pnpm lint` 保持绿；
+> 新增代码违规即时报错阻断，改造立项时同步移除豁免行。
+
+### 🎨 Style | admin EP 语义色莫兰迪低饱和化（success / warning / danger）（2026-11-12）
+
+> 背景：用户反馈 el-tag 颜色太显眼——EP 默认鲜绿 #67c23a / 鲜橙 #e6a23c /
+> 鲜红 #f56c6c 与 admin 莫兰迪主题（亮色紫 / 暗色雾霾蓝）冲突。根因是
+> `default-layout-ep-light/dark` 两个 mixin 只覆盖 primary + 中性色，语义色
+> 走全局 EP 默认值。用户裁决改动范围为「admin 语义色体系化」：经布局 mixin
+> 单点覆盖，tag / 按钮 / 消息 / 表单校验等全部 EP 语义组件统一跟随，仅影响 admin。
+
+- `default-tokens.scss` 两 mixin 各增 success / warning / danger 三色 × 5 灯阶：
+  亮色复用 DESIGN.md 已登记的 mall 族状态色（#5e8168 / #97794b / #a96a60），
+  暗态压暗降饱和（#6e8a72 / #a68a5e / #a67b72）；灯阶按 EP `color.mix(色, white, N%)`
+  公式经 `sass:color` 计算（与全局 el-light-variants 同算法，不手算字面量）；
+  info 本就中性灰不动。
+- DESIGN.md「中后台亮色 / 暗色」两表登记 + frontmatter 增补 6 项镜像。
+- 全局 theme-vars.scss 与其余 5 端语义色不受影响（就近原则，docs/49 §5）。
+
+> 验证：浏览器实测 Monitor.vue 状态 tag 与语义按钮亮 / 暗双态——亮色灰绿 / 灰褐 /
+> 陶红，暗色压暗三档，文字在 light-9 底上对比 ≥ 4.5:1。
+
+> 手动验证步骤：`pnpm -C apps/admin dev` → 监控页（/workbench/monitor）看「正常 /
+> 积压告警」tag 灰绿 / 陶红；顶栏切暗色看压暗三档；顺带看任意 danger 按钮同步变陶红。
+
+### 🐛 Fix | admin teleport 弹层主题色修复：品牌色注入改 var() 引用链（2026-11-12）
+
+> 背景：admin default 布局下，日期时间选择器面板（及所有 teleport 到 body 的弹层）
+> 未被布局主题色覆盖——亮色莫兰迪紫 / 暗色雾霾蓝在弹层上回落 EP 默认蓝 #409eff，
+> 与容器内组件（按钮 / 输入框 focus）视觉割裂。
+>
+> 根因：`injectBrandColor` 把 `VITE_BRAND_COLOR` 以**内联样式**双写
+> `--color-primary` + `--el-color-primary`。内联优先级高于一切选择器，
+> admin `[data-layout='default']` 布局级 EP 变量映射（teleport 弹层的唯一主题来源）
+> 中的 `--el-color-primary` 被压死；灯色阶未被双写仍生效——弹层呈现
+> 「#409eff 主色 + 布局灯阶」的蓝紫混搭。
+
+- `packages/ui/src/styles/element-overwrite/theme-vars.scss`：`:root` 的
+  `--el-color-primary` 由编译期字面量改为 `var(--color-primary, #409eff)` 引用；
+  灯色阶保持编译期 `color.mix` 字面量（mix 无法运行时计算，品牌换肤灯阶不联动的
+  局限不变）。
+- `packages/shared/src/app-bootstrap.ts`：`injectBrandColor` 停止双写内联
+  `--el-color-primary`，只内联 `--color-primary` 单一变量；JSDoc 记录根因。
+- `app-bootstrap.spec.ts`：回归锁语义反转——锁「不双写内联」，防引用链方案被回退。
+- 机制收益：布局选择器 `[data-layout='default']` 与 `:root` 引用规则同特异性、
+  源码顺序更后，以字面量直接胜出——date-picker / select / cascader / time-picker
+  等全部 teleport 弹层统一跟随布局主题，无需逐组件 popper-class 补丁。
+- 同步面：README VITE_BRAND_COLOR 描述、docs/06 三层覆盖关系图与 Q4、
+  DESIGN.md「已知边界」段（原「其余全局弹层不单独处理」裁决作废）。
+
+> 踩坑：CSS 内联样式优先级高于一切选择器——「JS 内联变量 + 样式表变量映射」
+> 双轨设计必须审查内联是否会压死后加载的映射规则；var() 引用链让注入与覆盖
+> 解耦，是布局级主题与全局品牌色共存的可扩展形态。
+
+> 验证：packages/shared 52 文件 548 测试全绿；浏览器实测 admin 亮 / 暗双态
+> date-picker 面板选中色（亮 `#6a6180` / 暗 `#8fa6bc`）、select 弹层变量、
+> 布局作用域外品牌色链路（摘除 data-layout 模拟 portal 场景）`#409eff` 不回退。
+
+> 手动验证步骤：① `pnpm -C apps/admin dev` 开分析页表单日期时间选择器，
+> 亮色选中圆点为莫兰迪紫；② 顶栏切暗色，面板变雾霾蓝；③ 其它 app（如 portal）
+> 弹层主色仍为全局品牌色 `#409eff`。
+
+### ♻️ Chore | admin 弹层主题冗余样式清理（2026-11-12）
+
+> 背景：上一项「弹层主题色修复」使 `html[data-layout='default']` 变量映射成为
+> teleport 弹层的唯一主题通道，此前为绕过同一根因打的三处补丁沦为同值同生命周期的
+> 冗余代码，且其中 AppMenu 硬编码自带注释承认的「改 mixin 时须同步此处」漂移负担。
+
+- `layouts/default/index.vue`：删除「teleport 弹层补丁」整段（`.vv-default-header-popper` /
+  `.vv-context-menu-popper` 的亮 / 暗 / 跟随系统三组 mixin 重放，26 行）——弹层变量
+  经 data-layout 映射继承，补丁与映射完全重复。
+- `layouts/default/components/AppMenu.vue`：删除 horizontal 弹层三处局部硬编码
+  （亮色 `--el-color-primary/light-9` 2 行 + 暗色段 4 行 + 跟随系统段 6 行及过时注释）
+  ——2026-11-03 暗色改雾霾蓝时此处硬编码遗漏致漂移的漂移源一并消除。
+- `UserInfo.vue` / `LocaleDropdown.vue`：删除死类名绑定
+  `popper-class="vv-default-header-popper"`（对应补丁段已删，类名无任何样式消费；
+  两组件 style 块确认无该类选择器）。
+- `default-tokens.scss` 头注「已知偏差」段同步改写（弹层不再「仍用全局主色」）。
+- `ContextMenu.vue` 保留不动：`.vv-context-menu-popper` 仍有真实布局样式消费
+  （菜单项图标 flex 间距），非冗余。
+
+> 验证：删除后弹层变量唯一来源为 data-layout 映射（单一事实源）；浏览器实测
+> header 用户菜单 / 语言下拉 / 页签右键菜单 / 折叠侧栏菜单弹层 / top 布局 horizontal
+> 菜单弹层，亮暗双态主题色均正确。
+
 ### ✨ Feat | h5-mall Tabbar 重构为 Trampoline Tabbar 凹槽抛球交互动画（2026-11-05）
 
 > 背景：按 `apps/h5/design/tabbar-animation-spec.md`（v2.0）将商城底部 tabbar 从静态

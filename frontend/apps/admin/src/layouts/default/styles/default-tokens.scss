@@ -4,6 +4,12 @@
 // 组织方式对齐参考仓 packages/styles/src/var.css：light/dark 两套值，light 为默认。
 // 主题切换沿用项目机制：[data-theme='dark'] 选择器 + 跟随系统偏好（theme store 写入 html[data-theme]）。
 //
+// 依赖 sass:color：语义色灯阶按 EP color.mix(色, white, N%) 公式计算（与
+// packages/ui theme-vars.scss 的 el-light-variants 同算法），不手算字面量。
+
+@use 'sass:color';
+
+//
 // 作用域分层（关键决策）：
 //   1. 布局专用变量（--left-menu-* / --top-header-* / --logo-* / --app-content-* / --layout-*）
 //      → 定义在 :root 全局。这些变量名项目其他地方不使用，无泄漏风险；
@@ -13,8 +19,9 @@
 //        .vv-default-layout 容器上。原因：项目全局主色由 @vv/ui 的 styles/element-overwrite/
 //        theme-vars.scss 管理（portal 布局共用），直接覆盖 :root 会把整个工程主题改紫；
 //        容器作用域只影响 default 布局子树（侧栏/顶栏/内容区），与复刻目标一致。
-//      已知偏差：teleport 到 body 的弹层（el-dialog / el-message 等）在 default 布局下
-//      仍用项目全局主色；菜单弹层（vv-app-menu-popper-* 为 default 专属类名）已单独处理。
+//      teleport 弹层：element-overwrite.scss 在 html[data-layout='default'] 上施加同款
+//      mixin（亮色 / 显式 dark / 跟随系统三通道），弹层与容器同主题，无需组件级补丁
+//      （2026-11-12 起；曾有的 popper-class 补丁段与 AppMenu 弹层硬编码已清理）。
 
 // ─── 布局变量 mixin（light / dark 各写一次）────────────────
 
@@ -90,6 +97,30 @@
   --el-color-primary-light-8: #d1c4e9;
   --el-color-primary-light-9: #ece9f4;
   --el-color-primary-dark-2: #564e6e;
+
+  // 语义色低饱和莫兰迪化（色值复用 DESIGN.md 已登记的 mall 族状态色，2026-11-12）：
+  // EP 默认鲜绿/鲜橙/鲜红与莫兰迪主题冲突，经本 mixin 单点覆盖后 tag / 按钮 / 消息 /
+  // 表单校验等全部 EP 语义组件统一跟随；灯阶按 EP color.mix(色, white, N%) 公式计算，
+  // 与全局 theme-vars.scss 的 el-light-variants 同算法。info 本就是中性灰，不动。
+  --el-color-success: #5e8168;
+  --el-color-success-light-3: #{color.mix(#5e8168, white, 70%)};
+  --el-color-success-light-5: #{color.mix(#5e8168, white, 50%)};
+  --el-color-success-light-7: #{color.mix(#5e8168, white, 30%)};
+  --el-color-success-light-8: #{color.mix(#5e8168, white, 20%)};
+  --el-color-success-light-9: #{color.mix(#5e8168, white, 10%)};
+  --el-color-warning: #97794b;
+  --el-color-warning-light-3: #{color.mix(#97794b, white, 70%)};
+  --el-color-warning-light-5: #{color.mix(#97794b, white, 50%)};
+  --el-color-warning-light-7: #{color.mix(#97794b, white, 30%)};
+  --el-color-warning-light-8: #{color.mix(#97794b, white, 20%)};
+  --el-color-warning-light-9: #{color.mix(#97794b, white, 10%)};
+  --el-color-danger: #a96a60;
+  --el-color-danger-light-3: #{color.mix(#a96a60, white, 70%)};
+  --el-color-danger-light-5: #{color.mix(#a96a60, white, 50%)};
+  --el-color-danger-light-7: #{color.mix(#a96a60, white, 30%)};
+  --el-color-danger-light-8: #{color.mix(#a96a60, white, 20%)};
+  --el-color-danger-light-9: #{color.mix(#a96a60, white, 10%)};
+
   --el-bg-color: #fff;
   --el-bg-color-page: #f6f5fa;
   --el-bg-color-overlay: #fff;
@@ -111,6 +142,28 @@
   --el-color-primary-light-8: #3a4754;
   --el-color-primary-light-9: #2b343d;
   --el-color-primary-dark-2: #a2b6c9;
+
+  // 语义色暗态：在亮色莫兰迪基色上压暗降饱和，与雾霾蓝面板协调（同登记 DESIGN.md）。
+  // 灯阶沿用亮色阶 mix 公式（EP dark 语义组件底色即 light-9 浅块，与官方 dark 行为一致）
+  --el-color-success: #6e8a72;
+  --el-color-success-light-3: #{color.mix(#6e8a72, white, 70%)};
+  --el-color-success-light-5: #{color.mix(#6e8a72, white, 50%)};
+  --el-color-success-light-7: #{color.mix(#6e8a72, white, 30%)};
+  --el-color-success-light-8: #{color.mix(#6e8a72, white, 20%)};
+  --el-color-success-light-9: #{color.mix(#6e8a72, white, 10%)};
+  --el-color-warning: #a68a5e;
+  --el-color-warning-light-3: #{color.mix(#a68a5e, white, 70%)};
+  --el-color-warning-light-5: #{color.mix(#a68a5e, white, 50%)};
+  --el-color-warning-light-7: #{color.mix(#a68a5e, white, 30%)};
+  --el-color-warning-light-8: #{color.mix(#a68a5e, white, 20%)};
+  --el-color-warning-light-9: #{color.mix(#a68a5e, white, 10%)};
+  --el-color-danger: #a67b72;
+  --el-color-danger-light-3: #{color.mix(#a67b72, white, 70%)};
+  --el-color-danger-light-5: #{color.mix(#a67b72, white, 50%)};
+  --el-color-danger-light-7: #{color.mix(#a67b72, white, 30%)};
+  --el-color-danger-light-8: #{color.mix(#a67b72, white, 20%)};
+  --el-color-danger-light-9: #{color.mix(#a67b72, white, 10%)};
+
   --el-bg-color: #1a1f26;
   --el-bg-color-page: #12161a;
   --el-bg-color-overlay: #222831;

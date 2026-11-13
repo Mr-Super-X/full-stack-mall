@@ -404,33 +404,6 @@ body.#{$BEM_PREFIX}-resizing {
   }
 }
 
-// ─── teleport 弹层补丁（default 布局弹层：UserInfo / LocaleDropdown / ContextMenu）────────
-// 弹层 teleport 到 body，继承不到上方 .vv-default-layout 容器作用域的 EP 变量，
-// hover 等回落全局 #409eff 蓝；组件侧以专属 popper-class 挂此通道
-//（UserInfo/LocaleDropdown 挂 .vv-default-header-popper；ContextMenu 挂
-// .vv-context-menu-popper——仅 TagsView 引用，类名由组件 popperClass 计算属性产出），
-// 在此整 mixin 重放，值随 mixin 单点维护。新增 default 布局弹层类时加入下列选择器组即可。
-// 对比 AppMenu.vue 硬编码先例的漂移教训：2026-11-03 暗色改雾霾蓝时遗漏其
-// horizontal 弹层旧紫 #818cf8 两处。放本文件而非 default-tokens.scss：
-// 被 @use 的模块不经 vite sass additionalData 注入，$BEM_PREFIX 在其中未定义。
-.#{$BEM_PREFIX}-default-header-popper,
-.#{$BEM_PREFIX}-context-menu-popper {
-  @include default-layout-ep-light;
-}
-
-[data-theme='dark'] .#{$BEM_PREFIX}-default-header-popper,
-[data-theme='dark'] .#{$BEM_PREFIX}-context-menu-popper {
-  @include default-layout-ep-dark;
-}
-
-// 跟随系统：仅当用户未显式设置 data-theme
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .#{$BEM_PREFIX}-default-header-popper,
-  :root:not([data-theme]) .#{$BEM_PREFIX}-context-menu-popper {
-    @include default-layout-ep-dark;
-  }
-}
-
 // ─── 移动端：侧栏变抽屉 ────────────────────────────────
 @media (max-width: 767px) {
   .#{$BEM_PREFIX}-default-layout__sidebar.is-mobile {

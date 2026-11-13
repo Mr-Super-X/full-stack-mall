@@ -25,6 +25,12 @@
 
 :root {
   @include el-light-variants(primary, $color-primary);
+  // 主色覆盖为 var() 引用（覆盖 mixin 生成的字面量，源码顺序后者赢）：injectBrandColor
+  // 只内联 --color-primary，此处引用使 --el-color-primary 自动跟随，不再二次内联。
+  // 关键收益：内联优先级高于一切选择器，曾把 admin [data-layout='default'] 布局级
+  // EP 变量映射（date-picker 等 teleport 弹层唯一主题来源）压死在 VITE_BRAND_COLOR
+  // 默认值 #409eff（2026-11-12 修复）。灯色阶仍为编译期字面量，品牌色换肤不联动。
+  --el-color-primary: var(--color-primary, #{$color-primary});
   @include el-light-variants(success, $color-success);
   @include el-light-variants(warning, $color-warning);
   @include el-light-variants(danger, $color-danger);

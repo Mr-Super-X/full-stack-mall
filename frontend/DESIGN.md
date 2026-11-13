@@ -88,6 +88,12 @@ colors:
   default-dark-text-regular: '#c2cbd4'
   default-dark-text-secondary: '#8a97a5'
   default-dark-border-base: '#333d47'
+  default-light-success: '#5E8168'
+  default-light-warning: '#97794B'
+  default-light-danger: '#A96A60'
+  default-dark-success: '#6E8A72'
+  default-dark-warning: '#A68A5E'
+  default-dark-danger: '#A67B72'
 typography:
   body:
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
@@ -255,17 +261,18 @@ components:
 
 > 落点：`apps/admin/src/layouts/default/styles/default-tokens.scss` 的 `default-layout-light`（布局变量）+ `default-layout-ep-light`（EP 覆盖）两个 mixin；经 `index.vue` / `element-overwrite.scss` 的 `[data-layout='default']` 容器与弹层双通道施加。基色 #d1c4e9 为浅色高亮位（EP light-8 / 侧栏激活底），实心按钮底用深族 #6a6180 保证白字对比 ≥4.5（莫兰迪低饱和下深色档必须压深，与暗色雾霾蓝提亮同理）。
 
-| Token                                           | 值                                | 用途                                             | 实证                      |
-| ----------------------------------------------- | --------------------------------- | ------------------------------------------------ | ------------------------- |
-| `default-light-primary`                         | `#6a6180`                         | 亮色主色（EP 覆盖 base，白字 ~5.6）              | `default-layout-ep-light` |
-| primary dark-2                                  | `#564e6e`                         | active 深档（白字 ~7.3）                         | 同上                      |
-| primary light-3/5/7                             | `#9891ad` / `#b4afc5` / `#cfc9de` | 灯阶（hover 文字 / 轨道填充）                    | 同上                      |
-| primary light-8                                 | `#d1c4e9`                         | **用户基色**：选中底 / 高亮位                    | 同上                      |
-| primary light-9                                 | `#ece9f4`                         | 最浅底（hover 底 / 条纹）                        | 同上                      |
-| menu active 底 / 折叠弹层激活底                 | `#d1c4e9`                         | 侧栏紫色识别（`--left-menu-bg-active-color` 等） | `default-layout-light`    |
-| menu active 文字                                | `#4f4763`                         | 激活文字（在 #d1c4e9 底上 ~5.0）                 | 同上                      |
-| `--el-bg-color-page` / `--app-content-bg-color` | `#f6f5fa`                         | 内容区底（微紫调白，原 #f6f7fb）                 | 两个 mixin                |
-| `--el-fill-color-light`                         | `#f4f3f8`                         | 浅填充（微紫调）                                 | `default-layout-ep-light` |
+| Token                                                      | 值                                | 用途                                                                                                             | 实证                      |
+| ---------------------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `default-light-primary`                                    | `#6a6180`                         | 亮色主色（EP 覆盖 base，白字 ~5.6）                                                                              | `default-layout-ep-light` |
+| primary dark-2                                             | `#564e6e`                         | active 深档（白字 ~7.3）                                                                                         | 同上                      |
+| primary light-3/5/7                                        | `#9891ad` / `#b4afc5` / `#cfc9de` | 灯阶（hover 文字 / 轨道填充）                                                                                    | 同上                      |
+| primary light-8                                            | `#d1c4e9`                         | **用户基色**：选中底 / 高亮位                                                                                    | 同上                      |
+| primary light-9                                            | `#ece9f4`                         | 最浅底（hover 底 / 条纹）                                                                                        | 同上                      |
+| menu active 底 / 折叠弹层激活底                            | `#d1c4e9`                         | 侧栏紫色识别（`--left-menu-bg-active-color` 等）                                                                 | `default-layout-light`    |
+| menu active 文字                                           | `#4f4763`                         | 激活文字（在 #d1c4e9 底上 ~5.0）                                                                                 | 同上                      |
+| `--el-bg-color-page` / `--app-content-bg-color`            | `#f6f5fa`                         | 内容区底（微紫调白，原 #f6f7fb）                                                                                 | 两个 mixin                |
+| `--el-fill-color-light`                                    | `#f4f3f8`                         | 浅填充（微紫调）                                                                                                 | `default-layout-ep-light` |
+| success / warning / danger（语义色莫兰迪化，复用 mall 族） | `#5e8168` / `#97794b` / `#a96a60` | EP 语义色低饱和化：tag / 按钮 / 消息 / 表单校验统一跟随；灯阶按 EP color.mix 公式；info 中性灰不动（2026-11-12） | `default-layout-ep-light` |
 
 > 中性 slate 文字 / 边框（#526077 系）刻意不动——本就是灰调低饱和，与紫族和谐（用户裁决 2026-11-04）。teleport 弹层局部变量：`AppMenu.vue` horizontal 弹层段（`--el-color-primary: #6a6180` / `light-9: #ece9f4`）随亮色莫兰迪化同步更新。
 
@@ -287,10 +294,11 @@ components:
 | `default-dark-text-primary`                   | `#e8edf1`                                         | 主文字（`--el-text-color-primary`）          | `default-layout-ep-dark` |
 | `default-dark-text-regular`                   | `#c2cbd4`                                         | 正文（`--el-text-color-regular`）            | 同上                     |
 | `default-dark-text-secondary`                 | `#8a97a5`                                         | 辅助文字（`--el-text-color-secondary`）      | 同上                     |
+| success / warning / danger（暗态压暗降饱和）  | `#6e8a72` / `#a68a5e` / `#a67b72`                 | 暗色语义色，与雾霾蓝面板协调（2026-11-12）   | `default-layout-ep-dark` |
 | `default-dark-border-base`                    | `#333d47`                                         | 边框 base                                    | 同上                     |
 | border light / lighter                        | `#2b333c` / `#232a32`                             | 边框浅档（布局 border-color 同步 `#232a32`） | 同上                     |
 
-> 已知边界：teleport 到 body 的弹层中，**default 布局弹层**经专属 popper-class 通道重放容器 EP 变量（补丁段在 `index.vue` style 块，整 mixin include 单点维护，亮色紫 / 暗色雾霾蓝均生效）：`.vv-default-header-popper`（UserInfo / LocaleDropdown，2026-11-03）与 `.vv-context-menu-popper`（TagsView 的"更多页签操作"与页签右键菜单，2026-11-04）——新增 default 布局弹层类加入该选择器组即可；其余全局弹层（el-dialog / el-message / 业务页内 el-select 等）仍走全局 EP 主色 `#409eff`，不单独处理。
+> 已知边界（2026-11-12 修复后更新）：teleport 到 body 的弹层统一经 `html[data-layout='default']` 属性选择器的 EP 变量映射跟随布局主题（亮色莫兰迪紫 / 暗色雾霾蓝），date-picker / select / cascader 等业务页内弹层不再回落全局品牌色。修复手段：`injectBrandColor` 不再双写内联 `--el-color-primary`（内联曾压死布局选择器），全局主色改经 `theme-vars.scss` 的 `:root var(--color-primary)` 引用链跟随品牌色。同日清理：原 index.vue 的专属 popper-class 补丁段（`.vv-default-header-popper` / `.vv-context-menu-popper` mixin 重放）与 AppMenu horizontal 弹层局部硬编码已删除——与映射完全同值同生命周期，属三重冗余且硬编码曾致暗色漂移；`.vv-context-menu-popper` 类名保留（ContextMenu.vue 仍有图标间距布局样式消费），UserInfo / LocaleDropdown 的死类名绑定已删。
 
 ### 滚动条（全局，base/reset.css 消费）
 

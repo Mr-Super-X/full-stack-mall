@@ -415,16 +415,13 @@ function handleSelect(index: string): void {
 // horizontal 弹层：EP 把 popper-class 同时复制到外层 el-popper 与内层
 // .el-menu--popup-container，变量挂类名两处都生效；滚动只挂内层容器（外层同限高会出
 // 双层滚动条）。颜色变量与 vertical 弹层同一套 EP 变量通道，不落地内联样式
+//（2026-11-12 清理：原局部硬编码 --el-color-primary/light-9 已删——弹层 teleport 到
+// body 后经 html[data-layout='default'] 继承完整 EP 变量映射，局部硬编码与同值 mixin
+// 重复且曾致暗色灯阶漂移，见 index.vue 历史注释教训）
 .#{$BEM_PREFIX}-app-menu-popper--horizontal {
   --el-menu-bg-color: var(--top-header-bg-color);
   --el-menu-text-color: var(--top-header-text-color);
   --el-menu-active-color: var(--el-color-primary);
-
-  // teleport 到 body 取不到容器作用域的紫色主色（见 default-tokens.scss 作用域分层说明），
-  // 因该类名为 default 布局专属，在此局部定义 EP 主色变量（暗色覆盖见文件底部；
-  // 值与 default-layout-ep-light 莫兰迪紫灯阶保持同步，2026-11-04 随亮色莫兰迪化更新）
-  --el-color-primary: #6a6180;
-  --el-color-primary-light-9: #ece9f4;
 
   &.el-menu--popup-container {
     // 子项极多时（demo 模块 60+ 页，实测弹层 2334px）会超出视口撑出 body 滚动条——
@@ -464,21 +461,5 @@ function handleSelect(index: string): void {
   border: 1px solid var(--layout-border-color);
   border-radius: 12px;
   box-shadow: var(--layout-shadow);
-}
-
-// 暗色：水平弹层局部 EP 变量（与 theme store 的 data-theme 机制对齐）。
-// 色值与 default-tokens.scss default-layout-ep-dark 单一事实源保持一致
-// （2026-11-03 暗色改雾霾蓝时此处硬编码遗漏致漂移，已同步；改 mixin 时须同步此处）。
-[data-theme='dark'] .#{$BEM_PREFIX}-app-menu-popper--horizontal {
-  --el-color-primary: #8fa6bc;
-  --el-color-primary-light-9: #2b343d;
-}
-
-// 跟随系统：仅当用户未显式设置 data-theme
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .#{$BEM_PREFIX}-app-menu-popper--horizontal {
-    --el-color-primary: #8fa6bc;
-    --el-color-primary-light-9: #2b343d;
-  }
 }
 </style>

@@ -41,7 +41,6 @@ function onVisibleChange(visible: boolean) {
   <el-dropdown
     :class="bem.b()"
     trigger="click"
-    popper-class="vv-default-header-popper"
     @command="onCommand"
     @visible-change="onVisibleChange"
   >

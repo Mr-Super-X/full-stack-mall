@@ -13,17 +13,23 @@
  */
 
 /**
- * 注入品牌色 CSS 变量：`--color-primary`（业务消费）+ `--el-color-primary`（EP 组件消费）。
+ * 注入品牌色 CSS 变量：`--color-primary`（业务消费）。
  *
  * 为什么必须在 createApp 之前调用：组件挂载后 CSS 变量再生效会导致首屏闪烁。
  *
- * 双变量的原因（2026-11-03 样式审计发现 #3 修复）：
- * element-overwrite/theme-vars.scss 的 --el-color-primary 是编译期 color.mix 字面量
- * （非 var(--color-primary) 引用链），只设 --color-primary 时 EP 组件不跟随品牌色，
- * 此处运行时同步两变量。局限：--el-color-primary-light-3~9 灯色阶仍为编译期字面量，
+ * 只内联 `--color-primary` 单一变量的原因（2026-11-12 修复）：
+ * element-overwrite/theme-vars.scss 的 :root 规则把 `--el-color-primary` 写成
+ * `var(--color-primary)` 引用，EP 组件经引用链自动跟随品牌色，无需此处二次内联。
+ * 此前双写 `--el-color-primary` 内联曾把 admin `[data-layout='default']` 布局级
+ * EP 变量映射（teleport 弹层——date-picker 面板 / select 下拉等——的唯一主题来源）
+ * 压死在 VITE_BRAND_COLOR 默认值 #409eff：内联优先级高于一切选择器，弹层主色
+ * 不跟随布局主题（灯色阶未被双写，呈现蓝紫混搭）。
+ *
+ * 局限（同原设计）：--el-color-primary-light-3~9 灯色阶仍为编译期字面量，
  * hover/active 浅色阶不随品牌色联动；完整联动须改编译期 $color-primary。
- * 布局级品牌覆盖（如 admin default-tokens.scss 经 .vv-default-layout 容器施加的 mixin）
- * 优先级高于本注入，不受影响；teleport 弹层（挂 body、容器外）消费本注入。
+ * 布局级品牌覆盖（如 admin default-tokens.scss 经 .vv-default-layout 容器 /
+ * html[data-layout] 选择器施加的 mixin）优先级高于本注入，容器内外均不受影响——
+ * 这正是引用链方案要保全的能力。
  *
  * 优先级：VITE_BRAND_COLOR > defaultColor（调用方传入）> '#409eff'（EP 默认蓝）。
  * 保留 `typeof document` 守卫是为 SSR 实验留兼容（与原 6 份内联段同语义，
@@ -37,7 +43,6 @@ export function injectBrandColor(defaultColor?: string): void {
   if (typeof document !== 'undefined') {
     const rootStyle = document.documentElement.style
     rootStyle.setProperty('--color-primary', brandColor)
-    rootStyle.setProperty('--el-color-primary', brandColor)
   }
 }
 

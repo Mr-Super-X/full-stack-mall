@@ -24,12 +24,15 @@ describe('injectBrandColor', () => {
     expect(document.documentElement.style.getPropertyValue(PRIMARY_VAR)).toBe('#ff0000')
   })
 
-  it('同步注入 --el-color-primary（EP 组件跟随品牌色，审计发现 #3 回归锁）', () => {
+  it('不同步注入 --el-color-primary（回归锁：内联双写会压死布局级弹层变量映射）', () => {
     vi.stubEnv('VITE_BRAND_COLOR', '#ff0000')
 
     injectBrandColor()
 
-    expect(document.documentElement.style.getPropertyValue(EL_PRIMARY_VAR)).toBe('#ff0000')
+    // --el-color-primary 经 theme-vars.scss 的 :root var(--color-primary) 引用链跟随，
+    // 内联二次注入曾把 admin [data-layout='default'] 的 teleport 弹层主色
+    // 压死在品牌色（2026-11-12 修复），此处锁死"不双写"行为
+    expect(document.documentElement.style.getPropertyValue(EL_PRIMARY_VAR)).toBe('')
   })
 
   it('VITE_BRAND_COLOR 缺省 → 回落调用方 defaultColor', () => {

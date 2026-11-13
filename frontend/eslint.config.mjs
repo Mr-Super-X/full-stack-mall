@@ -5,6 +5,7 @@ import skipFormatting from '@vue/eslint-config-prettier/skip-formatting'
 
 import { APPS } from './scripts/apps-registry.mjs'
 import packageContract from './scripts/eslint-rules/package-contract.mjs'
+import preferWrappedComponent from './scripts/eslint-rules/prefer-wrapped-component.mjs'
 
 // 单一职责：组合 Vue/TS/Prettier 三层规则
 // Prettier 规则必须放最后，避免与 Prettier 冲突
@@ -55,7 +56,7 @@ export default withVueTs(
       '**/mock/**',
       '**/scripts/**/*.cjs',
       '**/playwright-report/**',
-      '**/test-results/**'
+      '**/test-results/**',
     ],
   },
   // Vue 官方基础规则
@@ -129,8 +130,38 @@ export default withVueTs(
   {
     name: 'app/package-contract',
     files: ['packages/**/*.{ts,mts,tsx,vue}', 'apps/**/*.{ts,mts,tsx,vue}'],
-    plugins: { local: { rules: { 'package-contract': packageContract } } },
+    // plugins.local 集中注册全部本地规则：flat config 同名 plugin 跨 block 重复定义会
+    // 整体覆盖、先注册的规则丢失——新本地规则一律并入本块 plugins.local.rules
+    plugins: {
+      local: {
+        rules: {
+          'package-contract': packageContract,
+          'prefer-wrapped-component': preferWrappedComponent,
+        },
+      },
+    },
     rules: { 'local/package-contract': 'error' },
+  },
+  // 封装组件优先提醒（warn 级提醒层，docs/50 §2 决策表的机械对照）：业务代码出现
+  // EP 原始组件高频重复实现点（el-table / el-form / el-dialog / ElMessageBox.confirm 系）
+  // 时提示对应 @vv/ui 封装；豁免路径（demo 教学 / packages/ui 内部 / spec / test-utils）
+  // 见规则实现与 docs/50 §3。files 与 app/business-wrap-rule 对齐。
+  {
+    name: 'app/prefer-wrapped-component',
+    files: ['apps/*/src/modules/**/*.{ts,vue}', 'apps/*/src/components/**/*.{ts,vue}'],
+    rules: { 'local/prefer-wrapped-component': 'warn' },
+  },
+  // 存量债豁免（docs/50 存量说明）：以下文件的原始组件实现早于选型速查治理，
+  // 渐进改造立项前显式关闭本规则。豁免集中登记（不散落 eslint-disable 注释），
+  // 新代码不受此豁免——新增违规照常拦截。
+  {
+    name: 'app/prefer-wrapped-component-legacy-exempt',
+    files: [
+      'apps/admin/src/modules/user/views/List.vue',
+      'apps/admin/src/modules/workbench/views/Monitor.vue',
+      'apps/auth/src/modules/auth/components/LoginForm.vue',
+    ],
+    rules: { 'local/prefer-wrapped-component': 'off' },
   },
   // @vv/ui 两子系统目录边界：form-schema ⇄ ProTable 双向禁 import（防腐化，为后续按触发
   // 条件拆包（@vv/pro-table + @vv/form-schema）铺路——拆分评估确认两子系统编译期零互依，

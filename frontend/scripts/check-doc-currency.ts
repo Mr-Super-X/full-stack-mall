@@ -396,9 +396,11 @@ const checks: Check[] = [
     // 承载当日样式审计报告的规范追认）→ 49。
     // 2026-11-02（同日 99c61ab 第二批，事后归因补记）：新增 docs/AGENTS.md（16 个层级化
     // AGENTS.md 目录导航之一）→ 50；该提交落地时未同步预算致第 14 项存量红，本次补齐。
+    // 2026-11-12：新增 docs/50-页面开发组件选型速查.md（场景→封装组件正面决策表 +
+    // 选型申请工序 + prefer-wrapped-component 规则豁免清单，服务 AI 架构遵循率）→ 51。
     name: 'docs 根级文档数预算（docs/ 庄园冻结）',
     actual: countDocs,
-    expected: 50,
+    expected: 51,
     tolerance: 0,
   },
 ]

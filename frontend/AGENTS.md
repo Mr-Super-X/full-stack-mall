@@ -128,4 +128,4 @@
 
 ## 专题文档速查
 
-- 查专题文档：新手指引 docs/10、代码组织决策 docs/18、图标规范 docs/39、Monorepo 设计 docs/43、样式分层 docs/49。
+- 查专题文档：新手指引 docs/10、代码组织决策 docs/18、图标规范 docs/39、Monorepo 设计 docs/43、样式分层 docs/49、页面组件选型 docs/50。
