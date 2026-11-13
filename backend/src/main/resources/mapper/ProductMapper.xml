@@ -25,13 +25,34 @@
     <if test="q.discountOnly != null and q.discountOnly">
       AND EXISTS (SELECT 1 FROM product_item d WHERE d.product_id = p.id AND d.origin_price &gt; d.price)
     </if>
+    <if test="q.conditionGrade != null and q.conditionGrade != ''">
+      AND EXISTS (SELECT 1 FROM product_item c WHERE c.product_id = p.id AND c.condition_grade = #{q.conditionGrade})
+    </if>
     GROUP BY p.id
+    <!-- 价格区间作用在聚合展示价（MIN 规格价）上：HAVING 引用 SELECT 别名 price；TRUE 占位避免首条件裸 AND -->
+    <if test="q.priceMin != null or q.priceMax != null">
+      HAVING TRUE
+      <if test="q.priceMin != null">AND price &gt;= #{q.priceMin}</if>
+      <if test="q.priceMax != null">AND price &lt;= #{q.priceMax}</if>
+    </if>
     <choose>
       <when test="q.sort == 'price_asc'">ORDER BY price ASC</when>
       <when test="q.sort == 'price_desc'">ORDER BY price DESC</when>
       <when test="q.sort == 'sales_desc'">ORDER BY p.sales DESC</when>
       <otherwise>ORDER BY p.id DESC</otherwise>
     </choose>
+  </select>
+
+  <!-- 联想词：FULLTEXT 命中（MATCH 列必须与 ft_search 索引列组合一致，单列 MATCH 报 1191）；
+       命中 selling_point/tag 的商品名同为合理联想（如搜"棉麻"联想其商品名），去重按销量 Top10 -->
+  <select id="selectSuggestNames" resultType="string">
+    SELECT name
+    FROM product
+    WHERE status = 1
+      AND MATCH(name, selling_point, tag) AGAINST (#{keyword} IN BOOLEAN MODE)
+    GROUP BY name
+    ORDER BY MAX(sales) DESC
+    LIMIT 10
   </select>
 
 </mapper>
