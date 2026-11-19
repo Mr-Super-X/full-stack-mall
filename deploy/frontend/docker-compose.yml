@@ -1,0 +1,28 @@
+name: mall-frontend-deploy
+
+services:
+  web:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    image: mall-frontend:${IMAGE_TAG:-latest}
+    container_name: mall-frontend
+    ports:
+      - "${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-9088}:80"
+    environment:
+      API_UPSTREAM: ${API_UPSTREAM:-http://backend:18080}
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+    networks: [mall-deploy]
+
+networks:
+  mall-deploy:
+    name: mall-deploy-network
+    external: true

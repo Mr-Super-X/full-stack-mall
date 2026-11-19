@@ -1,0 +1,102 @@
+name: mall-backend-deploy
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: mall-deploy-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?请在 deploy/backend/.env 中配置 DB_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-mall}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-lock-wait-timeout=5
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../../backend/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [mall-deploy]
+
+  mall-redis:
+    image: redis:7
+    container_name: mall-deploy-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [mall-deploy]
+
+  mall-rabbit:
+    image: rabbitmq:3.13-management
+    container_name: mall-deploy-rabbit
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER:-mall}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD:?请在 deploy/backend/.env 中配置 RABBIT_PASSWORD}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    networks: [mall-deploy]
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    image: mall-backend:${IMAGE_TAG:-latest}
+    container_name: mall-backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mall-redis:
+        condition: service_healthy
+      mall-rabbit:
+        condition: service_healthy
+    environment:
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-mall}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:?请在 deploy/backend/.env 中配置 DB_PASSWORD}
+      REDIS_HOST: mall-redis
+      REDIS_PORT: 6379
+      RABBIT_HOST: mall-rabbit
+      RABBIT_PORT: 5672
+      RABBIT_USER: ${RABBIT_USER:-mall}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD:?请在 deploy/backend/.env 中配置 RABBIT_PASSWORD}
+      SECKILL_STRATEGY: ${SECKILL_STRATEGY:-optimistic}
+      SECKILL_RATE_CAPACITY: ${SECKILL_RATE_CAPACITY:-200}
+      SECKILL_RATE_REFILL: ${SECKILL_RATE_REFILL:-100}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://10.2.161.161:9088}
+      JWT_SECRET: ${JWT_SECRET:?请在 deploy/backend/.env 中配置 JWT_SECRET}
+      PAYMENT_SECRET: ${PAYMENT_SECRET:?请在 deploy/backend/.env 中配置 PAYMENT_SECRET}
+    expose:
+      - "18080"
+    restart: unless-stopped
+    networks: [mall-deploy]
+
+volumes:
+  mysql-data:
+    name: mall-deploy-mysql-data
+  redis-data:
+    name: mall-deploy-redis-data
+  rabbitmq-data:
+    name: mall-deploy-rabbitmq-data
+
+networks:
+  mall-deploy:
+    name: mall-deploy-network
+    external: true

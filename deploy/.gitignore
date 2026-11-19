@@ -1,0 +1,4 @@
+frontend/.env
+backend/.env
+frontend/backups/
+backend/backups/

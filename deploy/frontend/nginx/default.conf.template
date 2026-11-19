@@ -1,0 +1,94 @@
+# 独立前端网关：六应用静态托管 + history fallback + /api 同源反代。
+# 官方 nginx 镜像启动时仅以容器环境变量渲染 ${API_UPSTREAM}。
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_min_length 1k;
+    gzip_comp_level 5;
+    gzip_types text/css application/javascript application/json image/svg+xml font/woff2;
+    gzip_vary on;
+    sendfile on;
+    tcp_nopush on;
+
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options DENY;
+    add_header Referrer-Policy strict-origin-when-cross-origin;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()";
+    # picsum 是种子商品图来源；at.alicdn.com 是 Vant 图标字体来源。
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://picsum.photos https://fastly.picsum.photos; font-src 'self' data: https://at.alicdn.com http://at.alicdn.com; connect-src 'self'; frame-ancestors 'none'";
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # $http_host 保留浏览器原始端口，避免 9088 → 容器 80 后重定向丢失端口。
+    location = / {
+        return 302 $scheme://$http_host/h5/h5-mall;
+    }
+
+    location = /favicon.ico {
+        return 302 $scheme://$http_host/portal/favicon.ico;
+    }
+
+    location ~* ^/(admin|auth|portal|h5|big|docs)/assets/.+\.(js|css|woff2?|png|jpe?g|gif|svg|webp)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        # add_header 不跨层继承，本 location 必须重复安全响应头。
+        add_header X-Content-Type-Options nosniff;
+        add_header X-Frame-Options DENY;
+        add_header Referrer-Policy strict-origin-when-cross-origin;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=()";
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://picsum.photos https://fastly.picsum.photos; font-src 'self' data: https://at.alicdn.com http://at.alicdn.com; connect-src 'self'; frame-ancestors 'none'";
+        try_files $uri =404;
+    }
+
+    location /admin/ {
+        alias /usr/share/nginx/html/admin/;
+        try_files $uri $uri/ /admin/index.html;
+    }
+    location /auth/ {
+        alias /usr/share/nginx/html/auth/;
+        try_files $uri $uri/ /auth/index.html;
+    }
+    location /portal/ {
+        alias /usr/share/nginx/html/portal/;
+        try_files $uri $uri/ /portal/index.html;
+    }
+    location /h5/ {
+        alias /usr/share/nginx/html/h5/;
+        try_files $uri $uri/ /h5/index.html;
+    }
+    location /big/ {
+        alias /usr/share/nginx/html/big/;
+        try_files $uri $uri/ /big/index.html;
+    }
+    location /docs/ {
+        alias /usr/share/nginx/html/docs/;
+        try_files $uri $uri/ /docs/index.html;
+    }
+
+    location /api/ {
+        # 不带 URI 部分：/api/x 原样转发到后端 /api/x。
+        proxy_pass ${API_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+    }
+
+    location / {
+        return 404;
+    }
+}
