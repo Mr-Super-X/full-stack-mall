@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compose 运维速查表 — full-stack-mall 学习参考</title>
+<style>
+  :root { --ink:#1a1a1a; --accent:#8c2f2f; --muted:#666; --rule:#d9d9d9; }
+  * { box-sizing:border-box; }
+  body { margin:0; color:var(--ink); background:#fdfcf9; font:16px/1.65 "Palatino Linotype",Palatino,Georgia,"Songti SC","SimSun",serif; }
+  main { max-width:940px; margin:0 auto; padding:48px 24px 80px; }
+  header { border-bottom:2px solid var(--ink); padding-bottom:20px; margin-bottom:28px; }
+  h1 { font-size:30px; margin:0 0 8px; }
+  h2 { font-size:21px; margin:36px 0 12px; color:var(--accent); }
+  p { margin:10px 0; }
+  .muted { color:var(--muted); font-size:14px; }
+  .warning { background:#faf1e8; border-left:4px solid var(--accent); padding:12px 16px; margin:18px 0; }
+  code, pre { font-family:Consolas,"Courier New",monospace; }
+  code { background:#f2efe8; padding:1px 4px; border-radius:3px; font-size:.9em; }
+  pre { background:#2b2b2b; color:#eee; padding:14px 16px; overflow:auto; border-radius:5px; font-size:13px; }
+  pre code { background:none; color:inherit; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:14px 0 22px; font-size:14px; }
+  th,td { border:1px solid var(--rule); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:#f2efe8; }
+  a { color:var(--accent); }
+  nav { display:flex; gap:18px; flex-wrap:wrap; font-size:14px; }
+  @media print {
+    body { background:#fff; font-size:11pt; }
+    main { max-width:none; padding:12px; }
+    h2 { break-after:avoid; }
+    table,pre,.warning { break-inside:avoid; }
+    pre { background:#f5f5f5; color:#000; border:1px solid #aaa; }
+    a { color:#000; text-decoration:none; }
+  }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Compose 运维速查表</h1>
+  <p>用于 full-stack-mall 的本地学习与一次性测试环境。先确认所在目录和操作影响，再执行命令。</p>
+  <nav>
+    <a href="../lessons/0009-runtime-and-deployment-map.html">返回第 9 课</a>
+    <a href="../README.md">学习工作区</a>
+    <a href="../LEARNING-ROADMAP.md">学习路线</a>
+  </nav>
+</header>
+
+<div class="warning">
+<strong>红线：</strong><code>docker compose down -v</code> 会删除 Compose 声明的命名卷，不是普通重启。真实服务器、含重要数据的本地环境、停止写入、数据库恢复和回滚，不因出现在本速查表中就获得执行授权。
+</div>
+
+<h2>1 · 根目录：全栈容器</h2>
+<p class="muted">工作目录：仓库根目录。公开入口：<code>http://localhost:8080</code>。</p>
+<table>
+<tr><th>目的</th><th>命令</th><th>影响与观察点</th></tr>
+<tr><td>只查看服务名</td><td><code>docker compose config --services</code></td><td>不启动容器，不展开完整敏感配置</td></tr>
+<tr><td>构建并启动</td><td><code>docker compose up -d --build</code></td><td>代码更新后使用；首次构建可能较慢</td></tr>
+<tr><td>查看状态</td><td><code>docker compose ps</code></td><td>同时看进程状态和健康状态，不只看 Up</td></tr>
+<tr><td>跟踪单个服务日志</td><td><code>docker compose logs -f backend</code></td><td>服务名也可为 web、mysql、mall-redis、mall-rabbit</td></tr>
+<tr><td>停止单个服务</td><td><code>docker compose stop backend</code></td><td>保留容器、网络和卷，用于观察依赖故障</td></tr>
+<tr><td>启动已有服务</td><td><code>docker compose start backend</code></td><td>不重新构建镜像；启动后仍需健康与业务验证</td></tr>
+<tr><td>重启单个服务</td><td><code>docker compose restart backend</code></td><td>不重新构建，不等于加载新代码</td></tr>
+<tr><td>停止整套服务</td><td><code>docker compose stop</code></td><td>保留容器，之后可用 start 恢复</td></tr>
+<tr><td>删除容器和网络</td><td><code>docker compose down</code></td><td>Compose 声明的命名卷默认保留</td></tr>
+<tr><td>永久重置数据</td><td><code>docker compose down -v</code></td><td><strong>删除命名卷；仅限明确授权的一次性数据</strong></td></tr>
+</table>
+
+<h2>2 · 本地开发：基础设施容器 + 本机 Maven</h2>
+<p class="muted">工作目录与根编排不同。MySQL 使用宿主机 <code>13306</code>，后端监听 <code>18080</code>，context path 为 <code>/api</code>。</p>
+<pre><code>cd backend
+docker compose up -d
+mvn spring-boot:run</code></pre>
+<ul>
+  <li>这里的 Spring Boot 在本机运行，不在 <code>backend</code> 容器内。</li>
+  <li>运行后端测试使用 <code>mvn test</code>；课程材料不代替真实执行结果。</li>
+  <li>改 <code>backend/sql/init.sql</code> 不会自动更新已有数据库，不能据此直接删除重要数据卷。</li>
+</ul>
+
+<h2>3 · 业务链路验证</h2>
+<pre><code># 全栈容器入口
+curl -f http://localhost:8080/api/mall/product/list
+
+# 后端容器内部检查（根编排未公开后端宿主机端口）
+docker compose exec backend wget -qO- http://127.0.0.1:18080/api/mall/product/list</code></pre>
+<table>
+<tr><th>观察</th><th>能说明什么</th><th>不能说明什么</th></tr>
+<tr><td>Nginx 健康检查通过</td><td>对应 Nginx 检查可用</td><td>后端和所有业务链路都正常</td></tr>
+<tr><td>商品接口返回 JSON</td><td>该请求经过的路径和依赖基本可用</td><td>支付、MQ、结算和全部鉴权场景均正确</td></tr>
+<tr><td>容器显示 Up</td><td>容器主进程当前运行</td><td>应用已就绪或业务请求成功</td></tr>
+<tr><td>健康检查为 healthy</td><td>所配置的检查命令通过</td><td>检查未覆盖的功能都正确</td></tr>
+</table>
+
+<h2>4 · 排障顺序：一次只走一段</h2>
+<table>
+<tr><th>顺序</th><th>检查</th><th>常用证据</th></tr>
+<tr><td>1</td><td>浏览器实际请求的 URL、方法、状态码</td><td>开发者工具 Network，不凭页面文案猜</td></tr>
+<tr><td>2</td><td>Nginx 是否运行、是否收到请求</td><td><code>docker compose ps</code>、<code>logs web</code></td></tr>
+<tr><td>3</td><td>后端容器／本机进程是否健康</td><td><code>logs backend</code>、健康状态、容器内 wget</td></tr>
+<tr><td>4</td><td>请求是否被鉴权或 CORS 拒绝</td><td>HTTP 状态、响应头、后端配置与日志</td></tr>
+<tr><td>5</td><td>Controller／Service 是否进入</td><td>真实日志和接口响应，不无依据加 try/catch</td></tr>
+<tr><td>6</td><td>MySQL／Redis／RabbitMQ 是否可用</td><td>各服务状态、日志、连接配置</td></tr>
+</table>
+<p>先确定失败发生在哪一段，再修改对应配置。不要同时改端口、CORS、Nginx、鉴权和数据库，也不要用删除数据卷制造“看起来恢复”。</p>
+
+<h2>5 · 独立部署入口</h2>
+<p class="muted">以下只标明入口，详细前置条件、验证与联动要求必须阅读对应文档。</p>
+<pre><code># 后端：先配置未入库的 .env，再启动
+cd deploy/backend
+bash deploy.sh start
+bash deploy.sh status
+bash deploy.sh logs backend
+
+# 前端：后端已运行后，在另一目录启动
+cd ../frontend
+bash deploy.sh start
+bash deploy.sh status</code></pre>
+<ul>
+  <li>独立部署默认入口为 <code>http://10.2.161.161:9088/</code>，实际使用前先确认目标环境和地址。</li>
+  <li>后端容器<strong>重建</strong>后，按 <code>deploy/backend/README.md</code> 重启前端，让 Nginx 重新解析 upstream；普通后端 restart 不等同于重建。</li>
+  <li>真实 <code>.env</code>、备份和业务数据不得粘贴到课堂反馈或提交到 Git。</li>
+</ul>
+
+<h2>6 · 备份、恢复与回滚：证据边界</h2>
+<table>
+<tr><th>动作</th><th>入口</th><th>必须补的验证</th></tr>
+<tr><td>MySQL 备份</td><td><code>deploy/backend/README.md</code> 第 4 节</td><td>gzip 校验只是文件完整性；可恢复性要在一次性测试库演练</td></tr>
+<tr><td>MySQL 恢复</td><td>同文档第 5 节</td><td>会覆盖同名表数据；先备份当前库、停止写入并确认目标</td></tr>
+<tr><td>前端备份</td><td><code>deploy/frontend/README.md</code> 第 5 节</td><td>确认镜像标签与实际运行镜像对应，保存整个备份目录</td></tr>
+<tr><td>前端回滚</td><td>同文档第 6 节</td><td>不能用会按当前源码重建的 start，也不能只用普通 restart</td></tr>
+</table>
+<p>MySQL SQL 备份不包含 Redis 与 RabbitMQ 的全部运行状态。使用 Redis 秒杀策略时，必须先阅读文档中的停写与队列消费要求，不能声称一份 SQL 就恢复整个系统。</p>
+
+<h2>7 · 权威来源</h2>
+<ul>
+  <li>Docker 官方：<a href="https://docs.docker.com/compose/how-tos/startup-order/">Compose startup order</a></li>
+  <li>Docker 官方：<a href="https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/">Compose variable interpolation</a></li>
+  <li>Docker 官方：<a href="https://docs.docker.com/reference/cli/docker/compose/down/">docker compose down</a></li>
+  <li>仓库事实：<code>README.md</code>、<code>docker-compose.yml</code>、<code>deploy/backend/README.md</code>、<code>deploy/frontend/README.md</code></li>
+</ul>
+<p class="muted">版本：2026-11-20。代码或部署脚本变化后，应重新读取源文件并更新本速查表。</p>
+</main>
+</body>
+</html>
